@@ -28,7 +28,7 @@ final class PhotoSource {
 
     void reload() {
         items.clear();
-        File dir = new File(ctx.getFilesDir(), "photos");
+        File dir = Storage.photoDir(ctx);
         File[] files = dir.listFiles();
         if (files != null) for (File f : files) if (f.getName().endsWith(".jpg")) items.add("file:" + f.getAbsolutePath());
         own = !items.isEmpty();

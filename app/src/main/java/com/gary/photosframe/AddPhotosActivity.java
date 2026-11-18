@@ -54,6 +54,11 @@ public class AddPhotosActivity extends Activity {
             show(null, "Not set up yet", "This build has no Google sign-in client (oauth_client.json).", null);
             return;
         }
+        if (Storage.isFull(this)) {
+            show(null, "No room for more photos", Storage.warning(this)
+                    + "\n\nPress Back to return to the frame.", null);
+            return;
+        }
         new Thread(this::run, "add-photos").start();
     }
 
@@ -87,8 +92,11 @@ public class AddPhotosActivity extends Activity {
     private void pick() throws IOException, InterruptedException {
         Picker picker = new Picker(auth);
         Picker.Session s = picker.create();
+        String warn = Storage.warning(this);
         show(s.pickerUri, "Choose photos for the frame",
-                "Scan with your phone to open Google Photos.\nSelect the photos you want, then tap Done.\nPhotos you add join the ones already on the frame.", null);
+                "Scan with your phone to open Google Photos.\nSelect the photos you want (up to 2,000), then tap Done.\n"
+                        + "Photos you add join the " + Storage.photoCount(this) + " already on the frame."
+                        + (warn == null ? "" : "\n\n" + warn), null);
         try {
             while (!stopped && !picker.isDone(s)) {
                 if (System.currentTimeMillis() > s.timeoutAtMs) throw new IOException("The picking session timed out.");
@@ -97,10 +105,21 @@ public class AddPhotosActivity extends Activity {
             if (stopped) return;
             show(null, "Bringing your photos to the frame…", "", null);
             List<Picker.Item> items = picker.photos(s);
-            int added = picker.download(items, new File(getFilesDir(), "photos"),
-                    (done, total) -> show(null, "Bringing your photos to the frame…", done + " of " + total, null));
-            show(null, added == 1 ? "1 new photo added" : added + " new photos added", "Returning to the frame…", null);
-            ui.postDelayed(() -> { setResult(RESULT_OK, getIntent().putExtra(EXTRA_ADDED, added)); finish(); }, 2500);
+            Picker.Result r = picker.download(items, Storage.photoDir(this), () -> Storage.hasRoomForOne(this),
+                    (done, total) -> show(null, "Bringing your photos to the frame…",
+                            done + " of " + total + "   ·   " + Storage.gb(Storage.free(this)) + " free on the TV", null));
+            StringBuilder sum = new StringBuilder();
+            if (r.alreadyThere > 0) sum.append(r.alreadyThere).append(" were already on the frame.\n");
+            if (r.failed > 0) sum.append(r.failed).append(" could not be downloaded; pick them again later.\n");
+            if (r.noRoom > 0) sum.append(r.noRoom).append(" were not added because TV storage is full.\n");
+            String after = Storage.warning(this);
+            if (after != null && r.noRoom == 0) sum.append(after).append("\n");
+            boolean problem = r.failed > 0 || r.noRoom > 0;
+            sum.append(problem ? "\nPress Back to return to the frame." : "Returning to the frame…");
+            show(null, r.added == 1 ? "1 new photo added" : r.added + " new photos added", sum.toString(), null);
+            int added = r.added;
+            setResult(RESULT_OK, getIntent().putExtra(EXTRA_ADDED, added));
+            if (!problem) ui.postDelayed(this::finish, 3000);
         } finally {
             picker.delete(s);
         }

@@ -12,6 +12,7 @@ import android.widget.TextView;
 public class MainActivity extends Activity {
     private static final int REQ_ADD = 1;
     private FrameView frame;
+    private TextView storageNote;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -29,6 +30,13 @@ public class MainActivity extends Activity {
             root.addView(hint, lp);
             hint.animate().alpha(0f).setStartDelay(10000).setDuration(2000);
         }
+        storageNote = new TextView(this);
+        storageNote.setTextColor(0xCCE8C9A0);
+        storageNote.setTextSize(15);
+        FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        sp.topMargin = 20;
+        root.addView(storageNote, sp);
+        showStorageWarning();
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
@@ -48,5 +56,15 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
         if (req == REQ_ADD && res == RESULT_OK) frame.reload();
+        showStorageWarning();
+    }
+
+    /** Low/full storage: say so for 30 seconds, then let the picture be. Rotation is never affected. */
+    private void showStorageWarning() {
+        String w = Storage.warning(this);
+        storageNote.animate().cancel();
+        storageNote.setText(w == null ? "" : w);
+        storageNote.setAlpha(w == null ? 0f : 1f);
+        if (w != null) storageNote.animate().alpha(0f).setStartDelay(30000).setDuration(3000);
     }
 }

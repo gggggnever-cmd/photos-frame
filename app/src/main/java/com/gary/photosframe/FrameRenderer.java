@@ -16,6 +16,7 @@ final class FrameRenderer {
     static final int FRAME = 0xFF1F1915;       // dark walnut
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final ArtTreatment art = new ArtTreatment();
 
     /** offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
     void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY) {
@@ -80,8 +81,11 @@ final class FrameRenderer {
         lower.close();
         c.drawPath(lower, p);
 
-        // The photo itself, true to its colours.
+        // The photo, given the matte "art print" treatment (see ArtTreatment.STRENGTH).
+        p.setColorFilter(art.colorFilter());
         c.drawBitmap(photo, new Rect(0, 0, photo.getWidth(), photo.getHeight()), photoRect, p);
+        p.setColorFilter(null);
+        art.drawSurface(c, photoRect);
         // Faint glass sheen, top-left to centre.
         p.setShader(new android.graphics.LinearGradient(matRect.left, matRect.top, matRect.centerX(), matRect.centerY(),
                 0x0FFFFFFF, 0x00FFFFFF, android.graphics.Shader.TileMode.CLAMP));

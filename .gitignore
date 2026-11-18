@@ -13,3 +13,4 @@ preview.jpg
 samples/
 .picker_state.json
 picked_items.json
+preview_*.jpg

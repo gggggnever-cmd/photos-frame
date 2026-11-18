@@ -62,22 +62,42 @@ final class Picker {
         return out;
     }
 
+    static final class Result {
+        int added, alreadyThere, failed, noRoom;
+    }
+
+    /** Checked before each photo; returning false stops the download (storage full). */
+    interface RoomCheck { boolean hasRoom(); }
+
     /**
-     * Downloads each photo sized to fit 4K (3840x2160, aspect kept) — the TV's full resolution.
-     * Already-downloaded photos are skipped, so re-picking only adds new ones. Returns how many were new.
+     * Downloads each photo sized to fit 4K (3840x2160, aspect kept) — the TV's full resolution,
+     * roughly 5-15 MB each. Already-downloaded photos are skipped, so re-picking only adds new ones.
+     * One bad photo doesn't stop the rest; running out of room stops cleanly with what was saved.
      */
-    int download(List<Item> items, File dir, Progress progress) throws IOException {
+    Result download(List<Item> items, File dir, RoomCheck room, Progress progress) throws IOException {
         if (!dir.exists() && !dir.mkdirs()) throw new IOException("Cannot create " + dir);
-        int added = 0, done = 0;
+        Result r = new Result();
+        int done = 0;
         for (Item it : items) {
             File dest = new File(dir, safe(it.id) + ".jpg");
-            if (!dest.exists()) {
-                Http.download(it.baseUrl + "=w3840-h2160", auth.token(), dest);
-                added++;
+            if (dest.exists()) {
+                r.alreadyThere++;
+            } else if (!room.hasRoom()) {
+                r.noRoom = items.size() - done;
+                break;
+            } else {
+                try {
+                    Http.download(it.baseUrl + "=w3840-h2160", auth.token(), dest);
+                    r.added++;
+                } catch (IOException e) {
+                    new File(dir, dest.getName() + ".part").delete();
+                    if (!room.hasRoom()) { r.noRoom = items.size() - done; break; }
+                    r.failed++;
+                }
             }
             progress.onProgress(++done, items.size());
         }
-        return added;
+        return r;
     }
 
     void delete(Session s) {
