@@ -123,6 +123,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     // SettingsPanel.Host (counts)
     @Override public int hiddenCount() { return frame.hiddenCount(); }
     @Override public int favouriteCount() { return frame.favouriteCount(); }
+    @Override public java.util.List<String[]> days() { return frame.days(); }
     @Override public void unhideAll() { frame.unhideAll(); note("Hidden photos will show again"); }
 
     // SettingsPanel.Host

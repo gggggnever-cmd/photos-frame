@@ -17,11 +17,12 @@ final class SettingsPanel extends LinearLayout {
     interface Host {
         void settingsChanged(); void addPhotos(); void close();
         int hiddenCount(); int favouriteCount(); void unhideAll();
+        java.util.List<String[]> days();   // {yyyy:MM:dd, count}, oldest first
     }
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
     private static final int ROW_INTERVAL = 0, ROW_ART = 1, ROW_SURFACE = 2, ROW_LOOK = 3, ROW_ORDER = 4,
-            ROW_PLAY = 5, ROW_HIDDEN = 6, ROW_ADD = 7, ROWS = 8;
+            ROW_DAY = 5, ROW_PLAY = 6, ROW_HIDDEN = 7, ROW_ADD = 8, ROWS = 9;
 
     private final Settings settings;
     private final Host host;
@@ -45,7 +46,7 @@ final class SettingsPanel extends LinearLayout {
         TextView title = text("Settings", 28, INK, Typeface.SERIF);
         addView(title);
         addView(space(14));
-        String[] names = {"Change photo every", "Print filter", "Print surface", "Look", "Order", "Play",
+        String[] names = {"Change photo every", "Print filter", "Print surface", "Look", "Order", "   Day", "Play",
                 "Hidden photos", "Add photos…"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
@@ -74,8 +75,8 @@ final class SettingsPanel extends LinearLayout {
     /** Handles a remote key while the page is open. Always consumes it. */
     boolean onKey(int code) {
         switch (code) {
-            case KeyEvent.KEYCODE_DPAD_UP: focus = (focus + ROWS - 1) % ROWS; break;
-            case KeyEvent.KEYCODE_DPAD_DOWN: focus = (focus + 1) % ROWS; break;
+            case KeyEvent.KEYCODE_DPAD_UP: do focus = (focus + ROWS - 1) % ROWS; while (!shown(focus)); break;
+            case KeyEvent.KEYCODE_DPAD_DOWN: do focus = (focus + 1) % ROWS; while (!shown(focus)); break;
             case KeyEvent.KEYCODE_DPAD_LEFT: change(-1); break;
             case KeyEvent.KEYCODE_DPAD_RIGHT: change(+1); break;
             case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
@@ -102,6 +103,11 @@ final class SettingsPanel extends LinearLayout {
         } else if (focus == ROW_ORDER) {
             int n = Settings.ORDER_NAMES.length;
             settings.setOrder(Math.max(0, Math.min(n - 1, settings.order() + dir)));
+        } else if (focus == ROW_DAY) {
+            java.util.List<String[]> days = host.days();
+            int i = dayIndex(days) + dir;                 // 0 = Any day, 1.. = the days, oldest first
+            i = Math.max(0, Math.min(days.size(), i));
+            settings.setDay(i == 0 ? "" : days.get(i - 1)[0]);
         } else if (focus == ROW_PLAY) {
             settings.setFavouritesOnly(dir > 0);
         } else if (focus == ROW_LOOK) {
@@ -120,6 +126,12 @@ final class SettingsPanel extends LinearLayout {
         values[ROW_SURFACE].setText(arrows(Settings.SURFACE_NAMES[settings.surface()], settings.surface(), Settings.SURFACE_NAMES.length));
         values[ROW_LOOK].setText(arrows(Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
         values[ROW_ORDER].setText(arrows(Settings.ORDER_NAMES[settings.order()], settings.order(), Settings.ORDER_NAMES.length));
+        rows[ROW_DAY].setVisibility(shown(ROW_DAY) ? VISIBLE : GONE);
+        if (shown(ROW_DAY)) {
+            java.util.List<String[]> days = host.days();
+            int i = dayIndex(days);
+            values[ROW_DAY].setText(arrows(i == 0 ? "Any day" : dayLabel(days.get(i - 1)), i, days.size() + 1));
+        }
         int fav = settings.favouritesOnly() ? 1 : 0;
         String play = Settings.PLAY_NAMES[fav];
         if (fav == 1) play += host.favouriteCount() == 0 ? " (none yet)" : " (" + host.favouriteCount() + ")";
@@ -133,6 +145,26 @@ final class SettingsPanel extends LinearLayout {
             d.setColor(i == focus ? 0x33F1EDE4 : 0x00000000);
             rows[i].setBackground(d);
         }
+    }
+
+    private boolean shown(int row) { return row != ROW_DAY || settings.order() == Settings.ORDER_DAY; }
+
+    /** 0 for Any day (or a day that no longer has photos), else 1 + its position in the list. */
+    private int dayIndex(java.util.List<String[]> days) {
+        String d = settings.day();
+        for (int i = 0; i < days.size(); i++) if (days.get(i)[0].equals(d)) return i + 1;
+        return 0;
+    }
+
+    /** "2026:10:11" + count → "Sat 11 Oct · 96 photos". */
+    private static String dayLabel(String[] day) {
+        String label = day[0];
+        try {
+            java.text.SimpleDateFormat in = new java.text.SimpleDateFormat("yyyy:MM:dd", java.util.Locale.US);
+            java.text.SimpleDateFormat out = new java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.UK);
+            label = out.format(in.parse(day[0]));
+        } catch (java.text.ParseException ignored) { }
+        return label + "  ·  " + day[1] + " photos";
     }
 
     private static String arrows(String v, int i, int n) {

@@ -104,7 +104,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.11** (versionCode 11). Everything is on GitHub `main`.
+Current version: **v0.12** (versionCode 12). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -160,11 +160,27 @@ Current version: **v0.11** (versionCode 11). Everything is on GitHub `main`.
       Favourites only, hide/unhide. Checked on the TV with logs and screenshots; test favourites/hide undone.
       Not yet tested on the TV: choosing left/middle/right in the photo menu on a three-photo screen.
       Testing tip: with a 30 s interval the photo changes mid-test; use Play → Favourites only to undo test favourites.
+- [x] v0.12 (2026-11-18): One day at a time can play a chosen day (Settings → Day, shown only in that
+      order; pref "day" = yyyy:MM:dd or ""). Checked on the TV: Sat 10 Oct, 304 photos, 175 screens after bursts.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner
   lives with it for a few days.
+
+## Idea parked by the owner (2026-11-18): "Highlights" / trip overview — DON'T BUILD until he asks
+The owner's words: an "executive overview" of a trip: pick the most important photos (say ~30, maybe user-set)
+and play just those. Thinking so far (nothing built):
+- Name: "Highlights" (Settings → Play: All photos / Favourites only / Highlights, with a count 20/30/50/100).
+- Picker API gives no Google "best of" data, so importance must come from what's on the TV:
+  favourites (strongest signal); burst size (a scene the owner shot many times mattered to him; also pick the
+  sharpest member); faces (android.media.FaceDetector, on-device); sharpness/exposure (blur and dark
+  shots score low); spread across days so every day of the trip is represented (proportional quota per day,
+  minimum one); and no two near-identical picks.
+- Play the chosen set in date order, like a short story of the trip; loop it.
+- Score once per photo in the background and cache it in files/library/meta.tsv (CPU is slow).
+- Let the owner nudge it: favourite = always in, hidden = never in.
+
 
 ## Setting up on the owner's PC (first local session)
 The owner will open Claude Code on his PC and ask to set everything up. Do it end to end without manual

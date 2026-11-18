@@ -79,6 +79,7 @@ final class PhotoLibrary {
     private int roundNumber;
     private int roundOrder = -1;
     private boolean roundFavOnly;
+    private String roundDay = "";                                     // chosen day the round was built for
     private long roundStart;                                           // wall clock ms when the round began
 
     private PhotoLibrary(Context ctx) {
@@ -130,7 +131,8 @@ final class PhotoLibrary {
      * settings changed. Null when there are no photos to show.
      */
     synchronized String take(Settings s) {
-        if (roundOrder != s.order() || roundFavOnly != s.favouritesOnly() || next >= round.size()) newRound(s);
+        if (roundOrder != s.order() || roundFavOnly != s.favouritesOnly() || next >= round.size()
+                || (s.order() == Settings.ORDER_DAY && !s.day().equals(roundDay))) newRound(s);
         if (next >= round.size()) return null;
         String id = round.get(next++);
         writeRound();
@@ -155,6 +157,23 @@ final class PhotoLibrary {
             out.add(id);
         }
         if (!out.isEmpty()) writeRound();
+        return out;
+    }
+
+    /** The days photos were taken on (oldest first) with how many photos each has, for the Day setting. */
+    synchronized List<String[]> days(boolean favOnly) {
+        Map<String, Integer> count = new HashMap<>();
+        for (String id : photos) {
+            if (!eligible(id, favOnly && !favourites.isEmpty())) continue;
+            String d = dayOf(id);
+            if (d.isEmpty()) continue;
+            Integer c = count.get(d);
+            count.put(d, c == null ? 1 : c + 1);
+        }
+        List<String> keys = new ArrayList<>(count.keySet());
+        Collections.sort(keys);
+        List<String[]> out = new ArrayList<>();
+        for (String k : keys) out.add(new String[]{k, String.valueOf(count.get(k))});
         return out;
     }
 
@@ -207,7 +226,21 @@ final class PhotoLibrary {
         roundNumber++;
         List<String> reps = burstRepresentatives(pool, roundNumber);
         round.clear();
-        if (s.order() == Settings.ORDER_DAY) {
+        String chosen = s.order() == Settings.ORDER_DAY ? s.day() : "";
+        if (!chosen.isEmpty()) {
+            // One chosen day, in the order taken; it starts again (with other burst members) when done.
+            List<String> day = new ArrayList<>();
+            for (String id : reps) if (chosen.equals(dayOf(id))) day.add(id);
+            if (!day.isEmpty()) {
+                day.sort(Comparator.comparingLong(this::takenOf));
+                reps = day;
+            } else {
+                chosen = "";   // nothing left on that day (all hidden?): fall back to any day
+            }
+        }
+        if (s.order() == Settings.ORDER_DAY && !chosen.isEmpty()) {
+            round.addAll(reps);
+        } else if (s.order() == Settings.ORDER_DAY) {
             Map<String, List<String>> byDay = new LinkedHashMap<>();
             for (String id : reps) {
                 String d = dayOf(id);
@@ -228,6 +261,7 @@ final class PhotoLibrary {
             Collections.shuffle(round, random);
         }
         next = 0;
+        roundDay = s.order() == Settings.ORDER_DAY ? s.day() : "";
         roundStart = System.currentTimeMillis();
         Log.i("PhotoLibrary", "new round " + roundNumber + ": " + pool.size() + " photos, " + round.size()
                 + " after merging bursts, order=" + Settings.ORDER_NAMES[s.order()] + ", favouritesOnly=" + favOnly);
@@ -353,7 +387,7 @@ final class PhotoLibrary {
         writeText(file, sb.toString());
     }
 
-    /** round.txt: "next roundNumber order favOnly roundStart" then one file name per line. */
+    /** round.txt: "next roundNumber order favOnly roundStart roundDay" then one file name per line. */
     private void readRound() {
         List<String> lines = readLines("round.txt");
         if (lines.isEmpty()) return;
@@ -372,6 +406,7 @@ final class PhotoLibrary {
             roundOrder = Integer.parseInt(h[2]);
             roundFavOnly = Boolean.parseBoolean(h[3]);
             roundStart = h.length > 4 ? Long.parseLong(h[4]) : System.currentTimeMillis();
+            roundDay = h.length > 5 && !h[5].equals("-") ? h[5] : "";
         } catch (NumberFormatException e) {
             round.clear();
             next = 0;
@@ -384,7 +419,8 @@ final class PhotoLibrary {
         if (!own) return;
         StringBuilder sb = new StringBuilder();
         sb.append(next).append(' ').append(roundNumber).append(' ').append(roundOrder).append(' ')
-          .append(roundFavOnly).append(' ').append(roundStart).append('\n');
+          .append(roundFavOnly).append(' ').append(roundStart).append(' ')
+          .append(roundDay.isEmpty() ? "-" : roundDay).append('\n');
         for (String id : round) sb.append(name(id)).append('\n');
         writeText("round.txt", sb.toString());
     }

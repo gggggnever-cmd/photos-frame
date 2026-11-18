@@ -58,6 +58,7 @@ public class FrameView extends View {
     private int bakedLook = -1;
     private int bakedOrder = -1;
     private boolean bakedFavOnly;
+    private String bakedDay = "";
     private final Paint highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private int highlight = -1;                      // photo outlined while the photo menu chooses one
 
@@ -86,6 +87,7 @@ public class FrameView extends View {
             source = new PhotoSource(ctx, settings);
             bakedOrder = settings.order();
             bakedFavOnly = settings.favouritesOnly();
+            bakedDay = settings.day();
             ensureArt();
         });
         highlightPaint.setStyle(Paint.Style.STROKE);
@@ -136,6 +138,10 @@ public class FrameView extends View {
     public int hiddenCount() { PhotoSource s = source; return s == null ? 0 : s.library().hiddenCount(); }
     public int favouriteCount() { PhotoSource s = source; return s == null ? 0 : s.library().favouriteCount(); }
     public void unhideAll() { bg.post(() -> { source.library().unhideAll(); prepared = null; }); }
+    public List<String[]> days() {
+        PhotoSource s = source;
+        return s == null ? Collections.emptyList() : s.library().days(settings.favouritesOnly());
+    }
     public boolean isFavourite(String id) { PhotoSource s = source; return s != null && s.library().isFavourite(id); }
 
     /** Shows the next slide now and restarts the timer. */
@@ -176,10 +182,12 @@ public class FrameView extends View {
         int w = getWidth(), h = getHeight();
         if (shown == null || w == 0) return;
         bg.post(() -> {
-            if (settings.order() != bakedOrder || settings.favouritesOnly() != bakedFavOnly) {
-                // New order or play choice: the library starts a new round with the next slide.
+            if (settings.order() != bakedOrder || settings.favouritesOnly() != bakedFavOnly
+                    || !settings.day().equals(bakedDay)) {
+                // New order, day or play choice: the library starts a new round with the next slide.
                 bakedOrder = settings.order();
                 bakedFavOnly = settings.favouritesOnly();
+                bakedDay = settings.day();
                 source.dropUpcoming();
                 prepared = null;
                 return;

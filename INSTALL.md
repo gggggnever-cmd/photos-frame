@@ -92,7 +92,8 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
   - **Print surface:** Paper (the starting setting) or Canvas: the fine texture the filter adds.
   - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.
   - **Order:** Shuffle (the starting setting) or One day at a time (a random day of your photos, in the
-    order you took them, then another day).
+    order you took them, then another day). With One day at a time, a **Day** line appears:
+    Any day, or pick one specific day (◀ ▶ steps through the days, with how many photos each has).
   - **Play:** All photos, or Favourites only.
   - **Hidden photos:** how many you've hidden; press OK to show them all again.
   - **Add photos…** — press OK.

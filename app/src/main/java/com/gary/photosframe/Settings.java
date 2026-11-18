@@ -58,6 +58,10 @@ final class Settings {
     int order() { return clamp(prefs.getInt("order", ORDER_SHUFFLE), ORDER_NAMES.length, ORDER_SHUFFLE); }
     void setOrder(int v) { prefs.edit().putInt("order", v).apply(); }
 
+    /** One day at a time: the chosen day as "yyyy:MM:dd" (the photos' own date format), or "" for any day. */
+    String day() { return prefs.getString("day", ""); }
+    void setDay(String d) { prefs.edit().putString("day", d).apply(); }
+
     static final String[] PLAY_NAMES = {"All photos", "Favourites only"};
     boolean favouritesOnly() { return prefs.getBoolean("favourites_only", false); }
     void setFavouritesOnly(boolean v) { prefs.edit().putBoolean("favourites_only", v).apply(); }
