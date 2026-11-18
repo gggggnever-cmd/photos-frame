@@ -74,7 +74,7 @@ public class AddPhotosActivity extends Activity {
     private void start() {
         canRetry = false;
         if (!auth.isConfigured()) {
-            show(null, "Not set up yet", "This build has no Google sign-in client (oauth_client.json).", null);
+            show(null, "Not set up yet", "Google sign-in isn't set up on this TV yet. Ask whoever set up the app.", null);
             return;
         }
         if (Storage.isFull(this)) {
@@ -118,9 +118,9 @@ public class AddPhotosActivity extends Activity {
             }
         });
         String url = server.start();
-        if (url == null) throw new IOException("The TV isn't connected to the home network.");
+        if (url == null) throw new IOException("The TV isn't connected to your Wi-Fi.");
         try {
-            show(url, "Sign in to Google Photos (one time)",
+            show(url, "Sign in to Google Photos (only needed once)",
                     "With your phone on the same Wi-Fi as the TV, scan this code.\n"
                             + "A page opens with three short steps. If the phone can't reach it, type this address\n"
                             + "in a computer's browser instead (also on this Wi-Fi):", url.replace("http://", ""));
@@ -139,11 +139,11 @@ public class AddPhotosActivity extends Activity {
         show(s.pickerUri, "Choose photos for the frame",
                 "Scan with your phone to open Google Photos.\n"
                         + "Tip: type the trip's album name in the search box, then tap the circle next to each day.\n"
-                        + "Up to 2,000 photos at a time; pick the rest of a big trip next time and they join it."
+                        + "You can pick up to 2,000 photos at a time. For a bigger trip, add the rest later and they join the same trip."
                         + (warn == null ? "" : "\n\n" + warn), null);
         try {
             while (!stopped && !picker.isDone(s)) {
-                if (System.currentTimeMillis() > s.timeoutAtMs) throw new IOException("The picking session timed out.");
+                if (System.currentTimeMillis() > s.timeoutAtMs) throw new IOException("Choosing took too long, so it stopped.");
                 Thread.sleep(s.pollMs);
             }
             if (stopped) return;
@@ -198,7 +198,7 @@ public class AddPhotosActivity extends Activity {
             });
             StringBuilder sum = new StringBuilder();
             if (r.alreadyThere > 0) sum.append(r.alreadyThere).append(" were already on the frame.\n");
-            if (r.failed > 0) sum.append(r.failed).append(" could not be downloaded; pick them again later.\n");
+            if (r.failed > 0) sum.append(r.failed).append(" didn't arrive. Pick them again another time.\n");
             if (r.noRoom > 0) sum.append(r.noRoom).append(" were not added: the space for photos is full "
                     + "(Settings → Space for photos).\n");
             String after = Storage.warning(this);
@@ -236,7 +236,7 @@ public class AddPhotosActivity extends Activity {
         code.setVisibility(View.GONE);
         nameTitle.setText(Trips.label(t.start, t.end, "", t.items.size()));
         nameInfo.setText(t.items.size() + " photos.  Say or type a name (e.g. Egypt) and press OK.\n"
-                + "Press Back to keep the date as its name; you can name it later in Settings → Trip.");
+                + "Press Back to skip; the trip will show its dates. You can name it later in Settings → Trips to play.");
         coverRow.removeAllViews();
         for (Bitmap bmp : t.covers) {
             ImageView iv = new ImageView(this);

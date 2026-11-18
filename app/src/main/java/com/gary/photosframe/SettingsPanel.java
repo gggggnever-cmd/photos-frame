@@ -31,6 +31,7 @@ final class SettingsPanel extends LinearLayout {
     private final Settings settings;
     private final Host host;
     private final TextView[] labels = new TextView[ROWS], values = new TextView[ROWS];
+    private TextView collageNote;
     private final LinearLayout[] rows = new LinearLayout[ROWS];
     private int focus = ROW_INTERVAL;
 
@@ -50,8 +51,8 @@ final class SettingsPanel extends LinearLayout {
         TextView title = text("Settings", 24, INK, Typeface.SERIF);
         addView(title);
         addView(space(8));
-        String[] names = {"Trip", "Change photo every", "Print filter", "Print surface", "Look", "Order", "   Day",
-                "Play", "   Highlights per trip", "Space for photos", "Hidden photos", "Add photos…"};
+        String[] names = {"Trips to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
+                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -66,7 +67,10 @@ final class SettingsPanel extends LinearLayout {
             addView(row);
         }
         addView(space(8));
-        addView(text("▲▼ choose   ·   ◀ ▶ change   ·   Back to close", 14, SOFT, Typeface.SANS_SERIF));
+        addView(text("▲▼ move   ·   ◀ ▶ change   ·   Back to close", 14, SOFT, Typeface.SANS_SERIF));
+        collageNote = text("Cut-out collage rebuilds the photo from flat colours, like layered paper. Some detail is lost.",
+                14, SOFT, Typeface.SANS_SERIF);
+        addView(collageNote);
         refresh();
     }
 
@@ -141,9 +145,11 @@ final class SettingsPanel extends LinearLayout {
         values[ROW_INTERVAL].setText(arrows(Settings.intervalName(settings.interval()),
                 settings.interval(), Settings.INTERVAL_SECONDS.length));
         values[ROW_ART].setText(arrows(settings.artName(), settings.artLevel(), Settings.ART_STRENGTHS.length));
-        values[ROW_SURFACE].setText(arrows(Settings.SURFACE_NAMES[settings.surface()], settings.surface(), Settings.SURFACE_NAMES.length));
+        String style = settings.artLevel() == 0 ? "Off (Print look is off)" : Settings.SURFACE_NAMES[settings.surface()];
+        values[ROW_SURFACE].setText(arrows(style, settings.surface(), Settings.SURFACE_NAMES.length));
+        if (collageNote != null) collageNote.setVisibility(settings.artLevel() > 0 && settings.surface() == Settings.SURFACE_CUT ? VISIBLE : GONE);
         values[ROW_LOOK].setText(arrows(Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
-        values[ROW_TRIP].setText(tripSummary() + (focus == ROW_TRIP ? "  ·  OK" : ""));
+        values[ROW_TRIP].setText(tripSummary() + (focus == ROW_TRIP ? "  ·  OK to choose" : ""));
         values[ROW_SPACE].setText(arrows(Settings.SPACE_GB[settings.space()] + " GB", settings.space(), Settings.SPACE_GB.length));
         values[ROW_ORDER].setText(arrows(Settings.ORDER_NAMES[settings.order()], settings.order(), Settings.ORDER_NAMES.length));
         rows[ROW_DAY].setVisibility(shown(ROW_DAY) ? VISIBLE : GONE);
@@ -154,17 +160,17 @@ final class SettingsPanel extends LinearLayout {
         }
         int p = settings.play();
         String play = Settings.PLAY_NAMES[p];
-        if (p == Settings.PLAY_FAV) play += host.favouriteCount() == 0 ? " (none yet)" : " (" + host.favouriteCount() + ")";
+        if (p == Settings.PLAY_FAV) play += host.favouriteCount() == 0 ? " (none picked yet)" : " (" + host.favouriteCount() + ")";
         if (p == Settings.PLAY_PLACES || p == Settings.PLAY_HIGHLIGHTS) {
             int[] c = host.checkProgress();
-            if (c[1] > 0 && c[0] < c[1]) play += " (checking " + (100 * c[0] / c[1]) + "%)";
+            if (c[1] > 0 && c[0] < c[1]) play += " (sorting " + (100 * c[0] / c[1]) + "%)";
             else if (p == Settings.PLAY_PLACES) play += " (" + host.placeCount() + ")";
         }
         values[ROW_PLAY].setText(arrows(play, p, Settings.PLAY_NAMES.length));
         for (int r : new int[]{ROW_ORDER, ROW_DAY, ROW_HIGHLIGHTS}) rows[r].setVisibility(shown(r) ? VISIBLE : GONE);
         values[ROW_HIGHLIGHTS].setText(arrows(String.valueOf(settings.highlightCount()), settings.highlightsIndex(), Highlights.COUNTS.length));
         int hidden = host.hiddenCount();
-        values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK to show again" : ""));
+        values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK brings them back" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
         for (int i = 0; i < ROWS; i++) {
             GradientDrawable d = new GradientDrawable();
@@ -174,12 +180,12 @@ final class SettingsPanel extends LinearLayout {
         }
     }
 
-    /** "All trips", the one chosen trip's name, or "3 trips mixed". */
+    /** "All trips", the one chosen trip's name, or "3 trips together". */
     private String tripSummary() {
         String chosen = settings.trips();
         if (chosen.isEmpty()) return "All trips";
         String[] ranges = chosen.split(";");
-        if (ranges.length > 1) return ranges.length + " trips mixed";
+        if (ranges.length > 1) return ranges.length + " trips together";
         String[] r = ranges[0].split("~");
         for (String[] t : host.tripRows())
             if (r.length == 2 && Trips.overlap(t[0], t[1], r[0], r[1]) > 0) return t[2].replace("  ·  ", " · ");

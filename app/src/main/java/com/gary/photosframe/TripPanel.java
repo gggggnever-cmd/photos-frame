@@ -57,7 +57,7 @@ final class TripPanel extends LinearLayout {
         addView(scroll, new LayoutParams(LayoutParams.MATCH_PARENT, dp(380)));
         View gap2 = new View(ctx);
         addView(gap2, new LayoutParams(1, dp(8)));
-        addView(text("▲▼ choose   ·   OK tick / untick (ticked trips mix)   ·   hold OK to rename   ·   Back to finish",
+        addView(text("▲▼ move   ·   OK ticks a trip (ticked trips play together)   ·   hold OK to rename   ·   Back when done",
                 13, SOFT, Typeface.SANS_SERIF));
     }
 
@@ -133,7 +133,7 @@ final class TripPanel extends LinearLayout {
         rows.clear();
         ticks.clear();
         addRow("All trips", "", false);
-        for (String[] t : trips) addRow(t[2], "gone".equals(t[4]) ? "not on the TV" : t[3] + " photos", "gone".equals(t[4]));
+        for (String[] t : trips) addRow(t[2], "gone".equals(t[4]) ? "removed to make room" : t[3] + " photos", "gone".equals(t[4]));
     }
 
     private void addRow(String label, String info, boolean gone) {

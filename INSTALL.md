@@ -93,25 +93,25 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
 - **◀** — go back to the previous picture.
 - **▲** — open **Settings**: use ▲▼ to pick a line and ◀▶ to change it, then **Back** to close.
   - **Change photo every:** 30 seconds, 1 minute, 5 minutes, 10 minutes (the starting setting), 30 minutes or 1 hour.
-  - **Print filter:** Off, Light, Moderate (the starting setting), Strong, Extra strong or Maximum. Makes photos look like prints
+  - **Print look:** Off, Light, Medium (the starting setting), Strong, Extra strong or Strongest. Makes photos look like prints
     on paper rather than a bright screen. The photo on screen changes to show it.
-  - **Print surface:** Paper (the starting setting), Canvas, or **Paper cut** (the photo rebuilt from a few flat
-    colours, like layered cut paper with soft shadows). Needs the Print filter on (not Off).
-  - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.
-  - **Trip:** which trips play. Press OK for the list: All trips, or tick one or more (ticked trips are
+  - **Style:** Fine art paper (the starting setting), Canvas, or **Cut-out collage** (the photo rebuilt from a few flat
+    colours, like layered cut paper with soft shadows). Needs Print look on (not Off).
+  - **Picture size:** Full screen (the starting setting; upright photos appear three side by side) or With a border.
+  - **Trips to play:** which trips play. Press OK for the list: All trips, or tick one or more (ticked trips are
     mixed together). Hold OK on a trip to give it a name (you can type or press the mic and say it).
-  - **Order:** Shuffle (the starting setting) or One day at a time (a random day of your photos, in the
-    order you took them, then another day). With One day at a time, a **Day** line appears:
+  - **Photo order:** Shuffle (the starting setting) or One day at a time (a random day of your photos, in the
+    order you took them, then another day). With One day at a time, a **Which day** line appears:
     Any day, or pick one specific day (◀ ▶ steps through the days, with how many photos each has).
-  - **Play:** All photos, Favourites only, **Places only** (photos where nobody is posing: scenery,
+  - **Photos to show:** All photos, Favourites, **Places only** (photos where nobody is posing: scenery,
     streets, buildings; small passers-by are fine), or **Highlights** (the best photos of each trip, played
     in the order taken like a short story). After an update the TV first looks at every photo once in the
-    background (about 20-30 minutes for 2,000; it says "checking 40%" here meanwhile).
-  - **Highlights per trip:** 20, 30 (the starting setting), 50 or 100. Shown only when Play is Highlights.
+    background (about 20-30 minutes for 2,000; it says "sorting 40%" here meanwhile).
+  - **Best photos per trip:** 20, 30 (the starting setting), 50 or 100. Shown only when Play is Highlights.
   - **Space for photos:** 5, 10, 15, 20 (the starting setting) or 30 GB. When it's full, the trip you haven't
     played for longest is cleared from the TV (its name is remembered; pick it again to bring it back).
   - **Hidden photos:** how many you've hidden; press OK to show them all again.
-  - **Add photos…** — press OK.
+  - **Add more photos** — press OK.
   The TV remembers your choices, and the screensaver uses them too.
 - **Hold OK** (about a second) — a small menu for the photo on screen: **Favourite** (on/off) or
   **Hide this photo** (it won't come back until you use Settings → Hidden photos), or **Places only**

@@ -4,7 +4,7 @@ A personal Google TV app (built for a TCL NXTFRAME) that shows your own Google P
 full screen, edge to edge. Upright photos are shown three side by side, whole, with paper-coloured gaps. A "Framed" look
 (off-white bevelled matte, dark walnut frame, charcoal wall) can be chosen in Settings.
 Pictures change every 10 minutes (adjustable) with a slow 4-second fade.
-Photos can get a "print" filter (▲ Settings: Off/Light/Moderate/Strong/Extra strong/Maximum, surface Paper, Canvas or Paper cut):
+Photos can get a "print" filter (▲ Settings → Print look: Off/Light/Medium/Strong/Extra strong/Strongest; Style: Fine art paper, Canvas or Cut-out collage):
 a warm paper white and ink-black ends, slightly quieter colour, a fine paper or canvas texture and a
 soft gallery light, so they read like prints on the TV's matte screen. No blur or painterly effects.
 It also works as the TV's screensaver.
@@ -27,7 +27,7 @@ Photos come only through the official Google Photos **Picker API**
 Partner Sharing are pickable too.
 
 Photo order: a saved shuffle (continues after restarts), near-identical burst shots shown one per round,
-"One day at a time", favourites (Play: Favourites only) and hiding, via a long press on OK
+"One day at a time", favourites (Photos to show: Favourites) and hiding, via a long press on OK
 (`PhotoLibrary.java`, `PhotoMenu.java`). Play: **Places only** (no one posing) and **Highlights** (the best
 N photos per trip, in story order), from an on-TV photo check (`PhotoChecker.java`: ML Kit face detection
 bundled in the app, sharpness, brightness; nothing leaves the TV) and pure selection logic

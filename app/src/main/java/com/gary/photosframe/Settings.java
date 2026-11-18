@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 /** Viewer settings changed on the TV's Settings page (▲). Shared by the app and the screensaver. */
 final class Settings {
     // Levels past Strong (the owner, 2026-11-18) add print character; see ArtTreatment for the knee at 1.
-    static final String[] ART_NAMES = {"Off", "Light", "Moderate", "Strong", "Extra strong", "Maximum"};
+    static final String[] ART_NAMES = {"Off", "Light", "Medium", "Strong", "Extra strong", "Strongest"};
     static final float[] ART_STRENGTHS = {0f, 0.25f, 0.5f, 1f, 1.5f, 2f};
     static final int DEFAULT_ART_LEVEL = 2;   // Moderate
 
@@ -43,12 +43,12 @@ final class Settings {
         return m + (m == 1 ? " minute" : " minutes");
     }
 
-    static final String[] LOOK_NAMES = {"Full screen", "Framed"};
+    static final String[] LOOK_NAMES = {"Full screen", "With a border"};
     static final int LOOK_FULL = 0, LOOK_FRAMED = 1;
     int look() { return clamp(prefs.getInt("look", LOOK_FULL), LOOK_NAMES.length, LOOK_FULL); }
     void setLook(int l) { prefs.edit().putInt("look", l).apply(); }
 
-    static final String[] SURFACE_NAMES = {"Paper", "Canvas", "Paper cut"};
+    static final String[] SURFACE_NAMES = {"Fine art paper", "Canvas", "Cut-out collage"};
     static final int SURFACE_PAPER = 0, SURFACE_CANVAS = 1, SURFACE_CUT = 2;   // Paper cut: flat colour sheets
     int surface() { return clamp(prefs.getInt("surface", SURFACE_PAPER), SURFACE_NAMES.length, SURFACE_PAPER); }
     void setSurface(int v) { prefs.edit().putInt("surface", v).apply(); }
@@ -74,7 +74,7 @@ final class Settings {
     long spaceBytes() { return SPACE_GB[space()] * Storage.GB; }
 
     // Play: which photos (v0.14 added Places only and Highlights; before that a boolean "favourites_only").
-    static final String[] PLAY_NAMES = {"All photos", "Favourites only", "Places only", "Highlights"};
+    static final String[] PLAY_NAMES = {"All photos", "Favourites", "Places only", "Highlights"};
     static final int PLAY_ALL = 0, PLAY_FAV = 1, PLAY_PLACES = 2, PLAY_HIGHLIGHTS = 3;
     int play() {
         if (!prefs.contains("play")) return prefs.getBoolean("favourites_only", false) ? PLAY_FAV : PLAY_ALL;

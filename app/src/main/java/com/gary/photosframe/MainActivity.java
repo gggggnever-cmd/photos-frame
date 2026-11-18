@@ -139,11 +139,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         frame.toggleFavourite(id, now -> note(now ? "♥ Added to favourites" : "Removed from favourites"));
     }
     @Override public void hide(String id) {
-        frame.hide(id, () -> note("Hidden. Settings → Hidden photos brings it back"));
+        frame.hide(id, () -> note("Photo hidden. To bring it back: Settings → Hidden photos"));
     }
     @Override public Boolean isPlace(String id) { return frame.isPlace(id); }
     @Override public void togglePlace(String id) {
-        frame.togglePlace(id, now -> note(now ? "Shown in Places only" : "Left out of Places only"));
+        frame.togglePlace(id, now -> note(now ? "Added to Places only" : "Taken out of Places only"));
     }
     @Override public int placeCount() { return frame.placeCount(); }
     @Override public int[] checkProgress() { return frame.checkProgress(); }
@@ -201,7 +201,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         TextView hint = new TextView(this);
         hint.setTextColor(0xB3F1EDE4);
         hint.setTextSize(14);
-        hint.setText("OK to save  ·  leave it empty to go back to the date name  ·  Back to cancel");
+        hint.setText("OK to save  ·  leave empty to use the dates instead  ·  Back to cancel");
         renameBox.addView(hint);
         renameBox.setVisibility(View.GONE);
         root.addView(renameBox, new FrameLayout.LayoutParams(Math.round(560 * getResources().getDisplayMetrics().density), -2, Gravity.CENTER));
@@ -229,7 +229,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         boolean back = renameFromTrips;
         closeRename();
         frame.nameTrip(r[0], r[1], name, () -> {
-            note(name.isEmpty() ? "Trip uses its date name" : "Trip named \"" + name + "\"");
+            note(name.isEmpty() ? "Trip name removed; it shows its dates again" : "Trip named \"" + name + "\"");
             if (back) { tripPanel.reload(); tripPanel.setVisibility(View.VISIBLE); }
         });
     }

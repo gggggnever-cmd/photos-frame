@@ -53,7 +53,7 @@ final class PhotoMenu extends LinearLayout {
         addView(text("This photo", 24, INK, Typeface.SERIF));
         View gap = new View(ctx);
         addView(gap, new LayoutParams(1, dp(10)));
-        String[] names = {"Photo", "Favourite", "Hide this photo", "Places only", "Name this trip", "Cancel"};
+        String[] names = {"Which photo", "Favourite", "Hide this photo", "In \"Places only\"", "Name this trip", "Close"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -83,7 +83,7 @@ final class PhotoMenu extends LinearLayout {
         chosen = 0;
         focus = ROW_FAV;
         rows[ROW_PHOTO].setVisibility(photos.size() > 1 ? VISIBLE : GONE);
-        hint.setText(photos.size() > 1 ? "◀ ▶ which photo   ·   ▲▼ choose   ·   OK" : "▲▼ choose   ·   OK   ·   Back to close");
+        hint.setText(photos.size() > 1 ? "◀ ▶ pick photo  ·  ▲▼ move  ·  OK to choose  ·  Back to close" : "▲▼ move   ·   OK to choose   ·   Back to close");
         setVisibility(VISIBLE);
         refresh();
     }
@@ -120,9 +120,9 @@ final class PhotoMenu extends LinearLayout {
         String[] pos = photos.size() == 2 ? POSITIONS_2 : POSITIONS_3;
         values[ROW_PHOTO].setText(photos.size() > 1 ? "◀  " + pos[Math.min(chosen, pos.length - 1)] + "  ▶" : "");
         boolean fav = host.isFavourite(photos.get(chosen));
-        values[ROW_FAV].setText(fav ? "♥ on (OK to remove)" : "♡ off");
+        values[ROW_FAV].setText(fav ? "♥ Yes  ·  OK to remove" : "♡ No  ·  OK to add");
         Boolean place = host.isPlace(photos.get(chosen));
-        values[ROW_PLACE].setText(place == null ? "not checked yet" : place ? "✓ shown" : "✗ left out");
+        values[ROW_PLACE].setText(place == null ? "not sorted yet" : place ? "✓ Yes" : "✗ No");
         String trip = host.tripLabel(photos.get(chosen));
         values[ROW_TRIP].setText(trip == null ? "" : trip.replace("  ·  ", " · "));
         for (int i = 0; i < ROWS; i++) {

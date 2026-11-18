@@ -104,7 +104,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.14** (versionCode 14). Everything is on GitHub `main`.
+Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -209,8 +209,19 @@ Current version: **v0.14** (versionCode 14). Everything is on GitHub `main`.
       Settings restored (Highlights per trip back to 30). STILL TO CHECK:
       checker speed and "done" log, places count looks right, Highlights look good,
       settings/menu rows fit, the owner's settings unchanged after install.
+- [x] v0.15 (2026-11-18): all on-screen wording renamed per the Fable designer (the owner approved all, kept
+      "Shuffle"): Print filter → **Print look** (Moderate→Medium, Maximum→Strongest), Print surface → **Style**
+      (Fine art paper / Canvas / Cut-out collage; shows "Off (Print look is off)" when off, plus a one-line note
+      when collage is chosen), Trip → Trips to play, Look → Picture size (Framed → With a border), Order → Photo
+      order, Day → Which day, Play → Photos to show (Favourites only → Favourites, "sorting %"), Highlights per
+      trip → Best photos per trip, Add photos… → Add more photos; photo menu, toasts, sign-in and storage texts.
+      Prefs/indices unchanged. The owner kept the v0.14 Paper texture upgrade. Checked on the TV: Settings and
+      one-photo menu fit; settings unchanged. Not seen: the 3-photo menu hint (shortened so it fits one line).
+      Older notes above use the old names.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
-- [ ] Publish the consent screen so sign-ins don't expire weekly.
+- [ ] Publish the consent screen so sign-ins don't expire weekly. **The owner asked the owner's assistant (<assistant app>) to do it** (2026-11-18).
+- [ ] Remind the owner (he asked, 2026-11-18): next time he adds photos from the phone, try the phone checklist
+      (type the address in Chrome by hand; Wi-Fi Proxy = None; VPN / Secure Wi-Fi off; try Samsung Internet).
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner
   lives with it for a few days.

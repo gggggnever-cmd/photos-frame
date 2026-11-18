@@ -42,7 +42,7 @@ final class Storage {
         if (free < RESERVE_BYTES)
             return "TV storage is full (" + gb(free) + " free). No more photos can be added; the frame keeps showing the ones it has.";
         if (free < LOW_BYTES)
-            return "TV storage is getting low (" + gb(free) + " free, room for about "
+            return "The TV is running out of room (" + gb(free) + " free, room for about "
                     + Math.max(0, (free - RESERVE_BYTES) / PHOTO_ESTIMATE_BYTES) + " more photos).";
         return null;
     }
