@@ -64,6 +64,12 @@ Current version: **v0.5** (versionCode 5). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
+- [x] TV prep done by the owner (photos checked): Developer options ON, USB debugging ON. This TV's
+      Debugging section has **no separate Wireless/Network debugging toggle** — try `adb connect IP:5555`
+      (Android TV normally listens there when USB debugging is on). Leave everything else at defaults;
+      keep "Animator duration scale" at 1x (the 4-s fade depends on it) and "Stay awake" OFF (it would
+      stop the screensaver starting). If Play Protect ("Verify apps over USB") blocks the install,
+      choose "Install anyway" or turn that one toggle off.
 - [ ] **Next: first install on the real TV** (nothing has run on the TV yet). Then test, in order:
       app opens and shows the frame → ◀ levels → ▼ phone sign-in → pick → download → rotation →
       screensaver (`screensaver_components`) → tools/update_tv script for a re-install.
