@@ -80,6 +80,13 @@ final class PhotoLibrary {
     private int roundOrder = -1;
     private boolean roundFavOnly;
     private String roundDay = "";                                     // chosen day the round was built for
+    private String roundTrips = "";                                   // trips the round was built for ("" = all)
+
+    // Trips (see Trips.java): remembered entries (names, last played, cleared) and the trips computed now.
+    private final List<Trips.Entry> entries = new ArrayList<>();
+    private final List<Trips.Trip> trips = new ArrayList<>();
+    private final Map<String, Trips.Trip> tripOf = new HashMap<>();   // file name → trip
+    private long tripsWritten;
     private long roundStart;                                           // wall clock ms when the round began
 
     private PhotoLibrary(Context ctx) {
@@ -89,6 +96,7 @@ final class PhotoLibrary {
         readMeta();
         readSet("hidden.txt", hidden);
         readSet("favourites.txt", favourites);
+        readEntries();
         scanFiles();
         readRound();          // restore the saved round (and fit new photos into it) before anything writes it
     }
@@ -117,6 +125,142 @@ final class PhotoLibrary {
             writeMeta();
             Log.i("PhotoLibrary", "read dates of " + added + " photos in " + (SystemClock.uptimeMillis() - t0) + " ms");
         }
+        computeTrips();
+    }
+
+    // ---- Trips ----
+
+    private void computeTrips() {
+        trips.clear();
+        tripOf.clear();
+        if (!own) return;
+        List<String> days = new ArrayList<>();
+        for (String id : photos) days.add(dayOf(id));
+        for (String[] r : Trips.cluster(days)) trips.add(new Trips.Trip(r[0], r[1]));
+        int t = 0;
+        List<String> sorted = new ArrayList<>(photos);
+        sorted.sort(Comparator.comparing(this::dayOf));
+        for (String id : sorted) {
+            String d = dayOf(id);
+            if (d.isEmpty()) continue;
+            while (t < trips.size() - 1 && d.compareTo(trips.get(t).end) > 0) t++;
+            trips.get(t).ids.add(id);
+            tripOf.put(name(id), trips.get(t));
+        }
+        boolean changed = false;
+        for (Trips.Trip trip : trips) {
+            Trips.Entry e = Trips.best(entries, trip.start, trip.end);
+            if (e == null) {
+                e = new Trips.Entry(trip.start, trip.end, "", 0, false, 0);
+                entries.add(e);
+                changed = true;
+            } else if (e.gone || trip.start.compareTo(e.start) < 0 || trip.end.compareTo(e.end) > 0) {
+                if (trip.start.compareTo(e.start) < 0) e.start = trip.start;
+                if (trip.end.compareTo(e.end) > 0) e.end = trip.end;
+                e.gone = false;
+                changed = true;
+            }
+            trip.entry = e;
+        }
+        if (changed) writeEntries();
+    }
+
+    /** True when the photo belongs to one of the chosen trips (or no trips are chosen). */
+    private boolean inChosenTrips(String id, String chosen) {
+        if (chosen.isEmpty()) return true;
+        Trips.Trip t = tripOf.get(name(id));
+        if (t == null) return false;
+        for (String range : chosen.split(";")) {
+            String[] r = range.split("~");
+            if (r.length == 2 && Trips.overlap(t.start, t.end, r[0], r[1]) > 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * For the Trip setting: every trip on the TV, then trips that were cleared (marked gone).
+     * Each row: {start, end, label, photo count, "gone" or ""}.
+     */
+    synchronized List<String[]> tripRows() {
+        List<String[]> out = new ArrayList<>();
+        for (int i = trips.size() - 1; i >= 0; i--) {     // newest first
+            Trips.Trip t = trips.get(i);
+            out.add(new String[]{t.start, t.end, t.label(), String.valueOf(t.ids.size()), ""});
+        }
+        List<Trips.Entry> gone = new ArrayList<>();
+        for (Trips.Entry e : entries) if (e.gone) gone.add(e);
+        gone.sort((a, b) -> b.start.compareTo(a.start));
+        for (Trips.Entry e : gone)
+            out.add(new String[]{e.start, e.end, Trips.label(e.start, e.end, e.name, e.goneCount), String.valueOf(e.goneCount), "gone"});
+        return out;
+    }
+
+    /** The trip a photo belongs to: {start, end, label}, or null (undated). */
+    synchronized String[] tripOfPhoto(String id) {
+        Trips.Trip t = tripOf.get(name(id));
+        return t == null ? null : new String[]{t.start, t.end, t.label()};
+    }
+
+    /** Names the remembered trip that best matches [start, end] (creating it if new). Empty name clears it. */
+    synchronized void nameTrip(String start, String end, String newName) {
+        Trips.Entry e = Trips.best(entries, start, end);
+        if (e == null) {
+            e = new Trips.Entry(start, end, "", 0, false, 0);
+            entries.add(e);
+        }
+        e.name = newName == null ? "" : newName.trim();
+        writeEntries();
+    }
+
+    /** The name remembered for [start, end], or "" (used to skip naming a trip that already has one). */
+    synchronized String nameFor(String start, String end) {
+        Trips.Entry e = Trips.best(entries, start, end);
+        return e == null ? "" : e.name;
+    }
+
+    private void markPlayed(String id) {
+        Trips.Trip t = tripOf.get(name(id));
+        if (t == null || t.entry == null) return;
+        long now = System.currentTimeMillis();
+        t.entry.lastPlayed = now;
+        if (now - tripsWritten > 10 * 60_000L) writeEntries();   // keep writes rare
+    }
+
+    /** Total size of the photos on the TV, in bytes. */
+    synchronized long photoBytes() {
+        long sum = 0;
+        for (String id : photos) if (id.startsWith("file:")) sum += new File(id.substring(5)).length();
+        return sum;
+    }
+
+    /**
+     * Clears the least-recently-played trip from the TV to make room: deletes its photos and remembers it
+     * as "gone" (name kept). Never touches trips overlapping [keepStart, keepEnd] or the chosen trips.
+     * Returns the bytes freed (0 if nothing could be cleared).
+     */
+    synchronized long clearLeastPlayedTrip(String keepStart, String keepEnd, String chosen) {
+        Trips.Trip victim = null;
+        for (Trips.Trip t : trips) {
+            if (keepStart != null && Trips.overlap(t.start, t.end, keepStart, keepEnd) > 0) continue;
+            if (!chosen.isEmpty() && !t.ids.isEmpty() && inChosenTrips(t.ids.get(0), chosen)) continue;
+            if (victim == null || t.entry.lastPlayed < victim.entry.lastPlayed) victim = t;
+        }
+        if (victim == null) return 0;
+        long freed = 0;
+        for (String id : victim.ids) {
+            File f = new File(id.substring(5));
+            long len = f.length();
+            if (f.delete()) freed += len;
+            favourites.remove(name(id));
+        }
+        victim.entry.gone = true;
+        victim.entry.goneCount = victim.ids.size();
+        writeEntries();
+        writeSet("favourites.txt", favourites);
+        Log.i("PhotoLibrary", "cleared trip " + victim.label() + " to make room: " + victim.ids.size() + " photos, " + freed / 1_000_000 + " MB");
+        scanFiles();
+        reconcileRound();
+        return freed;
     }
 
     synchronized boolean hasOwnPhotos() { return own; }
@@ -132,10 +276,12 @@ final class PhotoLibrary {
      */
     synchronized String take(Settings s) {
         if (roundOrder != s.order() || roundFavOnly != s.favouritesOnly() || next >= round.size()
+                || !s.trips().equals(roundTrips)
                 || (s.order() == Settings.ORDER_DAY && !s.day().equals(roundDay))) newRound(s);
         if (next >= round.size()) return null;
         String id = round.get(next++);
         writeRound();
+        markPlayed(id);
         Log.i("PhotoLibrary", "showing " + next + " of " + round.size() + " in round " + roundNumber + " (" + dayOf(id) + ")");
         return id;
     }
@@ -216,10 +362,15 @@ final class PhotoLibrary {
     private boolean eligible(String id, boolean favOnly) {
         String n = name(id);
         if (hidden.contains(n)) return false;
+        if (!inChosenTrips(id, roundTrips)) return false;
         return !favOnly || favourites.contains(n);
     }
 
     private void newRound(Settings s) {
+        roundTrips = s.trips();
+        boolean any = false;
+        for (String id : photos) if (inChosenTrips(id, roundTrips)) { any = true; break; }
+        if (!any) roundTrips = "";                                     // chosen trips not on the TV: play all
         boolean favOnly = s.favouritesOnly() && !favourites.isEmpty();   // no favourites yet: play everything
         List<String> pool = new ArrayList<>();
         for (String id : photos) if (eligible(id, favOnly)) pool.add(id);
@@ -377,6 +528,26 @@ final class PhotoLibrary {
         writeText("meta.tsv", sb.toString());
     }
 
+    /** trips.tsv: start, end, name, lastPlayed, gone (0/1), goneCount. */
+    private void readEntries() {
+        for (String line : readLines("trips.tsv")) {
+            String[] p = line.split("\t", -1);
+            if (p.length < 6) continue;
+            try {
+                entries.add(new Trips.Entry(p[0], p[1], p[2], Long.parseLong(p[3]), "1".equals(p[4]), Integer.parseInt(p[5])));
+            } catch (NumberFormatException ignored) { }
+        }
+    }
+
+    private void writeEntries() {
+        StringBuilder sb = new StringBuilder();
+        for (Trips.Entry e : entries)
+            sb.append(e.start).append('\t').append(e.end).append('\t').append(e.name.replace('\t', ' ').replace('\n', ' '))
+              .append('\t').append(e.lastPlayed).append('\t').append(e.gone ? "1" : "0").append('\t').append(e.goneCount).append('\n');
+        writeText("trips.tsv", sb.toString());
+        tripsWritten = System.currentTimeMillis();
+    }
+
     private void readSet(String file, Set<String> into) {
         for (String line : readLines(file)) if (!line.isEmpty()) into.add(line);
     }
@@ -407,6 +578,7 @@ final class PhotoLibrary {
             roundFavOnly = Boolean.parseBoolean(h[3]);
             roundStart = h.length > 4 ? Long.parseLong(h[4]) : System.currentTimeMillis();
             roundDay = h.length > 5 && !h[5].equals("-") ? h[5] : "";
+            roundTrips = h.length > 6 && !h[6].equals("-") ? h[6] : "";
         } catch (NumberFormatException e) {
             round.clear();
             next = 0;
@@ -420,7 +592,8 @@ final class PhotoLibrary {
         StringBuilder sb = new StringBuilder();
         sb.append(next).append(' ').append(roundNumber).append(' ').append(roundOrder).append(' ')
           .append(roundFavOnly).append(' ').append(roundStart).append(' ')
-          .append(roundDay.isEmpty() ? "-" : roundDay).append('\n');
+          .append(roundDay.isEmpty() ? "-" : roundDay).append(' ')
+          .append(roundTrips.isEmpty() ? "-" : roundTrips).append('\n');
         for (String id : round) sb.append(name(id)).append('\n');
         writeText("round.txt", sb.toString());
     }

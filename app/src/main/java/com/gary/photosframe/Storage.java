@@ -5,9 +5,9 @@ import android.content.Context;
 import java.io.File;
 
 /**
- * Photo storage on the TV. Photos arrive at about 3837x2160 and are roughly 5-15 MB each,
- * so 2,000 photos need about 10-30 GB. The TCL 85" A300W has ~50 GB free for apps.
- * We never fill the disk completely: downloading stops while RESERVE is still free.
+ * Photo storage on the TV. Photos arrive at "frame size" (fitting 1920x1440), about 0.5 MB each, so a
+ * 2,000-photo trip is about 1 GB. The TCL 85" A300W has a 49 GB data area (~44 GB free). Settings →
+ * Space for photos (default 20 GB) caps photos; we also never dip into RESERVE, so the TV keeps room.
  */
 final class Storage {
     static final long GB = 1024L * 1024 * 1024;
@@ -15,8 +15,8 @@ final class Storage {
     static final long RESERVE_BYTES = 2 * GB;
     /** Show a "storage low" warning below this. */
     static final long LOW_BYTES = 5 * GB;
-    /** Assume this per photo when estimating room left (upper end of 5-15 MB). */
-    static final long PHOTO_ESTIMATE_BYTES = 15L * 1024 * 1024;
+    /** Assume this per photo when estimating room left (generous for a frame-size photo). */
+    static final long PHOTO_ESTIMATE_BYTES = 2L * 1024 * 1024;
 
     static File photoDir(Context ctx) { return new File(ctx.getFilesDir(), "photos"); }
 

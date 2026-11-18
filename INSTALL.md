@@ -53,6 +53,12 @@ adb shell settings delete secure screensaver_components
 ```
 
 ## 5. Add your photos (any time)
+Photos are grouped into **trips** automatically by the dates they were taken. Tip for picking a whole trip:
+in Google's picker, type the trip's **album name** in the search box, then tap the **circle next to each day**
+(one tap selects the whole day). Up to 2,000 photos per pick; pick the rest of a big trip next time and they
+join the same trip. While the photos download, the TV shows each new trip and lets you **name** it (type, or
+press the mic and say e.g. "Egypt"), or press Back to keep its date as the name.
+
 1. Open **Photos Frame** from the TV's apps.
 2. Press **▼ (down)** on the remote. The "Add photos" screen opens.
 3. **First time only — sign in (about 2 minutes, done on your phone):**
@@ -91,10 +97,14 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
     on paper rather than a bright screen. The photo on screen changes to show it.
   - **Print surface:** Paper (the starting setting) or Canvas: the fine texture the filter adds.
   - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.
+  - **Trip:** which trips play. Press OK for the list: All trips, or tick one or more (ticked trips are
+    mixed together). Hold OK on a trip to give it a name (you can type or press the mic and say it).
   - **Order:** Shuffle (the starting setting) or One day at a time (a random day of your photos, in the
     order you took them, then another day). With One day at a time, a **Day** line appears:
     Any day, or pick one specific day (◀ ▶ steps through the days, with how many photos each has).
   - **Play:** All photos, or Favourites only.
+  - **Space for photos:** 5, 10, 15, 20 (the starting setting) or 30 GB. When it's full, the trip you haven't
+    played for longest is cleared from the TV (its name is remembered; pick it again to bring it back).
   - **Hidden photos:** how many you've hidden; press OK to show them all again.
   - **Add photos…** — press OK.
   The TV remembers your choices, and the screensaver uses them too.

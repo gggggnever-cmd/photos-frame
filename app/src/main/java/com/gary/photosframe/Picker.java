@@ -27,7 +27,9 @@ final class Picker {
 
     static final class Item {
         final String id, baseUrl;
-        Item(String id, String baseUrl) { this.id = id; this.baseUrl = baseUrl; }
+        final String day;   // capture day from createTime (UTC), "yyyy:MM:dd", or ""
+        Item(String id, String baseUrl, String day) { this.id = id; this.baseUrl = baseUrl; this.day = day; }
+        String fileName() { return safe(id) + ".jpg"; }
     }
 
     interface Progress { void onProgress(int done, int total); }
@@ -54,7 +56,8 @@ final class Picker {
             if (items != null) for (int i = 0; i < items.length(); i++) {
                 JSONObject it = items.optJSONObject(i);
                 JSONObject mf = it.optJSONObject("mediaFile");
-                if (mf != null && "PHOTO".equals(it.optString("type"))) out.add(new Item(it.optString("id"), mf.optString("baseUrl")));
+                if (mf != null && "PHOTO".equals(it.optString("type")))
+                    out.add(new Item(it.optString("id"), mf.optString("baseUrl"), Trips.dayFromCreateTime(it.optString("createTime"))));
             }
             page = r.optString("nextPageToken", null);
             if (page != null && page.isEmpty()) page = null;
@@ -67,12 +70,16 @@ final class Picker {
     }
 
     /** Checked before each photo; returning false stops the download (storage full). */
-    interface RoomCheck { boolean hasRoom(); }
+    interface RoomCheck {
+        boolean hasRoom();
+        default void added(long bytes) { }
+    }
 
     /**
-     * Downloads each photo sized to fit 4K (3840x2160, aspect kept) — the TV's full resolution,
-     * roughly 5-15 MB each. Already-downloaded photos are skipped, so re-picking only adds new ones.
-     * One bad photo doesn't stop the rest; running out of room stops cleanly with what was saved.
+     * Downloads each photo at "frame size": fitting 1920x1440, aspect kept (16:9 → 1920x1080, portraits
+     * 810x1440). The app draws at 1920x1080, so 4K copies only wasted space: ~0.5 MB instead of ~1.2 MB.
+     * Already-downloaded photos are skipped, so re-picking only adds new ones. One bad photo doesn't stop
+     * the rest; running out of room stops cleanly with what was saved. Google keeps the EXIF capture date.
      */
     Result download(List<Item> items, File dir, RoomCheck room, Progress progress) throws IOException {
         if (!dir.exists() && !dir.mkdirs()) throw new IOException("Cannot create " + dir);
@@ -87,8 +94,9 @@ final class Picker {
                 break;
             } else {
                 try {
-                    Http.download(it.baseUrl + "=w3840-h2160", auth.token(), dest);
+                    Http.download(it.baseUrl + "=w1920-h1440", auth.token(), dest);
                     r.added++;
+                    room.added(dest.length());
                 } catch (IOException e) {
                     new File(dir, dest.getName() + ".part").delete();
                     if (!room.hasRoom()) { r.noRoom = items.size() - done; break; }
@@ -98,6 +106,19 @@ final class Picker {
             progress.onProgress(++done, items.size());
         }
         return r;
+    }
+
+    /** A small preview of a picked photo (for the trip-naming screen), or null. */
+    android.graphics.Bitmap thumbnail(Item it, File tmpDir) {
+        File f = new File(tmpDir, "thumb_" + it.fileName());
+        try {
+            Http.download(it.baseUrl + "=w400-h300", auth.token(), f);
+            return android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath());
+        } catch (IOException e) {
+            return null;
+        } finally {
+            f.delete();
+        }
     }
 
     void delete(Session s) {

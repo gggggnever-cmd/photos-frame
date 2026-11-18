@@ -59,6 +59,7 @@ public class FrameView extends View {
     private int bakedOrder = -1;
     private boolean bakedFavOnly;
     private String bakedDay = "";
+    private String bakedTrips = "";
     private final Paint highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private int highlight = -1;                      // photo outlined while the photo menu chooses one
 
@@ -88,7 +89,9 @@ public class FrameView extends View {
             bakedOrder = settings.order();
             bakedFavOnly = settings.favouritesOnly();
             bakedDay = settings.day();
+            bakedTrips = settings.trips();
             ensureArt();
+            Shrinker.startOnce(ctx);     // one-off: re-save old 4K photos at frame size
         });
         highlightPaint.setStyle(Paint.Style.STROKE);
         highlightPaint.setColor(0xFFF1EDE4);
@@ -138,6 +141,26 @@ public class FrameView extends View {
     public int hiddenCount() { PhotoSource s = source; return s == null ? 0 : s.library().hiddenCount(); }
     public int favouriteCount() { PhotoSource s = source; return s == null ? 0 : s.library().favouriteCount(); }
     public void unhideAll() { bg.post(() -> { source.library().unhideAll(); prepared = null; }); }
+    /** Trip list for Settings → Trip: {start, end, label, count, "gone"|""}. */
+    public List<String[]> tripRows() {
+        PhotoSource s = source;
+        return s == null ? Collections.emptyList() : s.library().tripRows();
+    }
+
+    /** {start, end, label} of the trip a photo belongs to, or null. */
+    public String[] tripOfPhoto(String id) {
+        PhotoSource s = source;
+        return s == null ? null : s.library().tripOfPhoto(id);
+    }
+
+    /** Renames a trip (empty name = back to its date name). Runs off the UI thread, then calls done. */
+    public void nameTrip(String start, String end, String name, Runnable done) {
+        bg.post(() -> {
+            source.library().nameTrip(start, end, name);
+            ui.post(done);
+        });
+    }
+
     public List<String[]> days() {
         PhotoSource s = source;
         return s == null ? Collections.emptyList() : s.library().days(settings.favouritesOnly());
@@ -183,7 +206,8 @@ public class FrameView extends View {
         if (shown == null || w == 0) return;
         bg.post(() -> {
             if (settings.order() != bakedOrder || settings.favouritesOnly() != bakedFavOnly
-                    || !settings.day().equals(bakedDay)) {
+                    || !settings.day().equals(bakedDay) || !settings.trips().equals(bakedTrips)) {
+                bakedTrips = settings.trips();
                 // New order, day or play choice: the library starts a new round with the next slide.
                 bakedOrder = settings.order();
                 bakedFavOnly = settings.favouritesOnly();

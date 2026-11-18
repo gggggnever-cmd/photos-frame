@@ -62,6 +62,17 @@ final class Settings {
     String day() { return prefs.getString("day", ""); }
     void setDay(String d) { prefs.edit().putString("day", d).apply(); }
 
+    /** Trips to play: "start~end;start~end" (days as yyyy:MM:dd), or "" for all trips. */
+    String trips() { return prefs.getString("trips", ""); }
+    void setTrips(String t) { prefs.edit().putString("trips", t).apply(); }
+
+    /** Space for photos on the TV; the least-recently-played trip is cleared beyond it. */
+    static final int[] SPACE_GB = {5, 10, 15, 20, 30};
+    static final int DEFAULT_SPACE = 3;   // 20 GB
+    int space() { return clamp(prefs.getInt("space", DEFAULT_SPACE), SPACE_GB.length, DEFAULT_SPACE); }
+    void setSpace(int i) { prefs.edit().putInt("space", i).apply(); }
+    long spaceBytes() { return SPACE_GB[space()] * Storage.GB; }
+
     static final String[] PLAY_NAMES = {"All photos", "Favourites only"};
     boolean favouritesOnly() { return prefs.getBoolean("favourites_only", false); }
     void setFavouritesOnly(boolean v) { prefs.edit().putBoolean("favourites_only", v).apply(); }

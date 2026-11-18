@@ -17,12 +17,14 @@ final class SettingsPanel extends LinearLayout {
     interface Host {
         void settingsChanged(); void addPhotos(); void close();
         int hiddenCount(); int favouriteCount(); void unhideAll();
+        void openTrips();
+        java.util.List<String[]> tripRows();   // {start, end, label, count, "gone"|""}
         java.util.List<String[]> days();   // {yyyy:MM:dd, count}, oldest first
     }
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
-    private static final int ROW_INTERVAL = 0, ROW_ART = 1, ROW_SURFACE = 2, ROW_LOOK = 3, ROW_ORDER = 4,
-            ROW_DAY = 5, ROW_PLAY = 6, ROW_HIDDEN = 7, ROW_ADD = 8, ROWS = 9;
+    private static final int ROW_TRIP = 0, ROW_INTERVAL = 1, ROW_ART = 2, ROW_SURFACE = 3, ROW_LOOK = 4,
+            ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_SPACE = 8, ROW_HIDDEN = 9, ROW_ADD = 10, ROWS = 11;
 
     private final Settings settings;
     private final Host host;
@@ -36,32 +38,32 @@ final class SettingsPanel extends LinearLayout {
         this.host = host;
         setOrientation(VERTICAL);
         int pad = dp(32);
-        setPadding(pad, dp(28), pad, dp(24));
+        setPadding(pad, dp(18), pad, dp(14));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(0xF21E1C1A);              // a shade darker than the wall so the card stands out
         bg.setCornerRadius(dp(14));
         bg.setStroke(Math.max(1, dp(1)), 0x40F1EDE4);
         setBackground(bg);
 
-        TextView title = text("Settings", 28, INK, Typeface.SERIF);
+        TextView title = text("Settings", 24, INK, Typeface.SERIF);
         addView(title);
-        addView(space(14));
-        String[] names = {"Change photo every", "Print filter", "Print surface", "Look", "Order", "   Day", "Play",
-                "Hidden photos", "Add photos…"};
+        addView(space(8));
+        String[] names = {"Trip", "Change photo every", "Print filter", "Print surface", "Look", "Order", "   Day",
+                "Play", "Space for photos", "Hidden photos", "Add photos…"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(14), dp(10), dp(14), dp(10));
-            labels[i] = text(names[i], 19, INK, Typeface.SANS_SERIF);
-            values[i] = text("", 19, ACCENT, Typeface.SANS_SERIF);
+            row.setPadding(dp(14), dp(5), dp(14), dp(5));
+            labels[i] = text(names[i], 17, INK, Typeface.SANS_SERIF);
+            values[i] = text("", 17, ACCENT, Typeface.SANS_SERIF);
             values[i].setGravity(Gravity.END);
             row.addView(labels[i], new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
             row.addView(values[i], new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
             rows[i] = row;
             addView(row);
         }
-        addView(space(14));
+        addView(space(8));
         addView(text("▲▼ choose   ·   ◀ ▶ change   ·   Back to close", 14, SOFT, Typeface.SANS_SERIF));
         refresh();
     }
@@ -69,7 +71,10 @@ final class SettingsPanel extends LinearLayout {
     /** The card's fixed width; the frame stays visible around it. */
     int cardWidth() { return dp(560); }
 
-    void open() { focus = ROW_INTERVAL; refresh(); setVisibility(VISIBLE); }
+    void open() { focus = ROW_TRIP; refresh(); setVisibility(VISIBLE); }
+
+    /** Re-reads values (after the Trip chooser closes). */
+    void update() { refresh(); }
     boolean isOpen() { return getVisibility() == VISIBLE; }
 
     /** Handles a remote key while the page is open. Always consumes it. */
@@ -81,6 +86,7 @@ final class SettingsPanel extends LinearLayout {
             case KeyEvent.KEYCODE_DPAD_RIGHT: change(+1); break;
             case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
                 if (focus == ROW_ADD) host.addPhotos();
+                else if (focus == ROW_TRIP) host.openTrips();
                 else if (focus == ROW_HIDDEN) { if (host.hiddenCount() > 0) host.unhideAll(); }
                 else change(+1);
                 break;
@@ -100,6 +106,12 @@ final class SettingsPanel extends LinearLayout {
         } else if (focus == ROW_SURFACE) {
             int n = Settings.SURFACE_NAMES.length;
             settings.setSurface(Math.max(0, Math.min(n - 1, settings.surface() + dir)));
+        } else if (focus == ROW_TRIP) {
+            host.openTrips();
+            return;
+        } else if (focus == ROW_SPACE) {
+            int n = Settings.SPACE_GB.length;
+            settings.setSpace(Math.max(0, Math.min(n - 1, settings.space() + dir)));
         } else if (focus == ROW_ORDER) {
             int n = Settings.ORDER_NAMES.length;
             settings.setOrder(Math.max(0, Math.min(n - 1, settings.order() + dir)));
@@ -125,6 +137,8 @@ final class SettingsPanel extends LinearLayout {
         values[ROW_ART].setText(arrows(settings.artName(), settings.artLevel(), Settings.ART_STRENGTHS.length));
         values[ROW_SURFACE].setText(arrows(Settings.SURFACE_NAMES[settings.surface()], settings.surface(), Settings.SURFACE_NAMES.length));
         values[ROW_LOOK].setText(arrows(Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
+        values[ROW_TRIP].setText(tripSummary() + (focus == ROW_TRIP ? "  ·  OK" : ""));
+        values[ROW_SPACE].setText(arrows(Settings.SPACE_GB[settings.space()] + " GB", settings.space(), Settings.SPACE_GB.length));
         values[ROW_ORDER].setText(arrows(Settings.ORDER_NAMES[settings.order()], settings.order(), Settings.ORDER_NAMES.length));
         rows[ROW_DAY].setVisibility(shown(ROW_DAY) ? VISIBLE : GONE);
         if (shown(ROW_DAY)) {
@@ -145,6 +159,18 @@ final class SettingsPanel extends LinearLayout {
             d.setColor(i == focus ? 0x33F1EDE4 : 0x00000000);
             rows[i].setBackground(d);
         }
+    }
+
+    /** "All trips", the one chosen trip's name, or "3 trips mixed". */
+    private String tripSummary() {
+        String chosen = settings.trips();
+        if (chosen.isEmpty()) return "All trips";
+        String[] ranges = chosen.split(";");
+        if (ranges.length > 1) return ranges.length + " trips mixed";
+        String[] r = ranges[0].split("~");
+        for (String[] t : host.tripRows())
+            if (r.length == 2 && Trips.overlap(t[0], t[1], r[0], r[1]) > 0) return t[2].replace("  ·  ", " · ");
+        return "1 trip";
     }
 
     private boolean shown(int row) { return row != ROW_DAY || settings.order() == Settings.ORDER_DAY; }

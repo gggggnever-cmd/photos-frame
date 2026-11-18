@@ -22,11 +22,13 @@ final class PhotoMenu extends LinearLayout {
         void favourite(String id);
         void hide(String id);
         void highlight(int index);
+        String tripLabel(String id);        // "Nov 2025 · 12 days", or null
+        void renameTripOf(String id);
         void closeMenu();
     }
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
-    private static final int ROW_PHOTO = 0, ROW_FAV = 1, ROW_HIDE = 2, ROW_CANCEL = 3, ROWS = 4;
+    private static final int ROW_PHOTO = 0, ROW_FAV = 1, ROW_HIDE = 2, ROW_TRIP = 3, ROW_CANCEL = 4, ROWS = 5;
     private static final String[] POSITIONS_2 = {"Left", "Right"}, POSITIONS_3 = {"Left", "Middle", "Right"};
 
     private final Host host;
@@ -49,7 +51,7 @@ final class PhotoMenu extends LinearLayout {
         addView(text("This photo", 24, INK, Typeface.SERIF));
         View gap = new View(ctx);
         addView(gap, new LayoutParams(1, dp(10)));
-        String[] names = {"Photo", "Favourite", "Hide this photo", "Cancel"};
+        String[] names = {"Photo", "Favourite", "Hide this photo", "Name this trip", "Cancel"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -101,6 +103,7 @@ final class PhotoMenu extends LinearLayout {
                 if (focus == ROW_FAV) host.favourite(id);
                 else if (focus == ROW_HIDE) host.hide(id);
                 host.closeMenu();
+                if (focus == ROW_TRIP) host.renameTripOf(id);
                 return true;
             case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_MENU:
                 host.closeMenu();
@@ -115,6 +118,8 @@ final class PhotoMenu extends LinearLayout {
         values[ROW_PHOTO].setText(photos.size() > 1 ? "◀  " + pos[Math.min(chosen, pos.length - 1)] + "  ▶" : "");
         boolean fav = host.isFavourite(photos.get(chosen));
         values[ROW_FAV].setText(fav ? "♥ on (OK to remove)" : "♡ off");
+        String trip = host.tripLabel(photos.get(chosen));
+        values[ROW_TRIP].setText(trip == null ? "" : trip.replace("  ·  ", " · "));
         for (int i = 0; i < ROWS; i++) {
             GradientDrawable d = new GradientDrawable();
             d.setCornerRadius(dp(8));

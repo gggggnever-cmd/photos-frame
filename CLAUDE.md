@@ -104,7 +104,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.12** (versionCode 12). Everything is on GitHub `main`.
+Current version: **v0.13** (versionCode 13). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -162,6 +162,18 @@ Current version: **v0.12** (versionCode 12). Everything is on GitHub `main`.
       Testing tip: with a 30 s interval the photo changes mid-test; use Play → Favourites only to undo test favourites.
 - [x] v0.12 (2026-11-18): One day at a time can play a chosen day (Settings → Day, shown only in that
       order; pref "day" = yyyy:MM:dd or ""). Checked on the TV: Sat 10 Oct, 304 photos, 175 screens after bursts.
+- [x] v0.13 (2026-11-18): **Trips** (Trips.java + PhotoLibrary): found from capture dates (>2 empty days =
+      new trip), names/last-played/cleared remembered per date range in files/library/trips.tsv (best
+      overlap, 1 day slack because picker dates are UTC). Naming while downloading (AddPhotosActivity:
+      trips computed from picker createTime before download, one screen per unnamed trip with 4 previews,
+      TV keyboard/mic, Back = keep date name; already-named trips get new photos silently). Rename later:
+      photo menu "Name this trip" or Settings → Trip (hold OK). Settings → Trip chooser (TripPanel: All, or
+      tick several = mixed; pref "trips" = "start~end;..."). Settings → Space for photos 5-30 GB (default 20);
+      download clears the least-recently-played trip (never the trip being added or chosen ones) and lists
+      it as "not on the TV". Downloads now "=w1920-h1440" (frame size); Shrinker re-saves old 4K photos once
+      (date self-check, marker files/library/shrunk.done). Checked on the TV: first-trip = "Oct 2026 · 7 days",
+      tick/rename/restore, voice keyboard appears. NOT yet tested: naming screen during a real pick, multi-
+      trip picks, eviction (needs >20 GB), final Shrinker totals.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
