@@ -24,7 +24,8 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   portrait or a panorama shown whole on paper. FrameRenderer.drawFull.
 - **Look: Framed** (Settings option): off-white bevelled matte, dark walnut frame, charcoal wall,
   soft shadow, one photo at a time (FrameRenderer.draw).
-- One slide at a time; change every 10 minutes by default (Settings page: 1/5/10/30/60 min);
+- One slide at a time; change every 10 minutes by default (Settings page: 30 s, 1/5/10/30/60 min;
+  saved as seconds in pref "interval_s", migrated once from the old index pref "interval");
   slow 4-second fade (1.2 s when the remote asks for next/previous); a few pixels of drift per change.
 - **The TV is a matte "frame" art TV** (TCL A300W NXTFRAME: ultra-matte anti-glare QLED, modest
   brightness, off-white bezel). Design for print-like presentation; near-black areas read as muddy grey.
@@ -32,9 +33,12 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   ArtTreatment.java): tone baked once per slide (saturation, then a per-channel curve ending at a warm
   paper white and an ink black, mid-tone contrast kept); surface texture drawn live over the whole frame
   with OVERLAY (Settings: **Print surface** Paper or Canvas); faint top-to-bottom gallery light (no radial
-  vignette). Levels Off/Light/Moderate/Strong (0/0.25/0.5/1). Default Moderate; **The owner currently has it
-  Off** (he turned the old filter off; he hasn't judged the new one yet). The owner explicitly rejected
-  Google's vivid full-screen Ambient Mode look.
+  vignette). Levels Off/Light/Moderate/Strong/Extra strong/Maximum (0/0.25/0.5/1/1.5/2). Past Strong
+  (the owner asked for stronger, v0.10) saturation, ink black and texture keep rising but paper white falls
+  only 0.06 per unit and the gallery light is capped at 10%, because the matte panel isn't bright.
+  Default Moderate. The owner's own settings change often (last seen 2026-11-18: 1 minute, Strong, Paper,
+  Full screen): **read them on screen (▲) before testing and put back exactly what was there**.
+  the owner explicitly rejected Google's vivid full-screen Ambient Mode look.
 - Remote (the owner's choice, 2026-11-17): ▶/OK = next photo, ◀ = previous photo (history of 100),
   ▲ = on-TV Settings page (SettingsPanel.java: photo time, print filter, print surface, look, Add photos;
   ▲▼ pick, ◀▶ change, Back closes), ▼/Menu = Add photos, Back/Home = leave.
@@ -89,7 +93,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.9** (versionCode 9). Everything is on GitHub `main`.
+Current version: **v0.10** (versionCode 10). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -139,6 +143,9 @@ Current version: **v0.9** (versionCode 9). Everything is on GitHub `main`.
   (logged: DreamController starting FrameDreamService). With the filter Off and full-screen look it looks
   like Google's photo screensaver, which caused confusion. Google's Ambient mode menu doesn't list it;
   picking an option there may reset `screensaver_components` (re-run the update script if so).
+- [x] v0.10 (2026-11-18): print filter Extra strong + Maximum; 30-second photo interval. Checked on the TV:
+      the owner's old interval carried over, all three strong levels rendered, settings restored.
+- Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner

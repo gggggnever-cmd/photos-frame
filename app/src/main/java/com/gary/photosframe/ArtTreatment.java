@@ -28,7 +28,8 @@ import java.util.concurrent.Future;
  *    weave), anchored to the screen so it stays still through the cross-fade.
  * 3. Gallery light: a faint top-to-bottom darkening (no radial vignette).
  *
- * Level s: 0 (Off), 0.25 (Light), 0.5 (Moderate, default), 1 (Strong). Immutable; build a new one
+ * Level s: 0 (Off), 0.25 (Light), 0.5 (Moderate, default), 1 (Strong), 1.5 (Extra strong), 2 (Maximum).
+ * Immutable; build a new one
  * when the level changes.
  */
 final class ArtTreatment {
@@ -39,9 +40,11 @@ final class ArtTreatment {
     private int lightH = -1;
 
     ArtTreatment(float strength) {
-        s = Math.max(0f, Math.min(1f, strength));
+        s = Math.max(0f, Math.min(2f, strength));
+        // Up to Strong (s = 1) as designed. Past it (Extra strong 1.5, Maximum 2) colour, ink and texture
+        // keep going but paper white falls slowly: the matte panel is not bright, so don't dim much more.
         sat = 1f - 0.20f * s;
-        float white = 1f - 0.18f * s;
+        float white = s <= 1f ? 1f - 0.18f * s : 0.82f - 0.06f * (s - 1f);
         float[] paper = {white, white * (1f - 0.02f * s), white * (1f - 0.07f * s)};
         float ink = 0.10f * s, roll = 0.12f * s;
         int[][] luts = {lutR, lutG, lutB};
@@ -125,7 +128,7 @@ final class ArtTreatment {
         }
         if (lightH != h) {
             lightPaint.setShader(new LinearGradient(0, 0.20f * h, 0, h, 0x00000000,
-                    Math.round(255 * 0.07f * s) << 24, Shader.TileMode.CLAMP));
+                    Math.round(255 * Math.min(0.10f, 0.07f * s)) << 24, Shader.TileMode.CLAMP));
             lightH = h;
         }
         c.drawRect(0, 0.20f * h, w, h, lightPaint);

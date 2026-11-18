@@ -4,7 +4,7 @@ A personal Google TV app (built for a TCL NXTFRAME) that shows your own Google P
 full screen, edge to edge. Upright photos are shown three side by side, whole, with paper-coloured gaps. A "Framed" look
 (off-white bevelled matte, dark walnut frame, charcoal wall) can be chosen in Settings.
 Pictures change every 10 minutes (adjustable) with a slow 4-second fade.
-Photos can get a "print" filter (▲ Settings: Off/Light/Moderate/Strong, surface Paper or Canvas):
+Photos can get a "print" filter (▲ Settings: Off/Light/Moderate/Strong/Extra strong/Maximum, surface Paper or Canvas):
 a warm paper white and ink-black ends, slightly quieter colour, a fine paper or canvas texture and a
 soft gallery light, so they read like prints on the TV's matte screen. No blur or painterly effects.
 It also works as the TV's screensaver.
@@ -30,7 +30,7 @@ The remote's art button can open Photos Frame instead of TCL's T-Exhibition (opt
 helper `ArtKeyService.java`; switched on in TV Settings → Accessibility).
 
 On the frame: **▶ / OK** next photo; **◀** previous photo; **▲** Settings page (time between
-photos 1/5/10/30/60 min, art filter level, Add photos; `SettingsPanel.java`); **▼** Add photos.
+photos 30 s to 1 hour, art filter level, Add photos; `SettingsPanel.java`); **▼** Add photos.
 
 ## Private files (not in git)
 - `app/src/main/assets/oauth_client.json` — the **Desktop app** OAuth client JSON from

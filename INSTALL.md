@@ -86,8 +86,8 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
 - **▶** or **OK** — next picture now.
 - **◀** — go back to the previous picture.
 - **▲** — open **Settings**: use ▲▼ to pick a line and ◀▶ to change it, then **Back** to close.
-  - **Change photo every:** 1 minute, 5 minutes, 10 minutes (the starting setting), 30 minutes or 1 hour.
-  - **Print filter:** Off, Light, Moderate (the starting setting) or Strong. Makes photos look like prints
+  - **Change photo every:** 30 seconds, 1 minute, 5 minutes, 10 minutes (the starting setting), 30 minutes or 1 hour.
+  - **Print filter:** Off, Light, Moderate (the starting setting), Strong, Extra strong or Maximum. Makes photos look like prints
     on paper rather than a bright screen. The photo on screen changes to show it.
   - **Print surface:** Paper (the starting setting) or Canvas: the fine texture the filter adds.
   - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.

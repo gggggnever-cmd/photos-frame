@@ -5,12 +5,13 @@ import android.content.SharedPreferences;
 
 /** Viewer settings changed on the TV's Settings page (▲). Shared by the app and the screensaver. */
 final class Settings {
-    static final String[] ART_NAMES = {"Off", "Light", "Moderate", "Strong"};
-    static final float[] ART_STRENGTHS = {0f, 0.25f, 0.5f, 1f};
+    // Levels past Strong (the owner, 2026-11-18) add print character; see ArtTreatment for the knee at 1.
+    static final String[] ART_NAMES = {"Off", "Light", "Moderate", "Strong", "Extra strong", "Maximum"};
+    static final float[] ART_STRENGTHS = {0f, 0.25f, 0.5f, 1f, 1.5f, 2f};
     static final int DEFAULT_ART_LEVEL = 2;   // Moderate
 
-    static final int[] INTERVAL_MINUTES = {1, 5, 10, 30, 60};
-    static final int DEFAULT_INTERVAL = 2;    // 10 minutes
+    static final int[] INTERVAL_SECONDS = {30, 60, 300, 600, 1800, 3600};
+    static final int DEFAULT_INTERVAL = 3;    // 10 minutes
 
     private final SharedPreferences prefs;
     Settings(Context ctx) { prefs = ctx.getSharedPreferences("settings", Context.MODE_PRIVATE); }
@@ -20,10 +21,27 @@ final class Settings {
     float artStrength() { return ART_STRENGTHS[artLevel()]; }
     String artName() { return ART_NAMES[artLevel()]; }
 
-    int interval() { return clamp(prefs.getInt("interval", DEFAULT_INTERVAL), INTERVAL_MINUTES.length, DEFAULT_INTERVAL); }
-    void setInterval(int i) { prefs.edit().putInt("interval", i).apply(); }
-    long showMs() { return INTERVAL_MINUTES[interval()] * 60_000L; }
-    static String intervalName(int i) { int m = INTERVAL_MINUTES[i]; return m == 60 ? "1 hour" : m + (m == 1 ? " minute" : " minutes"); }
+    // Saved as seconds ("interval_s"). Before v0.10 it was an index into {1, 5, 10, 30, 60} minutes
+    // ("interval"); that old choice is carried over the first time.
+    private static final int[] OLD_INTERVAL_MINUTES = {1, 5, 10, 30, 60};
+    int interval() {
+        int sec = prefs.getInt("interval_s", -1);
+        if (sec < 0 && prefs.contains("interval")) {
+            int old = prefs.getInt("interval", 2);
+            sec = OLD_INTERVAL_MINUTES[old >= 0 && old < OLD_INTERVAL_MINUTES.length ? old : 2] * 60;
+        }
+        for (int i = 0; i < INTERVAL_SECONDS.length; i++) if (INTERVAL_SECONDS[i] == sec) return i;
+        return DEFAULT_INTERVAL;
+    }
+    void setInterval(int i) { prefs.edit().putInt("interval_s", INTERVAL_SECONDS[i]).apply(); }
+    long showMs() { return INTERVAL_SECONDS[interval()] * 1000L; }
+    static String intervalName(int i) {
+        int s = INTERVAL_SECONDS[i];
+        if (s < 60) return s + " seconds";
+        if (s == 3600) return "1 hour";
+        int m = s / 60;
+        return m + (m == 1 ? " minute" : " minutes");
+    }
 
     static final String[] LOOK_NAMES = {"Full screen", "Framed"};
     static final int LOOK_FULL = 0, LOOK_FRAMED = 1;
