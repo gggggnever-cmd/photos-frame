@@ -176,9 +176,10 @@ public class AddPhotosActivity extends Activity {
         body.setLineSpacing(0, 1.3f);
         code = text(26, INK, Typeface.MONOSPACE);
         col.addView(title);
-        col.addView(spacer(16));
+        // A bare View with WRAP_CONTENT takes all the space it is offered, so give spacers a fixed height.
+        col.addView(spacer(16), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(16)));
         col.addView(body);
-        col.addView(spacer(12));
+        col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(12)));
         col.addView(code);
         root.addView(col, new LinearLayout.LayoutParams(dp(560), LinearLayout.LayoutParams.WRAP_CONTENT));
         setContentView(root);

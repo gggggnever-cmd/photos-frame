@@ -7,7 +7,8 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 - **The owner** owns the project and the TV. His assistant **the owner's assistant** sometimes drives sessions for him.
   the owner's wife is **the owner's partner**; they use Google Photos Partner Sharing so either phone can take trip photos.
 - **TV:** TCL 85" A300W (NXTFRAME), Google TV, ~64 GB storage (~50 GB free for apps).
-  Not OLED. TV IP address: not recorded yet — ask once, then write it here.
+  Not OLED. TV IP address: **<TV-IP>** (Wi-Fi "<home Wi-Fi>"; Cast name "<Cast name>", adb product
+  `<adb product>`, model "Smart TV"; ~46 GB free). The owner's PC is <PC-IP> (also on Wi-Fi).
 - **Goal:** a personal (sideloaded, not Play Store) Google TV app that shows the owner's own Google Photos
   like a framed picture on the wall, also usable as the TV's screensaver, with new photos easy to add.
 - **How the owner likes instructions:** plain, numbered, step-by-step, "as if for a 10-year-old". Short status
@@ -70,13 +71,24 @@ Current version: **v0.5** (versionCode 5). Everything is on GitHub `main`.
       keep "Animator duration scale" at 1x (the 4-s fade depends on it) and "Stay awake" OFF (it would
       stop the screensaver starting). If Play Protect ("Verify apps over USB") blocks the install,
       choose "Install anyway" or turn that one toggle off.
-- [ ] **Next: first install on the real TV** (nothing has run on the TV yet). Then test, in order:
-      app opens and shows the frame → ◀ levels → ▼ phone sign-in → pick → download → rotation →
-      screensaver (`screensaver_components`) → tools/update_tv script for a re-install.
-      Only verified so far: build passes; SetupServer page tested on a JVM; Picker download URLs and
-      Desktop-client sign-in proven in the earlier Python spike (tools/picker_test.py).
+- [x] First install on the real TV (2026-11-17, from the owner's PC over adb Wi-Fi at <TV-IP>:5555).
+      Verified on the TV: app opens (empty charcoal wall), ▼ opens sign-in, sign-in completed
+      **from the PC browser**, picker QR worked on the phone, ~1,990 photos downloading at ~110/min
+      (~1.2 MB each, not 5-15 MB). Screensaver set via `screensaver_components` (previous value was
+      `com.google.android.apps.tv.dreamx/.service.Backdrop`).
+      Fixed on the way: AddPhotosActivity spacers swallowed the screen (instructions + address were
+      invisible); SetupServer was single-threaded, so a browser's idle preconnect socket blocked the page
+      (reproduced from the PC; now one thread per connection, and each request is logged under tag
+      `SetupServer` with the auth code redacted).
+- [ ] **Open bug: the owner's phone (Chrome) can't open http://<TV-IP>:8080/**
+      (`ERR_TOO_MANY_RETRIES`), though the PC on the same Wi-Fi loads it and the TV can ping the phone
+      (likely <PC-IP>). No phone request has been seen in the `SetupServer` log yet, so it's unknown
+      whether the request reaches the TV. Next: have the owner scan once while `adb logcat SetupServer:I *:S`
+      runs; try Samsung Internet; check phone VPN / Private DNS / "secure Wi-Fi". Workaround: sign in from
+      the PC browser.
+- [ ] Still to test: rotation + ◀ levels with real photos, screensaver kicking in, update_tv script.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
-- [ ] Record the TV's IP above (and in tools/tv_ip.txt via the update script).
+- [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner
   lives with it for a few days.
 
@@ -94,6 +106,15 @@ steps for him beyond the unavoidable ones:
 6. Update this file (TV IP, checklist), commit, push.
 Placeholder photos are not in git; the frame shows an empty wall until photos are picked — fine.
 
+## The owner's PC toolchain (set up 2026-11-17)
+JDK 21 at `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`, SDK at `%USERPROFILE%\Android\Sdk`
+(platform 34 added), Gradle at `%USERPROFILE%\tools\gradle-8.14\bin\gradle`. In Git Bash, set
+`MSYS_NO_PATHCONV=1` before adb shell commands with paths. Install a build with
+`adb -s <TV-IP>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
+`python3` on this PC is the Windows Store stub; a real Python is in the <python-venv> venv.
+
 ## History (short)
 - First session (cloud, Nov 2026): research → Picker spike → v0.1–v0.5. the owner's assistant (the owner's assistant)
   drove part of it. Ruled out: shared albums, phone helper app, TV device-code sign-in, light sensor.
+- First local session (the owner's PC, 2026-11-17): toolchain, first TV install, two sign-in fixes,
+  sign-in done from the PC browser, first ~2,000 photos picked.

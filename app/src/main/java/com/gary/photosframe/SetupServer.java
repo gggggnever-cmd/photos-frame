@@ -1,5 +1,6 @@
 package com.gary.photosframe;
 
+import android.util.Log;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -35,8 +36,17 @@ final class SetupServer {
         if (ip == null) return null;
         server = new ServerSocket(PORT);
         Thread t = new Thread(() -> {
+            // One thread per connection: phone browsers open spare "preconnect" sockets that send nothing,
+            // and a single-threaded loop would sit on one of those while the real request is dropped.
             while (!server.isClosed()) {
-                try (Socket s = server.accept()) { handle(s); } catch (IOException ignored) { }
+                final Socket s;
+                try { s = server.accept(); } catch (IOException e) { continue; }
+                Thread h = new Thread(() -> {
+                    Log.i("SetupServer", "connect from " + s.getRemoteSocketAddress());
+                    try (Socket c = s) { handle(c); } catch (IOException e) { Log.w("SetupServer", "conn error " + s.getRemoteSocketAddress() + ": " + e); }
+                }, "setup-conn");
+                h.setDaemon(true);
+                h.start();
             }
         }, "setup-server");
         t.setDaemon(true);
@@ -52,6 +62,7 @@ final class SetupServer {
         s.setSoTimeout(15000);
         BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
         String line = in.readLine();
+        Log.i("SetupServer", s.getRemoteSocketAddress() + " -> " + (line == null ? "(no request)" : line.replaceAll("code=[^& ]*", "code=…")));
         if (line == null) return;
         String path = line.split(" ").length > 1 ? line.split(" ")[1] : "/";
         while ((line = in.readLine()) != null && !line.isEmpty()) { /* skip headers */ }
@@ -61,8 +72,12 @@ final class SetupServer {
             String pasted = "";
             for (String kv : path.substring(7).split("&"))
                 if (kv.startsWith("u=")) pasted = URLDecoder.decode(kv.substring(2), "UTF-8");
-            String err = done ? null : listener.onPasted(pasted);
-            if (err == null) { done = true; body = page("Signed in", "<p class=ok>Done! Look at the TV — it will now show the photo picker.</p>"); }
+            String err;
+            synchronized (this) {  // connections are handled in parallel; sign in only once
+                err = done ? null : listener.onPasted(pasted);
+                if (err == null) done = true;
+            }
+            if (err == null) { body = page("Signed in", "<p class=ok>Done! Look at the TV — it will now show the photo picker.</p>"); }
             else body = page("Not quite", "<p class=err>" + esc(err) + "</p>" + form(auth.newSignInUrl()));
         } else if (path.equals("/") || path.startsWith("/?")) {
             body = done ? page("Signed in", "<p class=ok>Already signed in. Look at the TV.</p>")
