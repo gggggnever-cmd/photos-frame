@@ -193,6 +193,16 @@ days = new trip), named "Nov 2025 · 12 days" with a cover; optional one spoken 
 (TV keyboard mic; Google RecognitionService present on the TV). The owner: no typing, no manual assigning;
 picker per-day select circles + search is how he picks; budget must be user-set (default 20 GB).
 
+## Idea from the owner (2026-11-18): "Places only" — photos of where we went, without us in them
+Not built yet. Thinking: a Play choice "Places only" that skips photos where a person is the subject.
+- On-device face detection once per photo, in the background, cached in files/library/meta.tsv
+  (android.media.FaceDetector needs no extra library; ML Kit face detection with its bundled model is more
+  accurate, e.g. side-on faces, at a few MB).
+- Rule: skip a photo if any face is bigger than a small share of the frame (the owner or the owner's partner posing); tiny
+  faces of passers-by in a street scene don't count. Can't tell "us" from strangers (no face recognition).
+- Misses: people seen from behind or far away. A hidden-style "not a places photo" mark in the photo menu
+  could fix mistakes. Shares the face scores with the parked "Highlights" idea.
+
 ## Idea parked by the owner (2026-11-18): "Highlights" / trip overview — DON'T BUILD until he asks
 The owner's words: an "executive overview" of a trip: pick the most important photos (say ~30, maybe user-set)
 and play just those. Thinking so far (nothing built):
