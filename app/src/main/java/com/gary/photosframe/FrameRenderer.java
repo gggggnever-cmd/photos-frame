@@ -16,7 +16,9 @@ final class FrameRenderer {
     static final int FRAME = 0xFF1F1915;       // dark walnut
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-    private final ArtTreatment art = new ArtTreatment();
+    private ArtTreatment art = new ArtTreatment();
+
+    void setArtStrength(float s) { art = new ArtTreatment(s); }
 
     /** offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
     void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY) {

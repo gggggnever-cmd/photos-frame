@@ -22,6 +22,9 @@ public class FrameView extends View {
     private final Paint fadePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Random random = new Random();
     private Bitmap current, previous;
+    private Bitmap shownPhoto;        // the photo on screen now, kept so a filter change can redraw it
+    private float shownDx, shownDy;
+    private final Settings settings;
     private float fade = 1f;
     private ValueAnimator animator;
 
@@ -35,6 +38,8 @@ public class FrameView extends View {
     public FrameView(Context ctx) {
         super(ctx);
         source = new PhotoSource(ctx);
+        settings = new Settings(ctx);
+        renderer.setArtStrength(settings.artStrength());
         setKeepScreenOn(true);
     }
 
@@ -63,22 +68,42 @@ public class FrameView extends View {
         if (animator != null) animator.cancel();
     }
 
+    /** Remote ◀: next art-filter level. Redraws the current picture with a quick fade; returns the level name. */
+    public String cycleArtLevel() {
+        settings.cycleArtLevel();
+        renderer.setArtStrength(settings.artStrength());
+        if (getWidth() > 0 && shownPhoto != null) transitionTo(render(shownPhoto, shownDx, shownDy), 700);
+        return settings.artName();
+    }
+
+    private Bitmap render(Bitmap photo, float dx, float dy) {
+        int w = getWidth(), h = getHeight();
+        Bitmap scene = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        renderer.draw(new Canvas(scene), photo, w, h, dx, dy);
+        return scene;
+    }
+
     private void showNext() {
         int w = getWidth(), h = getHeight();
         if (w == 0 || h == 0) return;
         Bitmap photo = source.next(w, h);
-        Bitmap scene = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         float drift = 0.004f * h;
-        renderer.draw(new Canvas(scene), photo, w, h,
-                (random.nextFloat() * 2 - 1) * drift, (random.nextFloat() * 2 - 1) * drift);
-        if (photo != null) photo.recycle();
+        float dx = (random.nextFloat() * 2 - 1) * drift, dy = (random.nextFloat() * 2 - 1) * drift;
+        Bitmap scene = render(photo, dx, dy);
+        if (shownPhoto != null) shownPhoto.recycle();
+        shownPhoto = photo;
+        shownDx = dx;
+        shownDy = dy;
+        transitionTo(scene, FADE_MS);
+    }
 
+    private void transitionTo(Bitmap scene, long fadeMs) {
         if (previous != null) previous.recycle();
         previous = current;
         current = scene;
         if (animator != null) animator.cancel();
         if (previous == null) { fade = 1f; invalidate(); return; }
-        animator = ValueAnimator.ofFloat(0f, 1f).setDuration(FADE_MS);
+        animator = ValueAnimator.ofFloat(0f, 1f).setDuration(fadeMs);
         animator.addUpdateListener(a -> { fade = (float) a.getAnimatedValue(); invalidate(); });
         animator.start();
     }

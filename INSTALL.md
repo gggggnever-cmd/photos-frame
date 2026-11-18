@@ -79,6 +79,8 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
 
 ## Using the frame
 - **OK** or **▶** — next picture now. Otherwise each picture stays 10 minutes.
+- **◀** — change the art filter: Off → Light → Moderate → Strong (the TV remembers your choice,
+  and the screensaver uses it too). Moderate is the starting setting.
 - **▼** — add photos.
 - The TV and phone must be on the same Wi-Fi only while signing in.
 - **Back / Home** — leave the app.

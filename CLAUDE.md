@@ -16,10 +16,11 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 ## Look — keep exactly unless the owner asks
 - Off-white bevelled matte, dark walnut frame, charcoal wall, soft shadow (FrameRenderer.java).
 - One photo at a time; 10-minute change; slow 4-second fade; a few pixels of drift per change.
-- **Art treatment on every photo** (ArtTreatment.java, `STRENGTH = 0.5f`, moderate): lower/softer light,
+- **Art treatment on every photo** (ArtTreatment.java; level chosen with ◀ on the remote, Settings.java; default Moderate = 0.5): lower/softer light,
   gentle matte contrast, slightly quieter warm colour, faint edge falloff, fine paper grain. Like TCL's
   T-Exhibition / picture-frame TVs. The owner explicitly rejected Google's vivid full-screen Ambient Mode look.
-- Remote: OK/▶ = next photo, ▼/Menu = Add photos, Back/Home = leave.
+- Remote: OK/▶ = next photo, ◀ = art filter level (Off/Light/Moderate/Strong, saved; default Moderate),
+  ▼/Menu = Add photos, Back/Home = leave.
 
 ## Decisions already made (don't re-open without the owner)
 - **Photo source: Google Photos Picker API only** (scope `photospicker.mediaitems.readonly`).

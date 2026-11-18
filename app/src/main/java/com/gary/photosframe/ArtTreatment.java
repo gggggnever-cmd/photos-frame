@@ -19,8 +19,8 @@ import java.util.Random;
  * paper grain. Everything is photo-preserving: no blur, no painterly effects.
  */
 final class ArtTreatment {
-    /** 0 = untouched photo, 0.5 = moderate (default), 1 = strong. The single knob to tune. */
-    static final float STRENGTH = 0.5f;
+    /** 0 = untouched photo, 0.5 = moderate (default), 1 = strong. Chosen on the remote; see Settings. */
+    static final float STRENGTH = Settings.ART_STRENGTHS[Settings.DEFAULT_ART_LEVEL];
 
     private final float s;
     private final ColorMatrixColorFilter filter;

@@ -3,7 +3,8 @@
 A personal Google TV app (built for a TCL NXTFRAME) that shows your own Google Photos
 as a framed picture: off-white bevelled matte, dark walnut frame, charcoal wall,
 one photo at a time, changing every 10 minutes with a slow 4-second fade.
-Each photo gets an "art print" treatment when shown (`ArtTreatment.STRENGTH`, default 0.5):
+Each photo gets an "art print" treatment when shown (◀ on the remote cycles Off/Light/Moderate/Strong,
+saved in `Settings.java`; default Moderate = 0.5):
 lower, softer light, gentler matte contrast, slightly quieter warm colour, a faint
 gallery-light falloff and fine paper grain — no blur or painterly effects.
 It also works as the TV's screensaver.
@@ -25,7 +26,7 @@ Photos come only through the official Google Photos **Picker API**
 (scope `photospicker.mediaitems.readonly`). Photos saved to your library from
 Partner Sharing are pickable too.
 
-On the frame: **OK / ▶** skips to the next photo.
+On the frame: **OK / ▶** skips to the next photo; **◀** changes the art filter level.
 
 ## Private files (not in git)
 - `app/src/main/assets/oauth_client.json` — the **Desktop app** OAuth client JSON from

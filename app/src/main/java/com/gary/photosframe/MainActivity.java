@@ -12,7 +12,7 @@ import android.widget.TextView;
 public class MainActivity extends Activity {
     private static final int REQ_ADD = 1;
     private FrameView frame;
-    private TextView storageNote;
+    private TextView storageNote, levelNote;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -37,6 +37,14 @@ public class MainActivity extends Activity {
         sp.topMargin = 20;
         root.addView(storageNote, sp);
         showStorageWarning();
+        levelNote = new TextView(this);
+        levelNote.setTextColor(0xFFF1EDE4);
+        levelNote.setTextSize(20);
+        levelNote.setShadowLayer(8, 0, 0, 0xFF000000);
+        levelNote.setAlpha(0f);
+        FrameLayout.LayoutParams lv = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        lv.bottomMargin = 60;
+        root.addView(levelNote, lv);
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
@@ -46,6 +54,12 @@ public class MainActivity extends Activity {
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_ENTER:
                 frame.skip();
+                return true;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                levelNote.animate().cancel();
+                levelNote.setText("Art filter: " + frame.cycleArtLevel());
+                levelNote.setAlpha(1f);
+                levelNote.animate().alpha(0f).setStartDelay(2500).setDuration(800);
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_MENU:
                 startActivityForResult(new Intent(this, AddPhotosActivity.class), REQ_ADD);
