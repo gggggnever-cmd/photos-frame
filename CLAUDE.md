@@ -60,12 +60,34 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 tools/preview.py renders a framed, art-treated preview of a photo on a computer.
 
 ## Status / next steps (update this list as things change)
-- [x] v0.4 built and pushed: frame look, art treatment, screensaver, phone sign-in, picker,
-      4K download + cache, storage warnings, INSTALL.md, update scripts.
+Current version: **v0.5** (versionCode 5). Everything is on GitHub `main`.
+- [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
+      storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
-- [ ] First install on the real TV (nothing has run on the TV yet). Then test: sign-in, pick, download,
-      screensaver, update script.
+- [ ] **Next: first install on the real TV** (nothing has run on the TV yet). Then test, in order:
+      app opens and shows the frame → ◀ levels → ▼ phone sign-in → pick → download → rotation →
+      screensaver (`screensaver_components`) → tools/update_tv script for a re-install.
+      Only verified so far: build passes; SetupServer page tested on a JVM; Picker download URLs and
+      Desktop-client sign-in proven in the earlier Python spike (tools/picker_test.py).
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
-- [ ] Record the TV's IP above.
+- [ ] Record the TV's IP above (and in tools/tv_ip.txt via the update script).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner
   lives with it for a few days.
+
+## Setting up on the owner's PC (first local session)
+The owner will open Claude Code on his PC and ask to set everything up. Do it end to end without manual
+steps for him beyond the unavoidable ones:
+1. Clone https://github.com/gggggnever-cmd/photos-frame (private; help with GitHub login if needed).
+2. Find his Desktop key: search Downloads etc. for `client_secret*.json` whose client_id starts with
+   `<desktop-client-id>`; copy to app/src/main/assets/oauth_client.json (gitignored). Not the TV client.
+3. Install JDK 17+, Android SDK (platform 34, build-tools 34, platform-tools/adb), Gradle 8.14; build.
+4. Find the TV on the LAN yourself (e.g. scan for port 5555, or `adb mdns services`), install with
+   tools/update_tv, set as screensaver. The owner must turn on Developer options + USB/network debugging on
+   the TV and press **Allow** on the TV prompt — tell him when, then wait.
+5. Walk him through first sign-in and pick one short step at a time (INSTALL.md step 5).
+6. Update this file (TV IP, checklist), commit, push.
+Placeholder photos are not in git; the frame shows an empty wall until photos are picked — fine.
+
+## History (short)
+- First session (cloud, Nov 2026): research → Picker spike → v0.1–v0.5. the owner's assistant (the owner's assistant)
+  drove part of it. Ruled out: shared albums, phone helper app, TV device-code sign-in, light sensor.
