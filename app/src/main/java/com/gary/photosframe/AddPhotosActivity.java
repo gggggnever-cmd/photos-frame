@@ -66,26 +66,45 @@ public class AddPhotosActivity extends Activity {
         try {
             if (!auth.isSignedIn()) signIn();
             if (stopped) return;
-            pick();
+            try {
+                pick();
+            } catch (Auth.SignInNeeded e) {   // Google expired the old sign-in: sign in again, then pick.
+                signIn();
+                if (!stopped) pick();
+            }
         } catch (Exception e) {
             if (stopped) return;
-            String msg = e instanceof Http.HttpError && ((Http.HttpError) e).body.contains("invalid_scope")
-                    ? "Google doesn't allow Photos sign-in from a TV client.\n(" + e.getMessage() + ")"
-                    : e.getMessage();
+            String msg = e.getMessage();
             if (e instanceof Http.HttpError && ((Http.HttpError) e).code == 401) auth.signOut();
             canRetry = true;
             show(null, "Something went wrong", msg + "\n\nPress OK to try again, or Back to return to the frame.", null);
         }
     }
 
+    /** One-time sign-in, done on the phone through the TV's little setup page (see SetupServer). */
     private void signIn() throws IOException, InterruptedException {
-        Auth.DeviceCode dc = auth.startDeviceFlow();
-        show(dc.verificationUrl, "Sign in to Google Photos",
-                "On your phone, scan the code or go to\n" + dc.verificationUrl + "\nand enter:", dc.userCode);
-        while (!stopped) {
-            if (System.currentTimeMillis() > dc.expiresAtMs) throw new IOException("The sign-in code expired.");
-            Thread.sleep(dc.intervalMs);
-            if (auth.pollDeviceFlow(dc)) return;
+        final Object lock = new Object();
+        final boolean[] ok = {false};
+        SetupServer server = new SetupServer(auth, pasted -> {
+            try {
+                auth.finishSignIn(pasted);
+                synchronized (lock) { ok[0] = true; lock.notifyAll(); }
+                return null;
+            } catch (IOException e) {
+                return e.getMessage();
+            }
+        });
+        String url = server.start();
+        if (url == null) throw new IOException("The TV isn't connected to the home network.");
+        try {
+            show(url, "Sign in to Google Photos (one time)",
+                    "With your phone on the same Wi-Fi as the TV, scan this code.\n"
+                            + "A page opens with three short steps. Or type this address:", url.replace("http://", ""));
+            synchronized (lock) {
+                while (!ok[0] && !stopped) lock.wait(1000);
+            }
+        } finally {
+            server.stop();
         }
     }
 
@@ -155,8 +174,7 @@ public class AddPhotosActivity extends Activity {
         title = text(30, INK, Typeface.SERIF);
         body = text(18, SOFT, Typeface.SANS_SERIF);
         body.setLineSpacing(0, 1.3f);
-        code = text(44, INK, Typeface.MONOSPACE);
-        code.setLetterSpacing(0.15f);
+        code = text(26, INK, Typeface.MONOSPACE);
         col.addView(title);
         col.addView(spacer(16));
         col.addView(body);

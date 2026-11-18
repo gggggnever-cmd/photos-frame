@@ -10,7 +10,11 @@ It also works as the TV's screensaver.
 
 ## How photos get onto the frame
 Press **▼** (or Menu) on the remote → "Add photos":
-1. First time only: sign in to Google with the code shown on screen (google.com/device).
+1. First time only: sign in from the phone. The TV shows a QR code for a tiny setup page it
+   serves on the home Wi-Fi (`SetupServer.java`); the phone signs in to Google there and pastes
+   the resulting `http://127.0.0.1:8765/?code=…` address back to the TV.
+   (Google rejects the Picker scope in the TV "device code" flow — `invalid_scope` — so a
+   **Desktop app** OAuth client with PKCE is used instead.)
 2. Scan the QR code with your phone; Google Photos opens. Pick photos, tap **Done**.
 3. The TV downloads them at 4K (3840×2160, aspect kept) into its own storage.
    Re-picking later adds to what is already there. Each photo is roughly 5-15 MB, so
@@ -24,8 +28,9 @@ Partner Sharing are pickable too.
 On the frame: **OK / ▶** skips to the next photo.
 
 ## Private files (not in git)
-- `app/src/main/assets/oauth_client.json` — "TVs and Limited Input devices" OAuth
-  client from Google Cloud. Without it the app shows "Not set up yet".
+- `app/src/main/assets/oauth_client.json` — the **Desktop app** OAuth client JSON from
+  Google Cloud (not the "TVs and Limited Input devices" one; Google won't allow Photos on that).
+  Without it the app shows "Not set up yet".
 - `app/src/main/assets/photos/` — optional placeholder photos shown before any are picked.
 
 ## Build

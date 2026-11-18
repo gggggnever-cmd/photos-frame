@@ -48,23 +48,39 @@ adb shell settings delete secure screensaver_components
 ```
 
 ## 5. Add your photos (any time)
-1. Open **Photos Frame** (or let the screensaver start, then open the app).
+1. Open **Photos Frame** from the TV's apps.
 2. Press **▼ (down)** on the remote. The "Add photos" screen opens.
-3. **First time only — sign in:** scan the QR code with your phone (or go to
-   **google.com/device**), enter the code shown on the TV, choose your Google account and
-   **Allow**. Google may warn that the app is unverified: tap **Advanced → Go to Photos Frame**.
-4. **Pick photos:** scan the next QR code with your phone. Google Photos opens.
+3. **First time only — sign in (about 2 minutes, done on your phone):**
+   1. Make sure your phone is on the **same Wi-Fi** as the TV.
+   2. Scan the QR code on the TV with your phone's camera. A small "Photos Frame" page opens.
+   3. Tap **Sign in with Google**, choose your account, tap **Allow**.
+      Google may say the app isn't verified: tap **Advanced → Go to Photos Frame (unsafe)**.
+      (It's your own app; this warning is normal for personal projects.)
+   4. You land on a page that says **"This site can't be reached"**. That's expected.
+      Tap the address bar and **copy the whole address** (it starts with `http://127.0.0.1:8765`).
+   5. Switch back to the "Photos Frame" tab, **paste** it in the box, tap **Send to TV**.
+      The page says "Done!" and the TV moves on by itself.
+4. **Pick photos:** the TV now shows a new QR code. Scan it; Google Photos opens.
    Select photos (up to 2,000 at a time), then tap **Done**.
 5. The TV downloads them (a few seconds each) and returns to the frame.
 
-To add more later, press **▼** again — new picks are added to the photos already there.
+To add more later, press **▼** again — new picks are added to the photos already there,
+and you normally won't need to sign in again.
 Photos your wife shares through **Partner Sharing** can be picked too, as long as Partner
 Sharing is set to **save them into your library** (Google Photos → Settings → Sharing →
 Partner sharing → Save to your account → All photos).
 
+**Avoid signing in every week (one-time, on a computer):** while the Google Cloud project is
+in "Testing" mode, Google ends the TV's sign-in after 7 days, so the next "Add photos" would
+ask you to sign in again. To stop that: go to **console.cloud.google.com**, pick project
+**<your Cloud project>**, search **"Google Auth Platform"** (or "OAuth consent screen"),
+open **Audience**, and click **Publish app → Confirm**. Nothing becomes public — it only
+changes how long sign-ins last. (The photos already on the TV keep showing either way.)
+
 ## Using the frame
 - **OK** or **▶** — next picture now. Otherwise each picture stays 10 minutes.
 - **▼** — add photos.
+- The TV and phone must be on the same Wi-Fi only while signing in.
 - **Back / Home** — leave the app.
 
 ## Storage
