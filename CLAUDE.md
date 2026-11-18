@@ -16,18 +16,27 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 
 ## Look — keep exactly unless the owner asks
 - **Default look: Full screen** (the owner's choice 2026-11-17, v0.7): photos fill the whole TV edge to edge
-  (cover-cropped). Portraits are grouped side by side: 3 tall phone shots (w/h < 0.66) or 2 portraits
-  (< 0.9), thin dark line between (PhotoSource.nextSlide, FrameRenderer.drawFull). A lone portrait or a
-  panorama is shown whole over a blurred, dimmed copy of itself instead of a hard crop.
+  (cover-cropped). Portraits: **Flush Triptych** (the owner's pick from the Fable designer's options,
+  2026-11-18, v0.8): three tall phone portraits shown whole, full height, outer ones touching the screen
+  edges, separated by **paper-tone bands** (#D4CEC3 tinted 18% toward the photos' average colour; dark
+  tones look muddy on the matte screen). PhotoSource.build pulls 3 tall portraits from the whole queue
+  (all of the owner's portraits are 9:16, ~1 in 12 photos). Fallbacks: 2 portraits centred on paper; a lone
+  portrait or a panorama shown whole on paper. FrameRenderer.drawFull.
 - **Look: Framed** (Settings option): off-white bevelled matte, dark walnut frame, charcoal wall,
   soft shadow, one photo at a time (FrameRenderer.draw).
 - One slide at a time; change every 10 minutes by default (Settings page: 1/5/10/30/60 min);
   slow 4-second fade (1.2 s when the remote asks for next/previous); a few pixels of drift per change.
-- **Art treatment on every photo** (ArtTreatment.java; level chosen on the ▲ Settings page, Settings.java; default Moderate = 0.5): lower/softer light,
-  gentle matte contrast, slightly quieter warm colour, faint edge falloff, fine paper grain. Like TCL's
-  T-Exhibition / picture-frame TVs. The owner explicitly rejected Google's vivid full-screen Ambient Mode look.
+- **The TV is a matte "frame" art TV** (TCL A300W NXTFRAME: ultra-matte anti-glare QLED, modest
+  brightness, off-white bezel). Design for print-like presentation; near-black areas read as muddy grey.
+- **Print filter** (v0.8, designed by the Fable art-direction agent; spec in docs/print_filter_spec.md;
+  ArtTreatment.java): tone baked once per slide (saturation, then a per-channel curve ending at a warm
+  paper white and an ink black, mid-tone contrast kept); surface texture drawn live over the whole frame
+  with OVERLAY (Settings: **Print surface** Paper or Canvas); faint top-to-bottom gallery light (no radial
+  vignette). Levels Off/Light/Moderate/Strong (0/0.25/0.5/1). Default Moderate; **The owner currently has it
+  Off** (he turned the old filter off; he hasn't judged the new one yet). The owner explicitly rejected
+  Google's vivid full-screen Ambient Mode look.
 - Remote (the owner's choice, 2026-11-17): ▶/OK = next photo, ◀ = previous photo (history of 100),
-  ▲ = on-TV Settings page (SettingsPanel.java: photo time, art filter with live preview, Add photos;
+  ▲ = on-TV Settings page (SettingsPanel.java: photo time, print filter, print surface, look, Add photos;
   ▲▼ pick, ◀▶ change, Back closes), ▼/Menu = Add photos, Back/Home = leave.
 
 ## Decisions already made (don't re-open without the owner)
@@ -63,17 +72,33 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 - Built APKs contain the key (and any placeholder photos): keep them private.
 
 ## Build
-`gradle assembleDebug` (JDK 17+, Android SDK platform 34 + build-tools 34, Gradle 8.14, AGP 8.7.3,
-`sdk.dir` in local.properties). Output: app/build/outputs/apk/debug/app-debug.apk.
-tools/preview.py renders a framed, art-treated preview of a photo on a computer.
+`gradle assembleRelease` (JDK 17+, Android SDK platform 34 + build-tools 34, Gradle 8.14, AGP 8.7.3,
+`sdk.dir` in local.properties). Output: app/build/outputs/apk/release/app-release.apk, signed with the
+local debug key so it updates the installed app in place. **Use the release build on the TV**: the
+debuggable build runs the per-pixel tone loop several times slower on the TV's weak 32-bit CPU.
+Side effect: `adb shell run-as` no longer works, so check settings on screen (▲) instead of reading prefs.
+tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's reference is docs/print_filter_spec.md.
+
+## Performance (TV CPU: 32-bit, 4 cores, ~2.4 GB RAM), learned 2026-11-18
+- Never do decode/filter/layout on the UI thread. FrameView does all of it on the "slides" HandlerThread,
+  composes each slide into one 1920x1080 bitmap, and prepares the next slide ahead (PhotoSource.peekNext).
+  onDraw only blends two bitmaps + one OVERLAY texture rect + a gradient (~7 ms frames with the filter
+  Off, ~32 ms with it on).
+- Photos are stored at 3837x2160; always decode scaled to the target (PhotoSource.load uses inSampleSize +
+  inDensity/inTargetDensity). A power-of-2-only check left them at full 4K and made everything 4x slower.
+- Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.7** (versionCode 7). Everything is on GitHub `main`.
+Current version: **v0.8** (versionCode 8). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
 - [x] v0.6: ◀/▶ previous/next photo; ▲ Settings page with photo time (1/5/10/30/60 min) and art filter.
 - [x] v0.7: full-screen look with side-by-side portraits (default); Framed kept as a Settings "Look" option.
+- [x] v0.8 (2026-11-18): Flush Triptych portraits with paper bands; new print filter (Paper/Canvas
+      surface); app no longer sluggish (background slide preparation, decode at screen size, release
+      build). Checked on the TV: triptych slides, filter Moderate/Strong/Canvas renders, frame timings,
+      the owner's settings restored afterwards (5 min, filter Off, Paper, Full screen).
       Checked on the TV: 12 slides (landscapes full-bleed, a 3-portrait slide), Look toggle both ways, ◀ history.
 - [x] TV prep done by the owner (photos checked): Developer options ON, USB debugging ON. This TV's
       Debugging section has **no separate Wireless/Network debugging toggle** — try `adb connect IP:5555`
@@ -126,7 +151,7 @@ Placeholder photos are not in git; the frame shows an empty wall until photos ar
 JDK 21 at `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`, SDK at `%USERPROFILE%\Android\Sdk`
 (platform 34 added), Gradle at `%USERPROFILE%\tools\gradle-8.14\bin\gradle`. In Git Bash, set
 `MSYS_NO_PATHCONV=1` before adb shell commands with paths. Install a build with
-`adb -s <TV-IP>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
+`adb -s <TV-IP>:5555 install -r app/build/outputs/apk/release/app-release.apk`.
 `python3` on this PC is the Windows Store stub; a real Python is in the <python-venv> venv.
 
 ## History (short)

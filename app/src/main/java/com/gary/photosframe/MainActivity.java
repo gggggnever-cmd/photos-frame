@@ -61,7 +61,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host {
                 frame.next();
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
-                if (!frame.back()) note("This is the first photo");
+                frame.back(() -> note("This is the first photo"));
                 return true;
             case KeyEvent.KEYCODE_DPAD_UP:
                 panel.open();

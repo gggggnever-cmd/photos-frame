@@ -82,8 +82,10 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
 - **◀** — go back to the previous picture.
 - **▲** — open **Settings**: use ▲▼ to pick a line and ◀▶ to change it, then **Back** to close.
   - **Change photo every:** 1 minute, 5 minutes, 10 minutes (the starting setting), 30 minutes or 1 hour.
-  - **Art filter:** Off, Light, Moderate (the starting setting) or Strong. You see the change straight away.
-  - **Look:** Full screen (the starting setting; upright photos appear 2 or 3 side by side) or Framed.
+  - **Print filter:** Off, Light, Moderate (the starting setting) or Strong. Makes photos look like prints
+    on paper rather than a bright screen. The photo on screen changes to show it.
+  - **Print surface:** Paper (the starting setting) or Canvas: the fine texture the filter adds.
+  - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.
   - **Add photos…** — press OK.
   The TV remembers your choices, and the screensaver uses them too.
 - **▼** — add photos.

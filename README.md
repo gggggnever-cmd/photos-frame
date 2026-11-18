@@ -1,13 +1,12 @@
 # Photos Frame
 
 A personal Google TV app (built for a TCL NXTFRAME) that shows your own Google Photos
-full screen, edge to edge. Portrait photos are shown 2 or 3 side by side. A "Framed" look
+full screen, edge to edge. Upright photos are shown three side by side, whole, with paper-coloured gaps. A "Framed" look
 (off-white bevelled matte, dark walnut frame, charcoal wall) can be chosen in Settings.
 Pictures change every 10 minutes (adjustable) with a slow 4-second fade.
-Each photo gets an "art print" treatment when shown (level Off/Light/Moderate/Strong on the
-▲ Settings page, saved in `Settings.java`; default Moderate = 0.5):
-lower, softer light, gentler matte contrast, slightly quieter warm colour, a faint
-gallery-light falloff and fine paper grain — no blur or painterly effects.
+Photos can get a "print" filter (▲ Settings: Off/Light/Moderate/Strong, surface Paper or Canvas):
+a warm paper white and ink-black ends, slightly quieter colour, a fine paper or canvas texture and a
+soft gallery light, so they read like prints on the TV's matte screen. No blur or painterly effects.
 It also works as the TV's screensaver.
 
 ## How photos get onto the frame
@@ -40,7 +39,7 @@ photos 1/5/10/30/60 min, art filter level, Add photos; `SettingsPanel.java`); **
 Needs JDK 17+, Android SDK (platform 34) and Gradle 8.14:
 ```
 echo "sdk.dir=/path/to/android-sdk" > local.properties
-gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
+gradle assembleRelease   # → app/build/outputs/apk/release/app-release.apk (signed with the debug key)
 ```
 
 ## Install on the TV
@@ -49,7 +48,7 @@ On the TV: Settings → System → About → click "Android TV OS build" 7× →
 Developer options → USB debugging (and network debugging if present). Then:
 ```
 adb connect <TV-IP>
-adb install -r app-debug.apk
+adb install -r app-release.apk
 # make it the screensaver (Google TV hides third-party screensavers in Settings):
 adb shell settings put secure screensaver_components com.gary.photosframe/.FrameDreamService
 ```
@@ -57,4 +56,5 @@ adb shell settings put secure screensaver_components com.gary.photosframe/.Frame
 ## tools/
 - `picker_test.py` — the original Picker spike (desktop OAuth client, Python stdlib).
 - `preview.py` — renders a framed, art-treated preview of a photo on a computer
-  (`python3 tools/preview.py photo.jpg out.jpg 0.5`); mirrors FrameRenderer/ArtTreatment.
+  (`python3 tools/preview.py photo.jpg out.jpg 0.5`). Mirrors the pre-v0.8 filter; the current print
+  filter is specified in `docs/print_filter_spec.md`.

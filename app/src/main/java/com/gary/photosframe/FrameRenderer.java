@@ -18,76 +18,96 @@ final class FrameRenderer {
     static final int FRAME = 0xFF1F1915;       // dark walnut
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-    private ArtTreatment art = new ArtTreatment();
 
-    private float artStrength = -1f;
-    void setArtStrength(float s) { artStrength = s; art = new ArtTreatment(s); }
-    float artStrength() { return artStrength; }
+    // Paper tone for gaps and empty areas: a warm mount-board colour (designer's choice for the matte
+    // screen, where near-black reads as muddy grey), tinted slightly toward the photos' average colour.
+    static final int PAPER = 0xFFD4CEC3;
+    static final float PAPER_TINT = 0.18f;
+    static final float GAP_FRACTION = 48f / 1080f;   // band between side-by-side photos (48 px at 1080p)
 
-    static final int GAP = 0xFF121110;          // thin line between side-by-side photos
+    /** Slides thread: the paper colour for a slide, from a tiny downscale of its photos. */
+    static int paperTone(List<Bitmap> photos) {
+        if (photos.isEmpty()) return PAPER;
+        long r = 0, g = 0, b = 0, n = 0;
+        for (Bitmap ph : photos) {
+            Bitmap t = Bitmap.createScaledBitmap(ph, 8, 8, true);
+            for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+                int c = t.getPixel(x, y);
+                r += (c >> 16) & 0xFF; g += (c >> 8) & 0xFF; b += c & 0xFF; n++;
+            }
+            t.recycle();
+        }
+        return mix(PAPER, (int) (r / n), (int) (g / n), (int) (b / n), PAPER_TINT);
+    }
+
+    private static int mix(int base, int r, int g, int b, float t) {
+        int br = (base >> 16) & 0xFF, bg = (base >> 8) & 0xFF, bb = base & 0xFF;
+        return 0xFF000000 | (Math.round(br + (r - br) * t) << 16) | (Math.round(bg + (g - bg) * t) << 8) | Math.round(bb + (b - bb) * t);
+    }
 
     /**
-     * Full-screen look: 1-3 photos fill the screen edge to edge, side by side in equal columns, each
-     * trimmed to fill its column. A single photo whose shape is far from the screen's (a lone portrait,
-     * a panorama) is shown whole over a soft, dimmed, blurred copy of itself instead of being cropped hard.
-     * offsetX/offsetY: a few pixels of drift between slides.
+     * Full-screen look. One landscape fills the screen edge to edge. Portraits ("Flush Triptych", the owner's
+     * pick): shown whole, full height, the outer ones touching the screen edges, separated by paper bands.
+     * If whole photos would not fit side by side, each gets an equal column and is trimmed to fill it.
+     * A lone portrait or a panorama is shown whole, centred on paper, rather than cropped hard.
+     * offsetX/offsetY: a few pixels of drift between slides (only used where a photo is trimmed).
      */
-    void drawFull(Canvas c, List<Bitmap> photos, int w, int h, float offsetX, float offsetY) {
-        c.drawColor(GAP);
+    void drawFull(Canvas c, List<Bitmap> photos, int paper, int w, int h, float offsetX, float offsetY, List<RectF> rects) {
+        c.drawColor(paper);
         int n = photos.size();
         if (n == 0) return;
-        float gap = n > 1 ? Math.max(2f, 0.004f * h) : 0f;
-        float colW = (w - gap * (n - 1)) / n;
-        for (int i = 0; i < n; i++) {
-            Bitmap ph = photos.get(i);
-            if (ph == null) continue;
-            RectF col = new RectF(i * (colW + gap), 0, i * (colW + gap) + colW, h);
-            float photoAspect = (float) ph.getWidth() / ph.getHeight(), colAspect = col.width() / col.height();
-            if (n == 1 && (photoAspect / colAspect < 0.7f || photoAspect / colAspect > 1.45f)) {
-                drawOnBlur(c, ph, col);
-            } else {
-                drawCover(c, ph, col, offsetX, offsetY);
+        float minGap = GAP_FRACTION * h;
+        if (n == 1) {
+            Bitmap ph = photos.get(0);
+            float ratio = ((float) ph.getWidth() / ph.getHeight()) / ((float) w / h);
+            RectF all = new RectF(0, 0, w, h);
+            if (ratio < 0.7f || ratio > 1.45f) drawFit(c, ph, all, rects); else drawCover(c, ph, all, offsetX, offsetY, rects);
+            return;
+        }
+        float sumW = 0;
+        for (Bitmap ph : photos) sumW += h * (float) ph.getWidth() / ph.getHeight();
+        if (sumW + minGap * (n - 1) <= w) {
+            // Whole photos. Three spread to the edges; two sit centred with a standard band between.
+            float gap = n >= 3 ? (w - sumW) / (n - 1) : minGap;
+            float x = n >= 3 ? 0 : (w - sumW - gap) / 2;
+            for (Bitmap ph : photos) {
+                float pw = h * (float) ph.getWidth() / ph.getHeight();
+                RectF r = new RectF(x, 0, x + pw, h);
+                drawCover(c, ph, r, 0, 0, rects);
+                x += pw + gap;
             }
-            art.drawSurface(c, col);
+        } else {
+            float colW = (w - minGap * (n - 1)) / n;
+            for (int i = 0; i < n; i++) {
+                RectF col = new RectF(i * (colW + minGap), 0, i * (colW + minGap) + colW, h);
+                drawCover(c, photos.get(i), col, offsetX, offsetY, rects);
+            }
         }
     }
 
     /** Fills dst completely (cropping the overflow), slightly over-scaled so the drift never shows an edge. */
-    private void drawCover(Canvas c, Bitmap ph, RectF dst, float dx, float dy) {
-        float scale = Math.max(dst.width() / ph.getWidth(), dst.height() / ph.getHeight()) * 1.012f;
+    private void drawCover(Canvas c, Bitmap ph, RectF dst, float dx, float dy, List<RectF> rects) {
+        float scale = Math.max(dst.width() / ph.getWidth(), dst.height() / ph.getHeight()) * (dx == 0 && dy == 0 ? 1f : 1.012f);
         float sw = dst.width() / scale, sh = dst.height() / scale;
         float sl = clamp((ph.getWidth() - sw) / 2 + dx / scale, 0, ph.getWidth() - sw);
         float st = clamp((ph.getHeight() - sh) / 2 + dy / scale, 0, ph.getHeight() - sh);
-        p.setColorFilter(art.colorFilter());
         c.drawBitmap(ph, new Rect(Math.round(sl), Math.round(st), Math.round(sl + sw), Math.round(st + sh)), dst, p);
-        p.setColorFilter(null);
+        rects.add(dst);
     }
 
-    /** Whole photo, centred, over a heavily blurred and darkened cover of itself. */
-    private void drawOnBlur(Canvas c, Bitmap ph, RectF dst) {
-        // Cheap blur: shrink to a few dozen pixels, then let filtered upscaling smear it.
-        int bw = Math.max(1, ph.getWidth() / 48), bh = Math.max(1, ph.getHeight() / 48);
-        Bitmap tiny = Bitmap.createScaledBitmap(ph, bw, bh, true);
-        drawCover(c, tiny, dst, 0, 0);
-        tiny.recycle();
-        p.setColor(0x8C000000);
-        c.drawRect(dst, p);
+    /** Whole photo, centred in dst, on the paper already drawn there. */
+    private void drawFit(Canvas c, Bitmap ph, RectF dst, List<RectF> rects) {
         float scale = Math.min(dst.width() / ph.getWidth(), dst.height() / ph.getHeight());
         float pw = ph.getWidth() * scale, phh = ph.getHeight() * scale;
         RectF r = new RectF(dst.centerX() - pw / 2, dst.centerY() - phh / 2, dst.centerX() + pw / 2, dst.centerY() + phh / 2);
-        p.setColor(0x80000000);
-        p.setMaskFilter(new BlurMaskFilter(0.02f * dst.height(), BlurMaskFilter.Blur.NORMAL));
-        c.drawRect(r, p);
-        p.setMaskFilter(null);
-        p.setColorFilter(art.colorFilter());
-        c.drawBitmap(ph, new Rect(0, 0, ph.getWidth(), ph.getHeight()), r, p);
-        p.setColorFilter(null);
+        c.drawBitmap(ph, null, r, p);
+        rects.add(r);
     }
 
     private static float clamp(float v, float lo, float hi) { return Math.max(lo, Math.min(hi, v)); }
 
     /** Framed look. offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
-    void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY) {
+    void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY, List<RectF> rects) {
         c.drawColor(WALL);
         if (photo == null) return;
 
@@ -149,11 +169,9 @@ final class FrameRenderer {
         lower.close();
         c.drawPath(lower, p);
 
-        // The photo, given the matte "art print" treatment (see ArtTreatment.STRENGTH).
-        p.setColorFilter(art.colorFilter());
+        // The photo (already toned by ArtTreatment.bake; texture and light are drawn live on top).
         c.drawBitmap(photo, new Rect(0, 0, photo.getWidth(), photo.getHeight()), photoRect, p);
-        p.setColorFilter(null);
-        art.drawSurface(c, photoRect);
+        rects.add(photoRect);
         // Faint glass sheen, top-left to centre.
         p.setShader(new android.graphics.LinearGradient(matRect.left, matRect.top, matRect.centerX(), matRect.centerY(),
                 0x0FFFFFFF, 0x00FFFFFF, android.graphics.Shader.TileMode.CLAMP));
