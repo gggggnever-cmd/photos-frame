@@ -141,6 +141,12 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     @Override public void hide(String id) {
         frame.hide(id, () -> note("Hidden. Settings → Hidden photos brings it back"));
     }
+    @Override public Boolean isPlace(String id) { return frame.isPlace(id); }
+    @Override public void togglePlace(String id) {
+        frame.togglePlace(id, now -> note(now ? "Shown in Places only" : "Left out of Places only"));
+    }
+    @Override public int placeCount() { return frame.placeCount(); }
+    @Override public int[] checkProgress() { return frame.checkProgress(); }
     @Override public void highlight(int index) { frame.setHighlight(index); }
     @Override public void closeMenu() { menu.close(); }
 

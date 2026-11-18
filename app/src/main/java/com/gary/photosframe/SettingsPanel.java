@@ -17,6 +17,7 @@ final class SettingsPanel extends LinearLayout {
     interface Host {
         void settingsChanged(); void addPhotos(); void close();
         int hiddenCount(); int favouriteCount(); void unhideAll();
+        int placeCount(); int[] checkProgress();   // Places only: how many; {checked, total} photos
         void openTrips();
         java.util.List<String[]> tripRows();   // {start, end, label, count, "gone"|""}
         java.util.List<String[]> days();   // {yyyy:MM:dd, count}, oldest first
@@ -24,7 +25,8 @@ final class SettingsPanel extends LinearLayout {
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
     private static final int ROW_TRIP = 0, ROW_INTERVAL = 1, ROW_ART = 2, ROW_SURFACE = 3, ROW_LOOK = 4,
-            ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_SPACE = 8, ROW_HIDDEN = 9, ROW_ADD = 10, ROWS = 11;
+            ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_HIGHLIGHTS = 8, ROW_SPACE = 9, ROW_HIDDEN = 10,
+            ROW_ADD = 11, ROWS = 12;
 
     private final Settings settings;
     private final Host host;
@@ -49,7 +51,7 @@ final class SettingsPanel extends LinearLayout {
         addView(title);
         addView(space(8));
         String[] names = {"Trip", "Change photo every", "Print filter", "Print surface", "Look", "Order", "   Day",
-                "Play", "Space for photos", "Hidden photos", "Add photos…"};
+                "Play", "   Highlights per trip", "Space for photos", "Hidden photos", "Add photos…"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -121,7 +123,11 @@ final class SettingsPanel extends LinearLayout {
             i = Math.max(0, Math.min(days.size(), i));
             settings.setDay(i == 0 ? "" : days.get(i - 1)[0]);
         } else if (focus == ROW_PLAY) {
-            settings.setFavouritesOnly(dir > 0);
+            int n = Settings.PLAY_NAMES.length;
+            settings.setPlay(Math.max(0, Math.min(n - 1, settings.play() + dir)));
+        } else if (focus == ROW_HIGHLIGHTS) {
+            int n = Highlights.COUNTS.length;
+            settings.setHighlightsIndex(Math.max(0, Math.min(n - 1, settings.highlightsIndex() + dir)));
         } else if (focus == ROW_LOOK) {
             int n = Settings.LOOK_NAMES.length;
             settings.setLook(Math.max(0, Math.min(n - 1, settings.look() + dir)));
@@ -146,10 +152,17 @@ final class SettingsPanel extends LinearLayout {
             int i = dayIndex(days);
             values[ROW_DAY].setText(arrows(i == 0 ? "Any day" : dayLabel(days.get(i - 1)), i, days.size() + 1));
         }
-        int fav = settings.favouritesOnly() ? 1 : 0;
-        String play = Settings.PLAY_NAMES[fav];
-        if (fav == 1) play += host.favouriteCount() == 0 ? " (none yet)" : " (" + host.favouriteCount() + ")";
-        values[ROW_PLAY].setText(arrows(play, fav, 2));
+        int p = settings.play();
+        String play = Settings.PLAY_NAMES[p];
+        if (p == Settings.PLAY_FAV) play += host.favouriteCount() == 0 ? " (none yet)" : " (" + host.favouriteCount() + ")";
+        if (p == Settings.PLAY_PLACES || p == Settings.PLAY_HIGHLIGHTS) {
+            int[] c = host.checkProgress();
+            if (c[1] > 0 && c[0] < c[1]) play += " (checking " + (100 * c[0] / c[1]) + "%)";
+            else if (p == Settings.PLAY_PLACES) play += " (" + host.placeCount() + ")";
+        }
+        values[ROW_PLAY].setText(arrows(play, p, Settings.PLAY_NAMES.length));
+        for (int r : new int[]{ROW_ORDER, ROW_DAY, ROW_HIGHLIGHTS}) rows[r].setVisibility(shown(r) ? VISIBLE : GONE);
+        values[ROW_HIGHLIGHTS].setText(arrows(String.valueOf(settings.highlightCount()), settings.highlightsIndex(), Highlights.COUNTS.length));
         int hidden = host.hiddenCount();
         values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK to show again" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
@@ -173,7 +186,14 @@ final class SettingsPanel extends LinearLayout {
         return "1 trip";
     }
 
-    private boolean shown(int row) { return row != ROW_DAY || settings.order() == Settings.ORDER_DAY; }
+    /** Day shows only in One day at a time; Highlights play as a story, so Order and Day give way to the count. */
+    private boolean shown(int row) {
+        boolean high = settings.play() == Settings.PLAY_HIGHLIGHTS;
+        if (row == ROW_HIGHLIGHTS) return high;
+        if (row == ROW_ORDER) return !high;
+        if (row == ROW_DAY) return !high && settings.order() == Settings.ORDER_DAY;
+        return true;
+    }
 
     /** 0 for Any day (or a day that no longer has photos), else 1 + its position in the list. */
     private int dayIndex(java.util.List<String[]> days) {

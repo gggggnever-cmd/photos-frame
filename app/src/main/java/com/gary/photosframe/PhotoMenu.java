@@ -21,6 +21,8 @@ final class PhotoMenu extends LinearLayout {
         boolean isFavourite(String id);
         void favourite(String id);
         void hide(String id);
+        Boolean isPlace(String id);         // true: shows in Places only; false: has people; null: not checked yet
+        void togglePlace(String id);
         void highlight(int index);
         String tripLabel(String id);        // "Nov 2025 · 12 days", or null
         void renameTripOf(String id);
@@ -28,7 +30,7 @@ final class PhotoMenu extends LinearLayout {
     }
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
-    private static final int ROW_PHOTO = 0, ROW_FAV = 1, ROW_HIDE = 2, ROW_TRIP = 3, ROW_CANCEL = 4, ROWS = 5;
+    private static final int ROW_PHOTO = 0, ROW_FAV = 1, ROW_HIDE = 2, ROW_PLACE = 3, ROW_TRIP = 4, ROW_CANCEL = 5, ROWS = 6;
     private static final String[] POSITIONS_2 = {"Left", "Right"}, POSITIONS_3 = {"Left", "Middle", "Right"};
 
     private final Host host;
@@ -51,7 +53,7 @@ final class PhotoMenu extends LinearLayout {
         addView(text("This photo", 24, INK, Typeface.SERIF));
         View gap = new View(ctx);
         addView(gap, new LayoutParams(1, dp(10)));
-        String[] names = {"Photo", "Favourite", "Hide this photo", "Name this trip", "Cancel"};
+        String[] names = {"Photo", "Favourite", "Hide this photo", "Places only", "Name this trip", "Cancel"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -102,6 +104,7 @@ final class PhotoMenu extends LinearLayout {
                 String id = photos.get(chosen);
                 if (focus == ROW_FAV) host.favourite(id);
                 else if (focus == ROW_HIDE) host.hide(id);
+                else if (focus == ROW_PLACE) host.togglePlace(id);
                 host.closeMenu();
                 if (focus == ROW_TRIP) host.renameTripOf(id);
                 return true;
@@ -118,6 +121,8 @@ final class PhotoMenu extends LinearLayout {
         values[ROW_PHOTO].setText(photos.size() > 1 ? "◀  " + pos[Math.min(chosen, pos.length - 1)] + "  ▶" : "");
         boolean fav = host.isFavourite(photos.get(chosen));
         values[ROW_FAV].setText(fav ? "♥ on (OK to remove)" : "♡ off");
+        Boolean place = host.isPlace(photos.get(chosen));
+        values[ROW_PLACE].setText(place == null ? "not checked yet" : place ? "✓ shown" : "✗ left out");
         String trip = host.tripLabel(photos.get(chosen));
         values[ROW_TRIP].setText(trip == null ? "" : trip.replace("  ·  ", " · "));
         for (int i = 0; i < ROWS; i++) {

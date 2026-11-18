@@ -57,7 +57,7 @@ public class FrameView extends View {
     private float bakedStrength = -1f;              // slides thread: level the prepared slide was baked with
     private int bakedLook = -1;
     private int bakedOrder = -1;
-    private boolean bakedFavOnly;
+    private int bakedPlay = -1, bakedHighlights;
     private String bakedDay = "";
     private String bakedTrips = "";
     private final Paint highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -87,11 +87,13 @@ public class FrameView extends View {
         bg.post(() -> {
             source = new PhotoSource(ctx, settings);
             bakedOrder = settings.order();
-            bakedFavOnly = settings.favouritesOnly();
+            bakedPlay = settings.play();
+            bakedHighlights = settings.highlightCount();
             bakedDay = settings.day();
             bakedTrips = settings.trips();
             ensureArt();
             Shrinker.startOnce(ctx);     // one-off: re-save old 4K photos at frame size
+            PhotoChecker.kick(ctx);      // faces, sharpness, light of photos not checked yet
         });
         highlightPaint.setStyle(Paint.Style.STROKE);
         highlightPaint.setColor(0xFFF1EDE4);
@@ -103,7 +105,7 @@ public class FrameView extends View {
 
     /** Re-scan the photo folder (after adding photos) and show one of them. */
     public void reload() {
-        bg.post(() -> { source.reload(); prepared = null; });
+        bg.post(() -> { source.reload(); prepared = null; PhotoChecker.kick(getContext()); });
         skip();
     }
 
@@ -163,7 +165,18 @@ public class FrameView extends View {
 
     public List<String[]> days() {
         PhotoSource s = source;
-        return s == null ? Collections.emptyList() : s.library().days(settings.favouritesOnly());
+        return s == null ? Collections.emptyList() : s.library().days(settings.play());
+    }
+
+    /** Places only: true / false / null (not checked yet), counts, progress, and the photo-menu mark. */
+    public Boolean isPlace(String id) { PhotoSource s = source; return s == null ? null : s.library().isPlace(id); }
+    public int placeCount() { PhotoSource s = source; return s == null ? 0 : s.library().placeCount(); }
+    public int[] checkProgress() { PhotoSource s = source; return s == null ? new int[]{0, 0} : s.library().checkProgress(); }
+    public void togglePlace(String id, java.util.function.Consumer<Boolean> done) {
+        bg.post(() -> {
+            boolean now = source.library().togglePlace(id);
+            ui.post(() -> done.accept(now));
+        });
     }
     public boolean isFavourite(String id) { PhotoSource s = source; return s != null && s.library().isFavourite(id); }
 
@@ -205,12 +218,14 @@ public class FrameView extends View {
         int w = getWidth(), h = getHeight();
         if (shown == null || w == 0) return;
         bg.post(() -> {
-            if (settings.order() != bakedOrder || settings.favouritesOnly() != bakedFavOnly
+            if (settings.order() != bakedOrder || settings.play() != bakedPlay
+                    || settings.highlightCount() != bakedHighlights
                     || !settings.day().equals(bakedDay) || !settings.trips().equals(bakedTrips)) {
                 bakedTrips = settings.trips();
                 // New order, day or play choice: the library starts a new round with the next slide.
                 bakedOrder = settings.order();
-                bakedFavOnly = settings.favouritesOnly();
+                bakedPlay = settings.play();
+                bakedHighlights = settings.highlightCount();
                 bakedDay = settings.day();
                 source.dropUpcoming();
                 prepared = null;

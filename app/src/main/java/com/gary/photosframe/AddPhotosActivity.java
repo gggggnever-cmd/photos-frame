@@ -122,7 +122,8 @@ public class AddPhotosActivity extends Activity {
         try {
             show(url, "Sign in to Google Photos (one time)",
                     "With your phone on the same Wi-Fi as the TV, scan this code.\n"
-                            + "A page opens with three short steps. Or type this address:", url.replace("http://", ""));
+                            + "A page opens with three short steps. If the phone can't reach it, type this address\n"
+                            + "in a computer's browser instead (also on this Wi-Fi):", url.replace("http://", ""));
             synchronized (lock) {
                 while (!ok[0] && !stopped) lock.wait(1000);
             }

@@ -104,7 +104,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.13** (versionCode 13). Everything is on GitHub `main`.
+Current version: **v0.14** (versionCode 14). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -133,7 +133,12 @@ Current version: **v0.13** (versionCode 13). Everything is on GitHub `main`.
 - [ ] **Open bug: the owner's phone (Chrome) can't open http://<TV-IP>:8080/**
       (`ERR_TOO_MANY_RETRIES`), though the PC on the same Wi-Fi loads it and the TV can ping the phone
       (likely <PC-IP>). No phone request has been seen in the `SetupServer` log yet, so it's unknown
-      whether the request reaches the TV. Next: have the owner scan once while `adb logcat SetupServer:I *:S`
+      whether the request reaches the TV. Research 2026-11-18: SetupServer logs every accepted socket, so
+      nothing reaches the TV; ERR_TOO_MANY_RETRIES (-375) comes from auth/cert restarts or retries on a
+      reused socket, which points at a proxy or VPN on the phone (Wi-Fi Proxy setting, Samsung Secure
+      Wi-Fi / Auto protect, a VPN/ad-blocker app) or the Lens in-app browser. Checklist for the owner: type the
+      address into Chrome by hand; Wi-Fi network → Proxy = None; turn off VPN / Secure Wi-Fi; try Samsung
+      Internet; each while logging. Next: have the owner scan once while `adb logcat SetupServer:I *:S`
       runs; try Samsung Internet; check phone VPN / Private DNS / "secure Wi-Fi". Workaround: sign in from
       the PC browser.
 - [x] v0.6 on the TV (2026-11-17), all 1,990 photos downloaded (~2.3 GB). Checked with adb key presses +
@@ -174,6 +179,21 @@ Current version: **v0.13** (versionCode 13). Everything is on GitHub `main`.
       (date self-check, marker files/library/shrunk.done). Checked on the TV: first-trip = "Oct 2026 · 7 days",
       tick/rename/restore, voice keyboard appears. NOT yet tested: naming screen during a real pick, multi-
       trip picks, eviction (needs >20 GB), final Shrinker totals.
+- [x] v0.14 (2026-11-18, built on the PC, NOT yet installed: the TV was off): **Places only** and
+      **Highlights** (the owner asked to build both). PhotoChecker (background, MIN priority, files/library/
+      scores.tsv: faces, largest face height / long side, Laplacian sharpness, brightness) using ML Kit face
+      detection 16.1.7 with its bundled model (ACCURATE, min face 0.015), falling back to
+      android.media.FaceDetector. Places rule (Highlights.PERSON_FACE): a person is "in" the photo when a
+      face is >= 2.5% of the long side; tune after the owner sees results. Photo menu "Places only" flips a
+      photo (places.txt overrides). Highlights.select (pure, 8 JUnit tests): best member per burst, quality =
+      sharpness rank in trip + exposure + people bonus + burst size, favourites always in, per-day quota
+      proportional to scenes (min 1), avoid photos <90 s apart; trips in random order, each in time order;
+      Settings → Highlights per trip 20/30/50/100 (Order and Day rows hide). Play pref now int "play"
+      (migrates "favourites_only"); round.txt h[3] = play number (old true/false read), h[7] use, h[8] count.
+      APK limited to armeabi-v7a (ML Kit libs; 17.6 MB). Also: sign-in log now redacts URL-encoded codes;
+      sign-in screen says to use a computer if the phone can't reach the page.
+      TO CHECK ON THE TV: checker speed and "done" log, places count looks right, Highlights look good,
+      settings/menu rows fit, the owner's settings unchanged after install.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
@@ -194,7 +214,7 @@ days = new trip), named "Nov 2025 · 12 days" with a cover; optional one spoken 
 picker per-day select circles + search is how he picks; budget must be user-set (default 20 GB).
 
 ## Idea from the owner (2026-11-18): "Places only" — photos of where we went, without us in them
-Not built yet. Thinking: a Play choice "Places only" that skips photos where a person is the subject.
+BUILT in v0.14 (see status).  Original thinking: Thinking: a Play choice "Places only" that skips photos where a person is the subject.
 - On-device face detection once per photo, in the background, cached in files/library/meta.tsv
   (android.media.FaceDetector needs no extra library; ML Kit face detection with its bundled model is more
   accurate, e.g. side-on faces, at a few MB).
@@ -203,7 +223,7 @@ Not built yet. Thinking: a Play choice "Places only" that skips photos where a p
 - Misses: people seen from behind or far away. A hidden-style "not a places photo" mark in the photo menu
   could fix mistakes. Shares the face scores with the parked "Highlights" idea.
 
-## Idea parked by the owner (2026-11-18): "Highlights" / trip overview — DON'T BUILD until he asks
+## Idea from the owner (2026-11-18): "Highlights" / trip overview — BUILT in v0.14 (the owner asked)
 The owner's words: an "executive overview" of a trip: pick the most important photos (say ~30, maybe user-set)
 and play just those. Thinking so far (nothing built):
 - Name: "Highlights" (Settings → Play: All photos / Favourites only / Highlights, with a count 20/30/50/100).

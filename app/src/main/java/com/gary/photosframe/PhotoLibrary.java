@@ -70,6 +70,9 @@ final class PhotoLibrary {
     private final Random random = new Random();
     private final Map<String, Meta> meta = new HashMap<>();          // by file name
     private final Set<String> hidden = new HashSet<>(), favourites = new HashSet<>();
+    // Photo checker results (scores.tsv) and the owner's own corrections for Places only (places.txt).
+    private final Map<String, Highlights.Score> scores = new HashMap<>();   // by file name
+    private final Map<String, Boolean> placeMarks = new HashMap<>();        // by file name: true = a place
     private final List<String> photos = new ArrayList<>();            // ids ("file:<path>" or "asset:<path>")
     private boolean own;
 
@@ -78,7 +81,10 @@ final class PhotoLibrary {
     private int next;                                                  // index of the next one to show
     private int roundNumber;
     private int roundOrder = -1;
-    private boolean roundFavOnly;
+    private int roundPlay;                                             // Play choice the round was built for
+    private int roundUse;                                              // what it actually plays (after fallbacks)
+    private int roundHighlights;                                       // highlights per trip it was built for
+    private boolean rebuild;                                           // highlights changed: new round next time
     private String roundDay = "";                                     // chosen day the round was built for
     private String roundTrips = "";                                   // trips the round was built for ("" = all)
 
@@ -96,6 +102,7 @@ final class PhotoLibrary {
         readMeta();
         readSet("hidden.txt", hidden);
         readSet("favourites.txt", favourites);
+        readScores();
         readEntries();
         scanFiles();
         readRound();          // restore the saved round (and fit new photos into it) before anything writes it
@@ -275,9 +282,11 @@ final class PhotoLibrary {
      * settings changed. Null when there are no photos to show.
      */
     synchronized String take(Settings s) {
-        if (roundOrder != s.order() || roundFavOnly != s.favouritesOnly() || next >= round.size()
-                || !s.trips().equals(roundTrips)
-                || (s.order() == Settings.ORDER_DAY && !s.day().equals(roundDay))) newRound(s);
+        boolean high = s.play() == Settings.PLAY_HIGHLIGHTS;
+        if (rebuild || roundPlay != s.play() || next >= round.size() || !s.trips().equals(roundTrips)
+                || (high && roundHighlights != s.highlightCount())
+                || (!high && roundOrder != s.order())
+                || (!high && s.order() == Settings.ORDER_DAY && !s.day().equals(roundDay))) newRound(s);
         if (next >= round.size()) return null;
         String id = round.get(next++);
         writeRound();
@@ -292,12 +301,15 @@ final class PhotoLibrary {
      */
     synchronized List<String> pullPortraits(String first, int want, boolean tallOnly) {
         List<String> out = new ArrayList<>();
-        String day = roundOrder == Settings.ORDER_DAY ? dayOf(first) : null;
+        boolean high = roundUse == Settings.PLAY_HIGHLIGHTS;
+        String day = !high && roundOrder == Settings.ORDER_DAY ? dayOf(first) : null;
+        Trips.Trip trip = high ? tripOf.get(name(first)) : null;
         for (int i = next; i < round.size() && out.size() < want; i++) {
             String id = round.get(i);
             float a = aspect(id);
             if (!(tallOnly ? a < TALL : a < PORTRAIT)) continue;
             if (day != null && !day.equals(dayOf(id))) continue;
+            if (high && tripOf.get(name(id)) != trip) continue;   // a trip's story stays with its own photos
             round.remove(i);
             round.add(next++, id);
             out.add(id);
@@ -307,10 +319,11 @@ final class PhotoLibrary {
     }
 
     /** The days photos were taken on (oldest first) with how many photos each has, for the Day setting. */
-    synchronized List<String[]> days(boolean favOnly) {
+    synchronized List<String[]> days(int play) {
         Map<String, Integer> count = new HashMap<>();
+        int use = effectivePlay(play);
         for (String id : photos) {
-            if (!eligible(id, favOnly && !favourites.isEmpty())) continue;
+            if (!eligible(id, use == Settings.PLAY_HIGHLIGHTS ? Settings.PLAY_ALL : use)) continue;
             String d = dayOf(id);
             if (d.isEmpty()) continue;
             Integer c = count.get(d);
@@ -352,29 +365,134 @@ final class PhotoLibrary {
         Set<String> back = new HashSet<>(hidden);
         hidden.clear();
         writeSet("hidden.txt", hidden);
+        if (roundUse == Settings.PLAY_HIGHLIGHTS) { rebuild = true; return; }
         // Put the returned photos into the rest of this round at random places.
-        for (String id : photos) if (back.contains(name(id)) && eligible(id, roundFavOnly)) insertLater(id);
+        for (String id : photos) if (back.contains(name(id)) && eligible(id, roundUse)) insertLater(id);
         writeRound();
+    }
+
+    // ---- Places only and Highlights (photo checker results) ----
+
+    /** Photos not checked yet (the photo checker works through these). */
+    synchronized List<String> unscored() {
+        List<String> out = new ArrayList<>();
+        for (String id : photos) if (id.startsWith("file:") && !scores.containsKey(name(id))) out.add(id);
+        return out;
+    }
+
+    /** {checked, total} for the Settings page while the checker runs. */
+    synchronized int[] checkProgress() {
+        int done = 0, total = 0;
+        for (String id : photos) if (id.startsWith("file:")) { total++; if (scores.containsKey(name(id))) done++; }
+        return new int[]{done, total};
+    }
+
+    /** The checker reports a batch. New places join a Places-only round; Highlights are rebuilt when done. */
+    synchronized void addScores(Map<String, Highlights.Score> batch, boolean finished) {
+        for (Map.Entry<String, Highlights.Score> e : batch.entrySet()) scores.put(name(e.getKey()), e.getValue());
+        writeScores();
+        if (roundUse == Settings.PLAY_PLACES) {
+            Set<String> inRound = new HashSet<>(round);
+            for (String id : batch.keySet()) if (!inRound.contains(id) && eligible(id, Settings.PLAY_PLACES)) insertLater(id);
+            writeRound();
+        } else if (roundPlay == Settings.PLAY_PLACES && placeCount() > 0) {
+            rebuild = true;    // was playing everything until the first places were known
+        }
+        if (finished && roundUse == Settings.PLAY_HIGHLIGHTS && !batch.isEmpty()) rebuild = true;
+    }
+
+    /** True = counts as a place, false = has people, null = not checked yet. The owner's own mark wins. */
+    synchronized Boolean isPlace(String id) { return place(id); }
+
+    private Boolean place(String id) {
+        String n = name(id);
+        Boolean mark = placeMarks.get(n);
+        if (mark != null) return mark;
+        Highlights.Score s = scores.get(n);
+        return s == null ? null : Highlights.isPlace(s);
+    }
+
+    /** Photo menu: flips whether a photo counts as a place. Returns the new state. */
+    synchronized boolean togglePlace(String id) {
+        Boolean now = place(id);
+        boolean next = now == null || !now;
+        placeMarks.put(name(id), next);
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Boolean> e : placeMarks.entrySet()) sb.append(e.getKey()).append('\t').append(e.getValue() ? 1 : 0).append('\n');
+        writeText("places.txt", sb.toString());
+        return next;
+    }
+
+    synchronized int placeCount() {
+        int n = 0;
+        for (String id : photos) if (!hidden.contains(name(id)) && Boolean.TRUE.equals(place(id))) n++;
+        return n;
     }
 
     // ---- Rounds ----
 
-    private boolean eligible(String id, boolean favOnly) {
+    private boolean eligible(String id, int play) {
         String n = name(id);
         if (hidden.contains(n)) return false;
         if (!inChosenTrips(id, roundTrips)) return false;
-        return !favOnly || favourites.contains(n);
+        if (play == Settings.PLAY_FAV) return favourites.contains(n);
+        if (play == Settings.PLAY_PLACES) return Boolean.TRUE.equals(place(id));
+        return true;
+    }
+
+    /** The Play choice, falling back to all photos when it would show nothing (no favourites, no places yet). */
+    private int effectivePlay(int play) {
+        if (play == Settings.PLAY_FAV && favourites.isEmpty()) return Settings.PLAY_ALL;
+        if (play == Settings.PLAY_PLACES) {
+            for (String id : photos) if (eligible(id, Settings.PLAY_PLACES)) return play;
+            return Settings.PLAY_ALL;
+        }
+        return play;
+    }
+
+    /** Highlights round: each trip's best photos in the order taken; the trips in random order. */
+    private List<String> highlightRound(List<String> pool, int perTrip) {
+        Map<Trips.Trip, List<Highlights.Cand>> byTrip = new LinkedHashMap<>();
+        for (String id : pool) {
+            Trips.Trip t = tripOf.get(name(id));
+            if (t == null) continue;                                    // undated: not part of any trip
+            List<Highlights.Cand> l = byTrip.get(t);
+            if (l == null) byTrip.put(t, l = new ArrayList<>());
+            l.add(new Highlights.Cand(id, takenOf(id), dayOf(id), favourites.contains(name(id)), scores.get(name(id))));
+        }
+        List<Trips.Trip> order = new ArrayList<>(byTrip.keySet());
+        Collections.shuffle(order, random);
+        List<String> out = new ArrayList<>();
+        for (Trips.Trip t : order) {
+            List<String> picked = Highlights.select(byTrip.get(t), perTrip, BURST_SECONDS);
+            Log.i("PhotoLibrary", "highlights of " + t.label() + ": " + picked.size() + " of " + byTrip.get(t).size());
+            out.addAll(picked);
+        }
+        return out;
     }
 
     private void newRound(Settings s) {
+        rebuild = false;
         roundTrips = s.trips();
         boolean any = false;
         for (String id : photos) if (inChosenTrips(id, roundTrips)) { any = true; break; }
         if (!any) roundTrips = "";                                     // chosen trips not on the TV: play all
-        boolean favOnly = s.favouritesOnly() && !favourites.isEmpty();   // no favourites yet: play everything
+        roundPlay = s.play();
+        roundHighlights = s.highlightCount();
+        int use = effectivePlay(roundPlay);
         List<String> pool = new ArrayList<>();
-        for (String id : photos) if (eligible(id, favOnly)) pool.add(id);
+        for (String id : photos) if (eligible(id, use == Settings.PLAY_HIGHLIGHTS ? Settings.PLAY_ALL : use)) pool.add(id);
         roundNumber++;
+        if (use == Settings.PLAY_HIGHLIGHTS) {
+            List<String> story = highlightRound(pool, roundHighlights);
+            if (!story.isEmpty()) {
+                round.clear();
+                round.addAll(story);
+                finishRound(s, use, pool.size());
+                return;
+            }
+            use = Settings.PLAY_ALL;                                    // no dated photos: play everything
+        }
         List<String> reps = burstRepresentatives(pool, roundNumber);
         round.clear();
         String chosen = s.order() == Settings.ORDER_DAY ? s.day() : "";
@@ -411,13 +529,18 @@ final class PhotoLibrary {
             round.addAll(reps);
             Collections.shuffle(round, random);
         }
+        finishRound(s, use, pool.size());
+    }
+
+    private void finishRound(Settings s, int use, int poolSize) {
         next = 0;
+        roundUse = use;
         roundDay = s.order() == Settings.ORDER_DAY ? s.day() : "";
         roundStart = System.currentTimeMillis();
-        Log.i("PhotoLibrary", "new round " + roundNumber + ": " + pool.size() + " photos, " + round.size()
-                + " after merging bursts, order=" + Settings.ORDER_NAMES[s.order()] + ", favouritesOnly=" + favOnly);
         roundOrder = s.order();
-        roundFavOnly = s.favouritesOnly();
+        Log.i("PhotoLibrary", "new round " + roundNumber + ": " + poolSize + " photos, " + round.size()
+                + " in the round, order=" + Settings.ORDER_NAMES[s.order()] + ", play=" + Settings.PLAY_NAMES[use]
+                + (use != roundPlay ? " (asked " + Settings.PLAY_NAMES[roundPlay] + ")" : ""));
         writeRound();
     }
 
@@ -452,8 +575,10 @@ final class PhotoLibrary {
             // are burst siblings or were filtered out on purpose; they come in later rounds.)
             Set<String> inRound = new HashSet<>(round);
             for (String id : photos) {
-                if (inRound.contains(id) || !eligible(id, roundFavOnly) || !id.startsWith("file:")) continue;
-                if (new File(id.substring(5)).lastModified() > roundStart) insertLater(id);
+                if (inRound.contains(id) || !eligible(id, roundUse) || !id.startsWith("file:")) continue;
+                if (new File(id.substring(5)).lastModified() <= roundStart) continue;
+                if (roundUse == Settings.PLAY_HIGHLIGHTS) { rebuild = true; break; }   // pick highlights again
+                insertLater(id);
             }
         }
         writeRound();
@@ -528,6 +653,26 @@ final class PhotoLibrary {
         writeText("meta.tsv", sb.toString());
     }
 
+    /** scores.tsv: name, faces, largest face, sharpness, brightness. places.txt: name, 1 (a place) / 0 (people). */
+    private void readScores() {
+        for (String line : readLines("scores.tsv")) {
+            String[] p = line.split("\t", -1);
+            if (p.length < 5) continue;
+            try { scores.put(p[0], Highlights.Score.decode(p, 1)); } catch (NumberFormatException ignored) { }
+        }
+        for (String line : readLines("places.txt")) {
+            String[] p = line.split("\t", -1);
+            if (p.length >= 2) placeMarks.put(p[0], "1".equals(p[1]));
+        }
+    }
+
+    private void writeScores() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Highlights.Score> e : scores.entrySet())
+            sb.append(e.getKey()).append('\t').append(e.getValue().encode()).append('\n');
+        writeText("scores.tsv", sb.toString());
+    }
+
     /** trips.tsv: start, end, name, lastPlayed, gone (0/1), goneCount. */
     private void readEntries() {
         for (String line : readLines("trips.tsv")) {
@@ -575,7 +720,10 @@ final class PhotoLibrary {
             next = Math.min(round.size(), Integer.parseInt(h[0]));
             roundNumber = Integer.parseInt(h[1]);
             roundOrder = Integer.parseInt(h[2]);
-            roundFavOnly = Boolean.parseBoolean(h[3]);
+            // h[3] was "true"/"false" (favourites only) before v0.14, now the Play choice number.
+            roundPlay = "true".equals(h[3]) ? Settings.PLAY_FAV : "false".equals(h[3]) ? Settings.PLAY_ALL : Integer.parseInt(h[3]);
+            roundUse = h.length > 7 ? Integer.parseInt(h[7]) : roundPlay;
+            roundHighlights = h.length > 8 ? Integer.parseInt(h[8]) : 0;
             roundStart = h.length > 4 ? Long.parseLong(h[4]) : System.currentTimeMillis();
             roundDay = h.length > 5 && !h[5].equals("-") ? h[5] : "";
             roundTrips = h.length > 6 && !h[6].equals("-") ? h[6] : "";
@@ -591,9 +739,10 @@ final class PhotoLibrary {
         if (!own) return;
         StringBuilder sb = new StringBuilder();
         sb.append(next).append(' ').append(roundNumber).append(' ').append(roundOrder).append(' ')
-          .append(roundFavOnly).append(' ').append(roundStart).append(' ')
+          .append(roundPlay).append(' ').append(roundStart).append(' ')
           .append(roundDay.isEmpty() ? "-" : roundDay).append(' ')
-          .append(roundTrips.isEmpty() ? "-" : roundTrips).append('\n');
+          .append(roundTrips.isEmpty() ? "-" : roundTrips).append(' ')
+          .append(roundUse).append(' ').append(roundHighlights).append('\n');
         for (String id : round) sb.append(name(id)).append('\n');
         writeText("round.txt", sb.toString());
     }

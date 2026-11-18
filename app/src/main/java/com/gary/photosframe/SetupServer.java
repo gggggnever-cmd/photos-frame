@@ -62,7 +62,7 @@ final class SetupServer {
         s.setSoTimeout(15000);
         BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
         String line = in.readLine();
-        Log.i("SetupServer", s.getRemoteSocketAddress() + " -> " + (line == null ? "(no request)" : line.replaceAll("code=[^& ]*", "code=…")));
+        Log.i("SetupServer", s.getRemoteSocketAddress() + " -> " + (line == null ? "(no request)" : line.replaceAll("code(=|%3D)(?:(?!%26)[^& ])*", "code=…")));
         if (line == null) return;
         String path = line.split(" ").length > 1 ? line.split(" ")[1] : "/";
         while ((line = in.readLine()) != null && !line.isEmpty()) { /* skip headers */ }

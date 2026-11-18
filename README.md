@@ -28,7 +28,10 @@ Partner Sharing are pickable too.
 
 Photo order: a saved shuffle (continues after restarts), near-identical burst shots shown one per round,
 "One day at a time", favourites (Play: Favourites only) and hiding, via a long press on OK
-(`PhotoLibrary.java`, `PhotoMenu.java`).
+(`PhotoLibrary.java`, `PhotoMenu.java`). Play: **Places only** (no one posing) and **Highlights** (the best
+N photos per trip, in story order), from an on-TV photo check (`PhotoChecker.java`: ML Kit face detection
+bundled in the app, sharpness, brightness; nothing leaves the TV) and pure selection logic
+(`Highlights.java`, unit-tested in `app/src/test`).
 
 The remote's art button can open Photos Frame instead of TCL's T-Exhibition (optional accessibility
 helper `ArtKeyService.java`; switched on in TV Settings → Accessibility).

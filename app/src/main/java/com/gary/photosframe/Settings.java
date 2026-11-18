@@ -73,9 +73,20 @@ final class Settings {
     void setSpace(int i) { prefs.edit().putInt("space", i).apply(); }
     long spaceBytes() { return SPACE_GB[space()] * Storage.GB; }
 
-    static final String[] PLAY_NAMES = {"All photos", "Favourites only"};
-    boolean favouritesOnly() { return prefs.getBoolean("favourites_only", false); }
-    void setFavouritesOnly(boolean v) { prefs.edit().putBoolean("favourites_only", v).apply(); }
+    // Play: which photos (v0.14 added Places only and Highlights; before that a boolean "favourites_only").
+    static final String[] PLAY_NAMES = {"All photos", "Favourites only", "Places only", "Highlights"};
+    static final int PLAY_ALL = 0, PLAY_FAV = 1, PLAY_PLACES = 2, PLAY_HIGHLIGHTS = 3;
+    int play() {
+        if (!prefs.contains("play")) return prefs.getBoolean("favourites_only", false) ? PLAY_FAV : PLAY_ALL;
+        return clamp(prefs.getInt("play", PLAY_ALL), PLAY_NAMES.length, PLAY_ALL);
+    }
+    void setPlay(int v) { prefs.edit().putInt("play", v).apply(); }
+
+    /** Highlights: how many per trip. */
+    static final int DEFAULT_HIGHLIGHTS = 1;   // 30
+    int highlightsIndex() { return clamp(prefs.getInt("highlights", DEFAULT_HIGHLIGHTS), Highlights.COUNTS.length, DEFAULT_HIGHLIGHTS); }
+    void setHighlightsIndex(int i) { prefs.edit().putInt("highlights", i).apply(); }
+    int highlightCount() { return Highlights.COUNTS[highlightsIndex()]; }
 
     private static int clamp(int v, int n, int dflt) { return v >= 0 && v < n ? v : dflt; }
 }

@@ -102,14 +102,19 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
   - **Order:** Shuffle (the starting setting) or One day at a time (a random day of your photos, in the
     order you took them, then another day). With One day at a time, a **Day** line appears:
     Any day, or pick one specific day (◀ ▶ steps through the days, with how many photos each has).
-  - **Play:** All photos, or Favourites only.
+  - **Play:** All photos, Favourites only, **Places only** (photos where nobody is posing: scenery,
+    streets, buildings; small passers-by are fine), or **Highlights** (the best photos of each trip, played
+    in the order taken like a short story). After an update the TV first looks at every photo once in the
+    background (about 20-30 minutes for 2,000; it says "checking 40%" here meanwhile).
+  - **Highlights per trip:** 20, 30 (the starting setting), 50 or 100. Shown only when Play is Highlights.
   - **Space for photos:** 5, 10, 15, 20 (the starting setting) or 30 GB. When it's full, the trip you haven't
     played for longest is cleared from the TV (its name is remembered; pick it again to bring it back).
   - **Hidden photos:** how many you've hidden; press OK to show them all again.
   - **Add photos…** — press OK.
   The TV remembers your choices, and the screensaver uses them too.
 - **Hold OK** (about a second) — a small menu for the photo on screen: **Favourite** (on/off) or
-  **Hide this photo** (it won't come back until you use Settings → Hidden photos). With three photos
+  **Hide this photo** (it won't come back until you use Settings → Hidden photos), or **Places only**
+  (OK switches whether this photo counts as a place, to fix the TV's guess). With three photos
   showing, ◀ ▶ picks which one (it gets an outline). Nothing changes in your Google Photos.
 - **▼** — add photos.
 - The order is remembered: after a power-off or update it carries on, showing every photo once before

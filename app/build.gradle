@@ -6,8 +6,10 @@ android {
         applicationId 'com.gary.photosframe'
         minSdk 28
         targetSdk 34
-        versionCode 13
-        versionName '0.13'
+        versionCode 14
+        versionName '0.14'
+        // The TV runs 32-bit ARM; leave out ML Kit's other chips (keeps the app ~30 MB smaller).
+        ndk { abiFilters 'armeabi-v7a' }
     }
     buildTypes {
         // The TV's CPU is slow and debuggable builds run tight loops several times slower, so the
@@ -22,4 +24,7 @@ android {
 
 dependencies {
     implementation 'com.google.zxing:core:3.5.3'
+    // Face finding for Places only / Highlights, with the model inside the app (works offline, on the TV).
+    implementation 'com.google.mlkit:face-detection:16.1.7'
+    testImplementation 'junit:junit:4.13.2'
 }
