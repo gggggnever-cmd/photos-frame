@@ -168,6 +168,13 @@ Current version: **v0.12** (versionCode 12). Everything is on GitHub `main`.
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner
   lives with it for a few days.
 
+## Trips design (2026-11-18), awaiting the owner's answers — docs/trip_collections_design.md
+Goal: play any trip (Egypt 2025, Japan 2016, compare two Tokyo trips) without much TV storage. Fable
+engineering-design agent's recommendation: Phase 1 trips on the TV (store at 1080p "frame size", named
+trips, Settings → Trip, two-trip alternate, storage budget with eviction); Phase 2 PC trip loader (album
+download/Takeout → PC shrinks → adb push); live PC streaming and Takeout→Drive rejected. Verified: Picker
+search by keywords/dates/places/album titles (no album tab, no select-whole-album); 1080p size measured.
+
 ## Idea parked by the owner (2026-11-18): "Highlights" / trip overview — DON'T BUILD until he asks
 The owner's words: an "executive overview" of a trip: pick the most important photos (say ~30, maybe user-set)
 and play just those. Thinking so far (nothing built):
