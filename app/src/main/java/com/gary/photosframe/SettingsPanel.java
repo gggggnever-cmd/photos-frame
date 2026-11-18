@@ -17,7 +17,7 @@ final class SettingsPanel extends LinearLayout {
     interface Host { void settingsChanged(); void addPhotos(); void close(); }
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
-    private static final int ROW_INTERVAL = 0, ROW_ART = 1, ROW_ADD = 2, ROWS = 3;
+    private static final int ROW_INTERVAL = 0, ROW_ART = 1, ROW_LOOK = 2, ROW_ADD = 3, ROWS = 4;
 
     private final Settings settings;
     private final Host host;
@@ -41,7 +41,7 @@ final class SettingsPanel extends LinearLayout {
         TextView title = text("Settings", 28, INK, Typeface.SERIF);
         addView(title);
         addView(space(14));
-        String[] names = {"Change photo every", "Art filter", "Add photos…"};
+        String[] names = {"Change photo every", "Art filter", "Look", "Add photos…"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -89,6 +89,9 @@ final class SettingsPanel extends LinearLayout {
         } else if (focus == ROW_ART) {
             int n = Settings.ART_STRENGTHS.length;
             settings.setArtLevel(Math.max(0, Math.min(n - 1, settings.artLevel() + dir)));
+        } else if (focus == ROW_LOOK) {
+            int n = Settings.LOOK_NAMES.length;
+            settings.setLook(Math.max(0, Math.min(n - 1, settings.look() + dir)));
         } else {
             return;
         }
@@ -99,6 +102,7 @@ final class SettingsPanel extends LinearLayout {
         values[ROW_INTERVAL].setText(arrows(Settings.intervalName(settings.interval()),
                 settings.interval(), Settings.INTERVAL_MINUTES.length));
         values[ROW_ART].setText(arrows(settings.artName(), settings.artLevel(), Settings.ART_STRENGTHS.length));
+        values[ROW_LOOK].setText(arrows(Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
         for (int i = 0; i < ROWS; i++) {
             GradientDrawable d = new GradientDrawable();

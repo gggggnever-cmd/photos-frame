@@ -1,8 +1,9 @@
 # Photos Frame
 
 A personal Google TV app (built for a TCL NXTFRAME) that shows your own Google Photos
-as a framed picture: off-white bevelled matte, dark walnut frame, charcoal wall,
-one photo at a time, changing every 10 minutes (adjustable) with a slow 4-second fade.
+full screen, edge to edge. Portrait photos are shown 2 or 3 side by side. A "Framed" look
+(off-white bevelled matte, dark walnut frame, charcoal wall) can be chosen in Settings.
+Pictures change every 10 minutes (adjustable) with a slow 4-second fade.
 Each photo gets an "art print" treatment when shown (level Off/Light/Moderate/Strong on the
 ▲ Settings page, saved in `Settings.java`; default Moderate = 0.5):
 lower, softer light, gentler matte contrast, slightly quieter warm colour, a faint

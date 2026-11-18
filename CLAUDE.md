@@ -15,8 +15,13 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   reports: what's done, what isn't, what he needs to do. Don't make him repeat himself.
 
 ## Look — keep exactly unless the owner asks
-- Off-white bevelled matte, dark walnut frame, charcoal wall, soft shadow (FrameRenderer.java).
-- One photo at a time; change every 10 minutes by default (Settings page: 1/5/10/30/60 min);
+- **Default look: Full screen** (the owner's choice 2026-11-17, v0.7): photos fill the whole TV edge to edge
+  (cover-cropped). Portraits are grouped side by side: 3 tall phone shots (w/h < 0.66) or 2 portraits
+  (< 0.9), thin dark line between (PhotoSource.nextSlide, FrameRenderer.drawFull). A lone portrait or a
+  panorama is shown whole over a blurred, dimmed copy of itself instead of a hard crop.
+- **Look: Framed** (Settings option): off-white bevelled matte, dark walnut frame, charcoal wall,
+  soft shadow, one photo at a time (FrameRenderer.draw).
+- One slide at a time; change every 10 minutes by default (Settings page: 1/5/10/30/60 min);
   slow 4-second fade (1.2 s when the remote asks for next/previous); a few pixels of drift per change.
 - **Art treatment on every photo** (ArtTreatment.java; level chosen on the ▲ Settings page, Settings.java; default Moderate = 0.5): lower/softer light,
   gentle matte contrast, slightly quieter warm colour, faint edge falloff, fine paper grain. Like TCL's
@@ -63,11 +68,13 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 tools/preview.py renders a framed, art-treated preview of a photo on a computer.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.6** (versionCode 6). Everything is on GitHub `main`.
+Current version: **v0.7** (versionCode 7). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
 - [x] v0.6: ◀/▶ previous/next photo; ▲ Settings page with photo time (1/5/10/30/60 min) and art filter.
+- [x] v0.7: full-screen look with side-by-side portraits (default); Framed kept as a Settings "Look" option.
+      Checked on the TV: 12 slides (landscapes full-bleed, a 3-portrait slide), Look toggle both ways, ◀ history.
 - [x] TV prep done by the owner (photos checked): Developer options ON, USB debugging ON. This TV's
       Debugging section has **no separate Wireless/Network debugging toggle** — try `adb connect IP:5555`
       (Android TV normally listens there when USB debugging is on). Leave everything else at defaults;

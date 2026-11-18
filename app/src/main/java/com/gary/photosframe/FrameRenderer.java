@@ -8,7 +8,9 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 
-/** Draws one photo as a framed, matted picture hanging on a wall. */
+import java.util.List;
+
+/** Draws a slide: full screen (default) or one photo as a framed, matted picture on a wall. */
 final class FrameRenderer {
     // Calm, gallery-like palette.
     static final int WALL = 0xFF2E2B28;        // warm charcoal wall
@@ -22,7 +24,69 @@ final class FrameRenderer {
     void setArtStrength(float s) { artStrength = s; art = new ArtTreatment(s); }
     float artStrength() { return artStrength; }
 
-    /** offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
+    static final int GAP = 0xFF121110;          // thin line between side-by-side photos
+
+    /**
+     * Full-screen look: 1-3 photos fill the screen edge to edge, side by side in equal columns, each
+     * trimmed to fill its column. A single photo whose shape is far from the screen's (a lone portrait,
+     * a panorama) is shown whole over a soft, dimmed, blurred copy of itself instead of being cropped hard.
+     * offsetX/offsetY: a few pixels of drift between slides.
+     */
+    void drawFull(Canvas c, List<Bitmap> photos, int w, int h, float offsetX, float offsetY) {
+        c.drawColor(GAP);
+        int n = photos.size();
+        if (n == 0) return;
+        float gap = n > 1 ? Math.max(2f, 0.004f * h) : 0f;
+        float colW = (w - gap * (n - 1)) / n;
+        for (int i = 0; i < n; i++) {
+            Bitmap ph = photos.get(i);
+            if (ph == null) continue;
+            RectF col = new RectF(i * (colW + gap), 0, i * (colW + gap) + colW, h);
+            float photoAspect = (float) ph.getWidth() / ph.getHeight(), colAspect = col.width() / col.height();
+            if (n == 1 && (photoAspect / colAspect < 0.7f || photoAspect / colAspect > 1.45f)) {
+                drawOnBlur(c, ph, col);
+            } else {
+                drawCover(c, ph, col, offsetX, offsetY);
+            }
+            art.drawSurface(c, col);
+        }
+    }
+
+    /** Fills dst completely (cropping the overflow), slightly over-scaled so the drift never shows an edge. */
+    private void drawCover(Canvas c, Bitmap ph, RectF dst, float dx, float dy) {
+        float scale = Math.max(dst.width() / ph.getWidth(), dst.height() / ph.getHeight()) * 1.012f;
+        float sw = dst.width() / scale, sh = dst.height() / scale;
+        float sl = clamp((ph.getWidth() - sw) / 2 + dx / scale, 0, ph.getWidth() - sw);
+        float st = clamp((ph.getHeight() - sh) / 2 + dy / scale, 0, ph.getHeight() - sh);
+        p.setColorFilter(art.colorFilter());
+        c.drawBitmap(ph, new Rect(Math.round(sl), Math.round(st), Math.round(sl + sw), Math.round(st + sh)), dst, p);
+        p.setColorFilter(null);
+    }
+
+    /** Whole photo, centred, over a heavily blurred and darkened cover of itself. */
+    private void drawOnBlur(Canvas c, Bitmap ph, RectF dst) {
+        // Cheap blur: shrink to a few dozen pixels, then let filtered upscaling smear it.
+        int bw = Math.max(1, ph.getWidth() / 48), bh = Math.max(1, ph.getHeight() / 48);
+        Bitmap tiny = Bitmap.createScaledBitmap(ph, bw, bh, true);
+        drawCover(c, tiny, dst, 0, 0);
+        tiny.recycle();
+        p.setColor(0x8C000000);
+        c.drawRect(dst, p);
+        float scale = Math.min(dst.width() / ph.getWidth(), dst.height() / ph.getHeight());
+        float pw = ph.getWidth() * scale, phh = ph.getHeight() * scale;
+        RectF r = new RectF(dst.centerX() - pw / 2, dst.centerY() - phh / 2, dst.centerX() + pw / 2, dst.centerY() + phh / 2);
+        p.setColor(0x80000000);
+        p.setMaskFilter(new BlurMaskFilter(0.02f * dst.height(), BlurMaskFilter.Blur.NORMAL));
+        c.drawRect(r, p);
+        p.setMaskFilter(null);
+        p.setColorFilter(art.colorFilter());
+        c.drawBitmap(ph, new Rect(0, 0, ph.getWidth(), ph.getHeight()), r, p);
+        p.setColorFilter(null);
+    }
+
+    private static float clamp(float v, float lo, float hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    /** Framed look. offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
     void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY) {
         c.drawColor(WALL);
         if (photo == null) return;

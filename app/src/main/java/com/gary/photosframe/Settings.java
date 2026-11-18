@@ -25,5 +25,10 @@ final class Settings {
     long showMs() { return INTERVAL_MINUTES[interval()] * 60_000L; }
     static String intervalName(int i) { int m = INTERVAL_MINUTES[i]; return m == 60 ? "1 hour" : m + (m == 1 ? " minute" : " minutes"); }
 
+    static final String[] LOOK_NAMES = {"Full screen", "Framed"};
+    static final int LOOK_FULL = 0, LOOK_FRAMED = 1;
+    int look() { return clamp(prefs.getInt("look", LOOK_FULL), LOOK_NAMES.length, LOOK_FULL); }
+    void setLook(int l) { prefs.edit().putInt("look", l).apply(); }
+
     private static int clamp(int v, int n, int dflt) { return v >= 0 && v < n ? v : dflt; }
 }

@@ -9,11 +9,16 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
-/** Shows one framed photo at a time and slowly cross-fades to the next. */
+/**
+ * Shows one slide at a time and slowly cross-fades to the next. A slide is one full-screen photo,
+ * 2-3 portraits side by side (Look: Full screen, the default), or one framed photo (Look: Framed).
+ */
 public class FrameView extends View {
-    // How long each picture stays comes from Settings (default 10 minutes).
+    // How long each slide stays comes from Settings (default 10 minutes).
     static final long FADE_MS = 4000L;            // slow, quiet cross-fade
     static final long BUTTON_FADE_MS = 1200L;     // quicker fade when the remote asks for next/previous
 
@@ -23,15 +28,16 @@ public class FrameView extends View {
     private final Paint fadePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Random random = new Random();
     private Bitmap current, previous;
-    private Bitmap shownPhoto;        // the photo on screen now, kept so a filter change can redraw it
+    private final List<Bitmap> shownPhotos = new ArrayList<>();  // on screen now, kept so a filter change can redraw
     private float shownDx, shownDy;
+    private int shownLook;
     private final Settings settings;
     private float fade = 1f;
     private ValueAnimator animator;
 
     private final Runnable advance = new Runnable() {
         @Override public void run() {
-            show(source.next(getWidth(), getHeight()), FADE_MS);
+            showSlide(source.nextSlide(settings.look() == Settings.LOOK_FULL), FADE_MS);
             handler.postDelayed(this, settings.showMs());
         }
     };
@@ -41,6 +47,7 @@ public class FrameView extends View {
         source = new PhotoSource(ctx);
         settings = new Settings(ctx);
         renderer.setArtStrength(settings.artStrength());
+        shownLook = settings.look();
         setKeepScreenOn(true);
     }
 
@@ -53,37 +60,39 @@ public class FrameView extends View {
         skip();
     }
 
-    /** Shows the next picture now and restarts the timer. */
+    /** Shows the next slide now and restarts the timer. */
     public void skip() {
         handler.removeCallbacks(advance);
         advance.run();
     }
 
-    /** Remote ▶ / OK: next picture, with a quicker fade. */
+    /** Remote ▶ / OK: next slide, with a quicker fade. */
     public void next() {
         if (getWidth() == 0) return;
         handler.removeCallbacks(advance);
-        show(source.next(getWidth(), getHeight()), BUTTON_FADE_MS);
+        showSlide(source.nextSlide(settings.look() == Settings.LOOK_FULL), BUTTON_FADE_MS);
         handler.postDelayed(advance, settings.showMs());
     }
 
-    /** Remote ◀: the picture shown before this one. Returns false if there is nothing earlier. */
+    /** Remote ◀: the slide shown before this one. Returns false if there is nothing earlier. */
     public boolean back() {
         if (getWidth() == 0) return false;
-        Bitmap photo = source.previous(getWidth(), getHeight());
-        if (photo == null) return false;
+        List<String> slide = source.previousSlide();
+        if (slide == null) return false;
         handler.removeCallbacks(advance);
-        show(photo, BUTTON_FADE_MS);
+        showSlide(slide, BUTTON_FADE_MS);
         handler.postDelayed(advance, settings.showMs());
         return true;
     }
 
-    /** Called after the Settings page changes something: redraw with the filter level, restart the timer. */
+    /** Called after the Settings page changes something: redraw with the new filter or look, restart the timer. */
     public void applySettings() {
         float s = settings.artStrength();
-        if (s != renderer.artStrength()) {
+        boolean lookChanged = settings.look() != shownLook;
+        if (s != renderer.artStrength() || lookChanged) {
             renderer.setArtStrength(s);
-            if (getWidth() > 0 && shownPhoto != null) transitionTo(render(shownPhoto, shownDx, shownDy), 700);
+            shownLook = settings.look();
+            if (getWidth() > 0 && !shownPhotos.isEmpty()) transitionTo(render(shownPhotos, shownDx, shownDy), 700);
         }
         handler.removeCallbacks(advance);
         handler.postDelayed(advance, settings.showMs());
@@ -99,21 +108,33 @@ public class FrameView extends View {
         if (animator != null) animator.cancel();
     }
 
-    private Bitmap render(Bitmap photo, float dx, float dy) {
+    private Bitmap render(List<Bitmap> photos, float dx, float dy) {
         int w = getWidth(), h = getHeight();
         Bitmap scene = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        renderer.draw(new Canvas(scene), photo, w, h, dx, dy);
+        Canvas c = new Canvas(scene);
+        if (settings.look() == Settings.LOOK_FRAMED) {
+            renderer.draw(c, photos.isEmpty() ? null : photos.get(0), w, h, dx, dy);
+        } else {
+            renderer.drawFull(c, photos, w, h, dx, dy);
+        }
         return scene;
     }
 
-    private void show(Bitmap photo, long fadeMs) {
+    private void showSlide(List<String> ids, long fadeMs) {
         int w = getWidth(), h = getHeight();
         if (w == 0 || h == 0) return;
+        List<Bitmap> photos = new ArrayList<>();
+        int colW = ids.isEmpty() ? w : w / ids.size();
+        for (String id : ids) {
+            Bitmap b = source.load(id, colW, h);
+            if (b != null) photos.add(b);
+        }
         float drift = 0.004f * h;
         float dx = (random.nextFloat() * 2 - 1) * drift, dy = (random.nextFloat() * 2 - 1) * drift;
-        Bitmap scene = render(photo, dx, dy);
-        if (shownPhoto != null) shownPhoto.recycle();
-        shownPhoto = photo;
+        Bitmap scene = render(photos, dx, dy);
+        for (Bitmap b : shownPhotos) b.recycle();
+        shownPhotos.clear();
+        shownPhotos.addAll(photos);
         shownDx = dx;
         shownDy = dy;
         transitionTo(scene, fadeMs);
