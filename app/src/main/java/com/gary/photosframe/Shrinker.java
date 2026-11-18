@@ -93,7 +93,9 @@ final class Shrinker {
             tmp.delete();
             return false;
         }
+        long modified = f.lastModified();
         if (!tmp.renameTo(f)) { tmp.delete(); return false; }
+        f.setLastModified(modified);   // keep the date it arrived, or the round thinks it is a new photo
         return true;
     }
 }

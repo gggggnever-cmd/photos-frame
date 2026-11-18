@@ -196,7 +196,13 @@ Current version: **v0.14** (versionCode 14). Everything is on GitHub `main`.
       canvas weave and a slight ink soak for Paper and Canvas; new Print surface **Paper cut** (flat colour
       sheets with soft shadows; docs/print_filter_spec.md "Additions"). PC preview: tools/PrintPreview.java.
       11 JUnit tests pass (8 Highlights, 3 PrintEffects).
-      TO CHECK ON THE TV: Paper cut bake time per slide (PC ~0.7 s one thread), how it looks on the matte panel,
+      Installed on the TV 2026-11-18 10:30: settings unchanged (All trips, 30 s, Maximum, Paper, Full screen,
+      Shuffle, All photos, 20 GB). Paper cut bake 7.6 s on the TV while the checker runs (fine: prepared ahead).
+      First Paper cut was too strong for the owner (faces vanished); now 16 colours / finer, faces keep features
+      when close, small far-away figures still simplify. Photo checker ~36 photos/min on the TV (~1 h for 1,990).
+      Shrinker finished (no log, marker present); its re-saves had new mtimes, so the round at the time
+      absorbed all burst siblings (1,990 instead of ~1,092) — fixed: Shrinker now keeps mtime. Self-heals
+      next round. STILL TO CHECK:
       checker speed and "done" log, places count looks right, Highlights look good,
       settings/menu rows fit, the owner's settings unchanged after install.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.

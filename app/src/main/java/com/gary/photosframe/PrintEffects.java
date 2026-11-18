@@ -221,7 +221,7 @@ final class PrintEffects {
 
     // ---- 3. Paper cut ----
 
-    static final int CUT_COLOURS = 12;
+    static final int CUT_COLOURS = 16;
 
     /** The flat-colour plan, worked out on a small copy (fast); then drawn at full size by cutRows. */
     static final class Cut {
@@ -236,7 +236,7 @@ final class PrintEffects {
     }
 
     static Cut planCut(int[] px, int w, int h) {
-        int f = Math.max(1, Math.round(Math.max(w, h) / 600f));
+        int f = Math.max(1, Math.round(Math.max(w, h) / 800f));
         int sw = Math.max(1, w / f), sh = Math.max(1, h / f);
         // Small copy by area averaging, then blurred so fine detail (hair, leaves) melts into shapes.
         float[][] c = new float[3][sw * sh];
@@ -251,7 +251,7 @@ final class PrintEffects {
         float[][] orig = {c[0].clone(), c[1].clone(), c[2].clone()};
         // Edge-keeping smoothing: fine texture (leaves, feathers, ripples) melts into flat areas while the
         // outlines between different colours stay sharp (a plain blur made muddy in-between bands).
-        for (int pass = 0; pass < 4; pass++) c = bilateral(c, sw, sh, 3, 22f);
+        for (int pass = 0; pass < 2; pass++) c = bilateral(c, sw, sh, 2, 18f);
 
         // k-means on every second pixel (k-means++ start, fixed seed so a photo always cuts the same way).
         int k = CUT_COLOURS;
@@ -294,12 +294,12 @@ final class PrintEffects {
             for (int p = 0; p < q; p++) {
                 if (same[p] != p) continue;
                 float dr = centre[q][0] - centre[p][0], dg = centre[q][1] - centre[p][1], db = centre[q][2] - centre[p][2];
-                if (dr * dr + dg * dg + db * db < 16 * 16) { same[q] = p; break; }
+                if (dr * dr + dg * dg + db * db < 12 * 12) { same[q] = p; break; }
             }
         }
         for (int i = 0; i < labels.length; i++) labels[i] = same[labels[i]];
-        for (int pass = 0; pass < 3; pass++) labels = majority(labels, sw, sh, k);   // tidy speckles into shapes
-        mergeSmall(labels, sw, sh, k, Math.max(10, sw * sh / 3000));                 // no confetti
+        for (int pass = 0; pass < 2; pass++) labels = majority(labels, sw, sh, k);   // tidy speckles into shapes
+        mergeSmall(labels, sw, sh, k, Math.max(8, sw * sh / 8000));                 // no confetti
 
         // Each sheet's colour: the average of the real (unsmoothed) photo under it, a little more vivid,
         // like coloured paper.

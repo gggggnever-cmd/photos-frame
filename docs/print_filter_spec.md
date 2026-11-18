@@ -88,9 +88,9 @@ Pixel maths in PrintEffects.java (pure Java); preview on the PC with tools/Print
 - **Relief:** both texture heights are lit from the top left before becoming tiles (height x 0.5 +
   diagonal slope), so tooth, fibres and weave read as raised. Paper gains ~900 short curved fibres.
 - **Ink soak:** Paper and Canvas blend a 3x3 blur into the photo by min(0.45, 0.10 + 0.15 s).
-- **Paper cut** (third Print surface): on a ~600 px copy, 4 bilateral passes (colour spread 22), k-means
-  12 colours (k-means++, seed 42), near-identical colours merged (< 16 RGB), 3 majority passes, regions under
-  1/3000 of the area merged; sheet colours = mean of the unsmoothed photo, saturation x1.2. Full size: each
+- **Paper cut** (third Print surface; made gentler after the owner saw faces vanish): on a ~800 px copy, 2 bilateral passes (radius 2, colour spread 18), k-means
+  16 colours (k-means++, seed 42), near-identical colours merged (< 12 RGB), 2 majority passes, regions under
+  1/8000 of the area merged; sheet colours = mean of the unsmoothed photo, saturation x1.2. Full size: each
   pixel takes the sheet with the biggest tent-weighted vote of a 4x4 neighbourhood; darker sheets sit higher
   and cast a soft shadow down-right (length 0.4-0.8% of height, darkness min(0.45, 0.22 + 0.1 s)). Tone stops
   at the Moderate level so the sheets stay colourful. Paper texture over it.
