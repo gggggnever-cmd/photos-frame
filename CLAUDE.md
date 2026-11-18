@@ -39,9 +39,20 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   Default Moderate. The owner's own settings change often (last seen 2026-11-18: 1 minute, Strong, Paper,
   Full screen): **read them on screen (▲) before testing and put back exactly what was there**.
   the owner explicitly rejected Google's vivid full-screen Ambient Mode look.
+- **Photo order** (v0.11, PhotoLibrary.java, state in files/library/): the shuffle and its position are
+  saved, so restarts continue the round (every photo once before repeats). **Bursts**: photos taken within
+  5 s of a burst's first photo (EXIF DateTimeOriginal, anchored, not chained) count as one; each round shows
+  one member, rotating. Measured on the owner's 1,990: 20 s chained left only 434, 5 s anchored leaves 1,092.
+  **Order**: Shuffle or "One day at a time" (the owner's name; days in random order, each day in time order,
+  triptychs from the same day). **Play**: All photos / Favourites only (falls back to all if none).
+  **Hold OK** = photo menu (Favourite toggle, Hide; ◀▶ picks left/middle/right with an outline when 2-3
+  photos show). Settings → Hidden photos: OK shows them again. Dropped by the owner: "On this day".
+  New photos join the current round if downloaded after it began (file mtime vs round start).
+  Known: the slide prepared ahead counts as shown, so one photo can be skipped per restart.
 - Remote (the owner's choice, 2026-11-17): ▶/OK = next photo, ◀ = previous photo (history of 100),
   ▲ = on-TV Settings page (SettingsPanel.java: photo time, print filter, print surface, look, Add photos;
-  ▲▼ pick, ◀▶ change, Back closes), ▼/Menu = Add photos, Back/Home = leave.
+  ▲▼ pick, ◀▶ change, Back closes), ▼/Menu = Add photos, Back/Home = leave. OK acts on release;
+  holding it opens the photo menu (`adb shell input keyevent --longpress KEYCODE_DPAD_CENTER` tests it).
 
 ## Decisions already made (don't re-open without the owner)
 - **Photo source: Google Photos Picker API only** (scope `photospicker.mediaitems.readonly`).
@@ -93,7 +104,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.10** (versionCode 10). Everything is on GitHub `main`.
+Current version: **v0.11** (versionCode 11). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -145,6 +156,10 @@ Current version: **v0.10** (versionCode 10). Everything is on GitHub `main`.
   picking an option there may reset `screensaver_components` (re-run the update script if so).
 - [x] v0.10 (2026-11-18): print filter Extra strong + Maximum; 30-second photo interval. Checked on the TV:
       the owner's old interval carried over, all three strong levels rendered, settings restored.
+- [x] v0.11 (2026-11-18): saved shuffle across restarts, burst thinning, One day at a time, favourites +
+      Favourites only, hide/unhide. Checked on the TV with logs and screenshots; test favourites/hide undone.
+      Not yet tested on the TV: choosing left/middle/right in the photo menu on a three-photo screen.
+      Testing tip: with a 30 s interval the photo changes mid-test; use Play → Favourites only to undo test favourites.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).

@@ -14,10 +14,14 @@ import android.widget.TextView;
  * Back closes. Changes are saved at once and the frame behind updates live.
  */
 final class SettingsPanel extends LinearLayout {
-    interface Host { void settingsChanged(); void addPhotos(); void close(); }
+    interface Host {
+        void settingsChanged(); void addPhotos(); void close();
+        int hiddenCount(); int favouriteCount(); void unhideAll();
+    }
 
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
-    private static final int ROW_INTERVAL = 0, ROW_ART = 1, ROW_SURFACE = 2, ROW_LOOK = 3, ROW_ADD = 4, ROWS = 5;
+    private static final int ROW_INTERVAL = 0, ROW_ART = 1, ROW_SURFACE = 2, ROW_LOOK = 3, ROW_ORDER = 4,
+            ROW_PLAY = 5, ROW_HIDDEN = 6, ROW_ADD = 7, ROWS = 8;
 
     private final Settings settings;
     private final Host host;
@@ -41,7 +45,8 @@ final class SettingsPanel extends LinearLayout {
         TextView title = text("Settings", 28, INK, Typeface.SERIF);
         addView(title);
         addView(space(14));
-        String[] names = {"Change photo every", "Print filter", "Print surface", "Look", "Add photos…"};
+        String[] names = {"Change photo every", "Print filter", "Print surface", "Look", "Order", "Play",
+                "Hidden photos", "Add photos…"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -74,7 +79,9 @@ final class SettingsPanel extends LinearLayout {
             case KeyEvent.KEYCODE_DPAD_LEFT: change(-1); break;
             case KeyEvent.KEYCODE_DPAD_RIGHT: change(+1); break;
             case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
-                if (focus == ROW_ADD) host.addPhotos(); else change(+1);
+                if (focus == ROW_ADD) host.addPhotos();
+                else if (focus == ROW_HIDDEN) { if (host.hiddenCount() > 0) host.unhideAll(); }
+                else change(+1);
                 break;
             case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_MENU: host.close(); break;
         }
@@ -92,6 +99,11 @@ final class SettingsPanel extends LinearLayout {
         } else if (focus == ROW_SURFACE) {
             int n = Settings.SURFACE_NAMES.length;
             settings.setSurface(Math.max(0, Math.min(n - 1, settings.surface() + dir)));
+        } else if (focus == ROW_ORDER) {
+            int n = Settings.ORDER_NAMES.length;
+            settings.setOrder(Math.max(0, Math.min(n - 1, settings.order() + dir)));
+        } else if (focus == ROW_PLAY) {
+            settings.setFavouritesOnly(dir > 0);
         } else if (focus == ROW_LOOK) {
             int n = Settings.LOOK_NAMES.length;
             settings.setLook(Math.max(0, Math.min(n - 1, settings.look() + dir)));
@@ -107,6 +119,13 @@ final class SettingsPanel extends LinearLayout {
         values[ROW_ART].setText(arrows(settings.artName(), settings.artLevel(), Settings.ART_STRENGTHS.length));
         values[ROW_SURFACE].setText(arrows(Settings.SURFACE_NAMES[settings.surface()], settings.surface(), Settings.SURFACE_NAMES.length));
         values[ROW_LOOK].setText(arrows(Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
+        values[ROW_ORDER].setText(arrows(Settings.ORDER_NAMES[settings.order()], settings.order(), Settings.ORDER_NAMES.length));
+        int fav = settings.favouritesOnly() ? 1 : 0;
+        String play = Settings.PLAY_NAMES[fav];
+        if (fav == 1) play += host.favouriteCount() == 0 ? " (none yet)" : " (" + host.favouriteCount() + ")";
+        values[ROW_PLAY].setText(arrows(play, fav, 2));
+        int hidden = host.hiddenCount();
+        values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK to show again" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
         for (int i = 0; i < ROWS; i++) {
             GradientDrawable d = new GradientDrawable();

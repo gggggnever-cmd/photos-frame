@@ -53,5 +53,14 @@ final class Settings {
     int surface() { return clamp(prefs.getInt("surface", SURFACE_PAPER), SURFACE_NAMES.length, SURFACE_PAPER); }
     void setSurface(int v) { prefs.edit().putInt("surface", v).apply(); }
 
+    static final String[] ORDER_NAMES = {"Shuffle", "One day at a time"};
+    static final int ORDER_SHUFFLE = 0, ORDER_DAY = 1;
+    int order() { return clamp(prefs.getInt("order", ORDER_SHUFFLE), ORDER_NAMES.length, ORDER_SHUFFLE); }
+    void setOrder(int v) { prefs.edit().putInt("order", v).apply(); }
+
+    static final String[] PLAY_NAMES = {"All photos", "Favourites only"};
+    boolean favouritesOnly() { return prefs.getBoolean("favourites_only", false); }
+    void setFavouritesOnly(boolean v) { prefs.edit().putBoolean("favourites_only", v).apply(); }
+
     private static int clamp(int v, int n, int dflt) { return v >= 0 && v < n ? v : dflt; }
 }

@@ -35,15 +35,16 @@ public class FrameView extends View {
 
     /** One finished screen: the composed picture and where the photos sit in it (for canvas texture). */
     private static final class Scene {
-        final List<String> ids;
+        final List<String> ids;          // the slide as handed out (used to match the prepared slide)
+        final List<String> drawnIds;     // the photos actually on screen, same order as photoRects
         final Bitmap image;
         final List<RectF> photoRects;
-        Scene(List<String> ids, Bitmap image, List<RectF> photoRects) {
-            this.ids = ids; this.image = image; this.photoRects = photoRects;
+        Scene(List<String> ids, List<String> drawnIds, Bitmap image, List<RectF> photoRects) {
+            this.ids = ids; this.drawnIds = drawnIds; this.image = image; this.photoRects = photoRects;
         }
     }
 
-    private final PhotoSource source;              // only touched on the slides thread
+    private volatile PhotoSource source;            // created and only used on the slides thread (counts read by UI)
     private final FrameRenderer renderer = new FrameRenderer();
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final HandlerThread worker = new HandlerThread("slides");
@@ -55,6 +56,10 @@ public class FrameView extends View {
     private volatile ArtTreatment art;              // built on the slides thread (texture tiles take a moment)
     private float bakedStrength = -1f;              // slides thread: level the prepared slide was baked with
     private int bakedLook = -1;
+    private int bakedOrder = -1;
+    private boolean bakedFavOnly;
+    private final Paint highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private int highlight = -1;                      // photo outlined while the photo menu chooses one
 
     // UI thread state.
     private Scene current, previous;
@@ -74,22 +79,64 @@ public class FrameView extends View {
     public FrameView(Context ctx) {
         super(ctx);
         settings = new Settings(ctx);
-        source = new PhotoSource(ctx);
         worker.start();
         bg = new Handler(worker.getLooper());
-        bg.post(this::ensureArt);
-        source.warmUpAspects();
+        // The photo library reads every photo's date the first time (a few seconds), so build it here.
+        bg.post(() -> {
+            source = new PhotoSource(ctx, settings);
+            bakedOrder = settings.order();
+            bakedFavOnly = settings.favouritesOnly();
+            ensureArt();
+        });
+        highlightPaint.setStyle(Paint.Style.STROKE);
+        highlightPaint.setColor(0xFFF1EDE4);
         setKeepScreenOn(true);
     }
 
     /** True once photos picked from Google Photos are on the TV (not just the bundled samples). */
-    public boolean hasOwnPhotos() { return source.hasOwnPhotos(); }
+    public boolean hasOwnPhotos() { return Storage.photoCount(getContext()) > 0; }
 
     /** Re-scan the photo folder (after adding photos) and show one of them. */
     public void reload() {
-        bg.post(() -> { source.reload(); prepared = null; source.warmUpAspects(); });
+        bg.post(() -> { source.reload(); prepared = null; });
         skip();
     }
+
+    /** The photos on screen now, left to right (for the photo menu). */
+    public List<String> currentPhotos() {
+        return current == null ? Collections.emptyList() : current.drawnIds;
+    }
+
+    /** Outline one of the photos on screen (-1: none). */
+    public void setHighlight(int index) {
+        highlight = index;
+        invalidate();
+    }
+
+    /** Photo menu: hide a photo for good (until "Show hidden photos again"), then move on. */
+    public void hide(String id, Runnable done) {
+        bg.post(() -> {
+            source.library().hide(id);
+            source.forget(id);
+            prepared = null;
+            ui.post(done);
+        });
+        next();
+    }
+
+    /** Photo menu: favourite on/off. Reports the new state on the UI thread. */
+    public void toggleFavourite(String id, java.util.function.Consumer<Boolean> done) {
+        bg.post(() -> {
+            boolean now = source.library().toggleFavourite(id);
+            ui.post(() -> done.accept(now));
+        });
+    }
+
+    /** Settings page: how many are hidden / favourites, and bring hidden photos back. */
+    public int hiddenCount() { PhotoSource s = source; return s == null ? 0 : s.library().hiddenCount(); }
+    public int favouriteCount() { PhotoSource s = source; return s == null ? 0 : s.library().favouriteCount(); }
+    public void unhideAll() { bg.post(() -> { source.library().unhideAll(); prepared = null; }); }
+    public boolean isFavourite(String id) { PhotoSource s = source; return s != null && s.library().isFavourite(id); }
 
     /** Shows the next slide now and restarts the timer. */
     public void skip() {
@@ -129,6 +176,14 @@ public class FrameView extends View {
         int w = getWidth(), h = getHeight();
         if (shown == null || w == 0) return;
         bg.post(() -> {
+            if (settings.order() != bakedOrder || settings.favouritesOnly() != bakedFavOnly) {
+                // New order or play choice: the library starts a new round with the next slide.
+                bakedOrder = settings.order();
+                bakedFavOnly = settings.favouritesOnly();
+                source.dropUpcoming();
+                prepared = null;
+                return;
+            }
             if (settings.artStrength() == bakedStrength && settings.look() == bakedLook) return;
             ensureArt();
             prepared = null;
@@ -168,6 +223,7 @@ public class FrameView extends View {
         int look = settings.look();
         bakedLook = look;
         List<Bitmap> photos = new ArrayList<>();
+        List<String> drawn = new ArrayList<>();
         int colW = ids.isEmpty() ? w : w / ids.size();
         for (String id : ids) {
             Bitmap raw = source.load(id, colW, h);
@@ -175,7 +231,9 @@ public class FrameView extends View {
             Bitmap toned = a.bake(raw);
             if (toned != raw) raw.recycle();
             photos.add(toned);
+            drawn.add(id);
         }
+        if (look == Settings.LOOK_FRAMED && drawn.size() > 1) drawn = drawn.subList(0, 1);
         long t1 = SystemClock.uptimeMillis();
         float drift = 0.004f * h;
         float dx = (random.nextFloat() * 2 - 1) * drift, dy = (random.nextFloat() * 2 - 1) * drift;
@@ -190,7 +248,7 @@ public class FrameView extends View {
         for (Bitmap b : photos) b.recycle();
         Log.i("FrameView", "composed n=" + ids.size() + " decode+tone=" + (t1 - t0) + "ms layout="
                 + (SystemClock.uptimeMillis() - t1) + "ms");
-        return new Scene(ids, image, Collections.unmodifiableList(rects));
+        return new Scene(ids, Collections.unmodifiableList(drawn), image, Collections.unmodifiableList(rects));
     }
 
     /** UI thread: start the cross-fade to a finished scene. */
@@ -230,5 +288,12 @@ public class FrameView extends View {
         ArtTreatment a = art;
         if (a != null) a.drawSurface(c, getWidth(), getHeight(), current.photoRects,
                 settings.surface() == Settings.SURFACE_CANVAS);
+        if (highlight >= 0 && highlight < current.photoRects.size()) {
+            float sw = Math.max(3f, getHeight() * 0.004f);
+            highlightPaint.setStrokeWidth(sw);
+            RectF r = new RectF(current.photoRects.get(highlight));
+            r.inset(sw / 2, sw / 2);
+            c.drawRect(r, highlightPaint);
+        }
     }
 }

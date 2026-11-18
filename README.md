@@ -26,6 +26,10 @@ Photos come only through the official Google Photos **Picker API**
 (scope `photospicker.mediaitems.readonly`). Photos saved to your library from
 Partner Sharing are pickable too.
 
+Photo order: a saved shuffle (continues after restarts), near-identical burst shots shown one per round,
+"One day at a time", favourites (Play: Favourites only) and hiding, via a long press on OK
+(`PhotoLibrary.java`, `PhotoMenu.java`).
+
 The remote's art button can open Photos Frame instead of TCL's T-Exhibition (optional accessibility
 helper `ArtKeyService.java`; switched on in TV Settings → Accessibility).
 

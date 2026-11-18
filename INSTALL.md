@@ -91,9 +91,18 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
     on paper rather than a bright screen. The photo on screen changes to show it.
   - **Print surface:** Paper (the starting setting) or Canvas: the fine texture the filter adds.
   - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.
+  - **Order:** Shuffle (the starting setting) or One day at a time (a random day of your photos, in the
+    order you took them, then another day).
+  - **Play:** All photos, or Favourites only.
+  - **Hidden photos:** how many you've hidden; press OK to show them all again.
   - **Add photos…** — press OK.
   The TV remembers your choices, and the screensaver uses them too.
+- **Hold OK** (about a second) — a small menu for the photo on screen: **Favourite** (on/off) or
+  **Hide this photo** (it won't come back until you use Settings → Hidden photos). With three photos
+  showing, ◀ ▶ picks which one (it gets an outline). Nothing changes in your Google Photos.
 - **▼** — add photos.
+- The order is remembered: after a power-off or update it carries on, showing every photo once before
+  any repeats, and near-identical shots taken seconds apart only one at a time.
 - The TV and phone must be on the same Wi-Fi only while signing in.
 - **Back / Home** — leave the app.
 

@@ -9,11 +9,13 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
-public class MainActivity extends Activity implements SettingsPanel.Host {
+public class MainActivity extends Activity implements SettingsPanel.Host, PhotoMenu.Host {
     private static final int REQ_ADD = 1;
     private FrameView frame;
     private TextView storageNote, levelNote;
     private SettingsPanel panel;
+    private PhotoMenu menu;
+    private boolean longPressed;   // OK was held: the menu opened, so its release must not skip
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -49,15 +51,25 @@ public class MainActivity extends Activity implements SettingsPanel.Host {
         panel = new SettingsPanel(this, new Settings(this), this);
         panel.setVisibility(View.GONE);
         root.addView(panel, new FrameLayout.LayoutParams(panel.cardWidth(), -2, Gravity.CENTER));
+        menu = new PhotoMenu(this, this);
+        menu.setVisibility(View.GONE);
+        root.addView(menu, new FrameLayout.LayoutParams(menu.cardWidth(), -2, Gravity.CENTER));
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
     @Override public boolean onKeyDown(int code, KeyEvent e) {
+        boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER;
+        if (menu.isOpen()) return e.getRepeatCount() > 0 || menu.onKey(code);   // ignore the held OK's repeats
         if (panel.isOpen()) return panel.onKey(code);
+        if (ok) {
+            // OK: a short press is "next photo" (on release); holding it opens the photo menu.
+            if (e.getRepeatCount() == 0) { e.startTracking(); longPressed = false; }
+            return true;
+        }
         switch (code) {
-            case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
                 frame.next();
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -73,9 +85,45 @@ public class MainActivity extends Activity implements SettingsPanel.Host {
         return super.onKeyDown(code, e);
     }
 
-    @Override public void onBackPressed() {
-        if (panel.isOpen()) close(); else super.onBackPressed();
+    @Override public boolean onKeyLongPress(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
+            longPressed = true;
+            menu.open(frame.currentPhotos());
+            return true;
+        }
+        return super.onKeyLongPress(code, e);
     }
+
+    @Override public boolean onKeyUp(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
+            if (!longPressed && !menu.isOpen() && !panel.isOpen() && e.isTracking() && !e.isCanceled()) frame.next();
+            longPressed = false;
+            return true;
+        }
+        return super.onKeyUp(code, e);
+    }
+
+    @Override public void onBackPressed() {
+        if (menu.isOpen()) closeMenu();
+        else if (panel.isOpen()) close();
+        else super.onBackPressed();
+    }
+
+    // PhotoMenu.Host
+    @Override public boolean isFavourite(String id) { return frame.isFavourite(id); }
+    @Override public void favourite(String id) {
+        frame.toggleFavourite(id, now -> note(now ? "♥ Added to favourites" : "Removed from favourites"));
+    }
+    @Override public void hide(String id) {
+        frame.hide(id, () -> note("Hidden. Settings → Hidden photos brings it back"));
+    }
+    @Override public void highlight(int index) { frame.setHighlight(index); }
+    @Override public void closeMenu() { menu.close(); }
+
+    // SettingsPanel.Host (counts)
+    @Override public int hiddenCount() { return frame.hiddenCount(); }
+    @Override public int favouriteCount() { return frame.favouriteCount(); }
+    @Override public void unhideAll() { frame.unhideAll(); note("Hidden photos will show again"); }
 
     // SettingsPanel.Host
     @Override public void settingsChanged() { frame.applySettings(); }
