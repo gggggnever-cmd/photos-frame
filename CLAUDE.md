@@ -202,7 +202,11 @@ Current version: **v0.14** (versionCode 14). Everything is on GitHub `main`.
       when close, small far-away figures still simplify. Photo checker ~36 photos/min on the TV (~1 h for 1,990).
       Shrinker finished (no log, marker present); its re-saves had new mtimes, so the round at the time
       absorbed all burst siblings (1,990 instead of ~1,092) — fixed: Shrinker now keeps mtime. Self-heals
-      next round. STILL TO CHECK:
+      next round. Checked on the TV 11:20-11:32: checker done, 1,865 photos in 2,981 s, 1,580 with people,
+      285 places; Places only round = 205 (scenery, food, streets; misses people seen from behind, as expected).
+      First Highlights (30) were almost all the owner's partner posing + near-repeats, so Highlights now mixes people/places
+      (people share <= 60%, firm alternation) and spaces picks >= 5 min apart; re-checked: good mix.
+      Settings restored (Highlights per trip back to 30). STILL TO CHECK:
       checker speed and "done" log, places count looks right, Highlights look good,
       settings/menu rows fit, the owner's settings unchanged after install.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.

@@ -26,7 +26,10 @@ final class Highlights {
     /** Largest face height as a share of the photo's long side from which a person is "in" the photo. */
     static final float PERSON_FACE = 0.025f;
     /** Two highlights closer together than this are near-duplicates (avoided unless nothing else is left). */
-    static final long NEAR_SECONDS = 90;
+    // Seen on the TV (2026-11-18): photos a minute or two apart were often the same spot, so 5 minutes.
+    static final long NEAR_SECONDS = 300;
+    /** At most this share of the highlights shows people posing, so scenery and food get a turn too. */
+    static final double MAX_PEOPLE_SHARE = 0.6;
     static final int[] COUNTS = {20, 30, 50, 100};
 
     /** What the photo checker measured for one photo. */
@@ -123,6 +126,11 @@ final class Highlights {
 
         Comparator<Cand> best = (a, b) -> Double.compare(quality.get(b), quality.get(a));
         Set<Cand> picked = new HashSet<>();
+        // Mix: aim for the trip's own share of people photos, but no more than MAX_PEOPLE_SHARE
+        // (on the owner's first trip 85% had people and the first Highlights were nearly all posing shots).
+        int withPeople = 0;
+        for (Cand c : reps) if (person(c)) withPeople++;
+        Mix mix = new Mix(quality, Math.min(MAX_PEOPLE_SHARE, (double) withPeople / reps.size()));
         List<Cand> leftovers = new ArrayList<>();
         int open = 0;
         for (String d : days) {
@@ -131,29 +139,50 @@ final class Highlights {
             int q = quota.containsKey(d) ? quota.get(d) : 0;
             int got = 0;
             for (Cand c : l) if (c.favourite) { picked.add(c); got++; }          // favourites: always in
-            got += fill(l, q - got, picked, true);
-            got += fill(l, q - got, picked, false);                                // allow near-duplicates if needed
+            got += fill(l, q - got, picked, mix, true);
+            got += fill(l, q - got, picked, mix, false);                                // allow near-duplicates if needed
             if (got < q) open += q - got;
             for (Cand c : l) if (!picked.contains(c)) leftovers.add(c);
         }
         // Days that had fewer scenes than their share: give the rest to the best photos anywhere in the trip.
         leftovers.sort(best);
-        int added = fill(leftovers, open, picked, true);
-        fill(leftovers, open - added, picked, false);
+        int added = fill(leftovers, open, picked, mix, true);
+        fill(leftovers, open - added, picked, mix, false);
 
         List<Cand> out = new ArrayList<>(picked);
         out.sort(Comparator.comparingLong(c -> c.taken));
         return ids(out);
     }
 
-    /** Adds up to `want` from l (best first) to picked; with avoidNear, skips photos close in time to a pick. */
-    private static int fill(List<Cand> l, int want, Set<Cand> picked, boolean avoidNear) {
+    private static boolean person(Cand c) { return c.score != null && c.score.hasPerson(); }
+
+    /** Quality per candidate and the wanted share of people photos. */
+    private static final class Mix {
+        final Map<Cand, Double> quality;
+        final double peopleTarget;
+        Mix(Map<Cand, Double> quality, double peopleTarget) { this.quality = quality; this.peopleTarget = peopleTarget; }
+    }
+
+    /**
+     * Adds up to `want` from l to picked, one at a time: the best photo of whichever kind
+     * (people / no people) is behind its target share. With avoidNear, skips photos close in time to a pick.
+     */
+    private static int fill(List<Cand> l, int want, Set<Cand> picked, Mix mix, boolean avoidNear) {
         int got = 0;
-        for (Cand c : l) {
-            if (got >= want) break;
-            if (picked.contains(c)) continue;
-            if (avoidNear && nearAny(c, picked)) continue;
-            picked.add(c);
+        while (got < want) {
+            int people = 0;
+            for (Cand p : picked) if (person(p)) people++;
+            boolean wantPeople = picked.isEmpty() ? mix.peopleTarget >= 0.5 : (double) people / picked.size() < mix.peopleTarget;
+            Cand bestC = null;
+            double bestQ = -1e9;
+            for (Cand c : l) {
+                if (picked.contains(c)) continue;
+                if (avoidNear && nearAny(c, picked)) continue;
+                double q = mix.quality.get(c) + (person(c) == wantPeople ? 10 : 0);   // the behind kind goes first
+                if (q > bestQ) { bestQ = q; bestC = c; }
+            }
+            if (bestC == null) break;
+            picked.add(bestC);
             got++;
         }
         return got;
@@ -173,7 +202,7 @@ final class Highlights {
         if (s.bright < 0.2f) exposure = Math.max(0, (s.bright - 0.05) / 0.15);
         else if (s.bright > 0.8f) exposure = Math.max(0, (0.95 - s.bright) / 0.15);
         else exposure = 1;
-        return rank + 0.5 * exposure + (s.hasPerson() ? 0.4 : 0);
+        return rank + 0.5 * exposure;
     }
 
     private static double rankOf(List<Float> sorted, float v) {

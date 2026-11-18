@@ -97,6 +97,21 @@ public class HighlightsTest {
         assertTrue(out.contains("d0"));
     }
 
+    @Test public void mixesPeopleAndPlaces() {
+        // Like the owner's first-trip trip: 85% of photos have someone posing, and those are a bit sharper.
+        Random r = new Random(5);
+        List<Highlights.Cand> c = new ArrayList<>();
+        for (int k = 0; k < 200; k++) {
+            boolean people = k % 20 >= 3;
+            c.add(new Highlights.Cand("p" + k, k * 900L, "2025:11:0" + (1 + k / 50), false,
+                    score(people ? 300 + r.nextFloat() * 200 : 100 + r.nextFloat() * 200, 0.5f, people ? 1 : 0, people ? 0.06f : 0)));
+        }
+        List<String> out = Highlights.select(c, 30, 5);
+        int withPeople = 0;
+        for (String id : out) if (find(c, id).score.hasPerson()) withPeople++;
+        assertTrue("people " + withPeople + " of " + out.size(), withPeople <= 19 && withPeople >= 14);
+    }
+
     @Test public void placesRule() {
         assertTrue(Highlights.isPlace(score(1, 0.5f, 0, 0)));
         assertTrue("small passer-by", Highlights.isPlace(score(1, 0.5f, 3, 0.012f)));
