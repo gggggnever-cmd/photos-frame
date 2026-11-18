@@ -36,6 +36,8 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   phone lands on http://127.0.0.1:8765/?code=… (won't load) → user pastes that address back → TV signs in.
 - **Downloads:** `baseUrl=w3840-h2160` (≈3837×2160, ~5–15 MB each). Target ≥ 2,000 photos.
   Warn on screen below 5 GB free; stop adding below a 2 GB reserve; always keep rotating cached photos.
+- **No ambient-light-sensor dimming.** Considered and declined by the owner; brightness is set by the art
+  filter level (◀) and the TV's own picture settings. Don't propose it again.
 - **Updates to the TV:** adb over Wi-Fi via tools/update_tv.sh / update_tv.bat (remembers TV IP in
   tools/tv_ip.txt). A session running on the owner's PC can run these directly.
 
@@ -60,6 +62,7 @@ tools/preview.py renders a framed, art-treated preview of a photo on a computer.
 ## Status / next steps (update this list as things change)
 - [x] v0.4 built and pushed: frame look, art treatment, screensaver, phone sign-in, picker,
       4K download + cache, storage warnings, INSTALL.md, update scripts.
+- [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
 - [ ] First install on the real TV (nothing has run on the TV yet). Then test: sign-in, pick, download,
       screensaver, update script.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
