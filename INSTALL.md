@@ -78,9 +78,13 @@ open **Audience**, and click **Publish app → Confirm**. Nothing becomes public
 changes how long sign-ins last. (The photos already on the TV keep showing either way.)
 
 ## Using the frame
-- **OK** or **▶** — next picture now. Otherwise each picture stays 10 minutes.
-- **◀** — change the art filter: Off → Light → Moderate → Strong (the TV remembers your choice,
-  and the screensaver uses it too). Moderate is the starting setting.
+- **▶** or **OK** — next picture now.
+- **◀** — go back to the previous picture.
+- **▲** — open **Settings**: use ▲▼ to pick a line and ◀▶ to change it, then **Back** to close.
+  - **Change photo every:** 1 minute, 5 minutes, 10 minutes (the starting setting), 30 minutes or 1 hour.
+  - **Art filter:** Off, Light, Moderate (the starting setting) or Strong. You see the change straight away.
+  - **Add photos…** — press OK.
+  The TV remembers your choices, and the screensaver uses them too.
 - **▼** — add photos.
 - The TV and phone must be on the same Wi-Fi only while signing in.
 - **Back / Home** — leave the app.

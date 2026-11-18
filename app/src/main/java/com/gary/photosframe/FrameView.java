@@ -13,8 +13,9 @@ import java.util.Random;
 
 /** Shows one framed photo at a time and slowly cross-fades to the next. */
 public class FrameView extends View {
-    static final long SHOW_MS = 10 * 60 * 1000L;  // each picture stays 10 minutes
+    // How long each picture stays comes from Settings (default 10 minutes).
     static final long FADE_MS = 4000L;            // slow, quiet cross-fade
+    static final long BUTTON_FADE_MS = 1200L;     // quicker fade when the remote asks for next/previous
 
     private final PhotoSource source;
     private final FrameRenderer renderer = new FrameRenderer();
@@ -30,8 +31,8 @@ public class FrameView extends View {
 
     private final Runnable advance = new Runnable() {
         @Override public void run() {
-            showNext();
-            handler.postDelayed(this, SHOW_MS);
+            show(source.next(getWidth(), getHeight()), FADE_MS);
+            handler.postDelayed(this, settings.showMs());
         }
     };
 
@@ -52,10 +53,40 @@ public class FrameView extends View {
         skip();
     }
 
-    /** Remote: OK / right arrow skips to the next picture. */
+    /** Shows the next picture now and restarts the timer. */
     public void skip() {
         handler.removeCallbacks(advance);
         advance.run();
+    }
+
+    /** Remote ▶ / OK: next picture, with a quicker fade. */
+    public void next() {
+        if (getWidth() == 0) return;
+        handler.removeCallbacks(advance);
+        show(source.next(getWidth(), getHeight()), BUTTON_FADE_MS);
+        handler.postDelayed(advance, settings.showMs());
+    }
+
+    /** Remote ◀: the picture shown before this one. Returns false if there is nothing earlier. */
+    public boolean back() {
+        if (getWidth() == 0) return false;
+        Bitmap photo = source.previous(getWidth(), getHeight());
+        if (photo == null) return false;
+        handler.removeCallbacks(advance);
+        show(photo, BUTTON_FADE_MS);
+        handler.postDelayed(advance, settings.showMs());
+        return true;
+    }
+
+    /** Called after the Settings page changes something: redraw with the filter level, restart the timer. */
+    public void applySettings() {
+        float s = settings.artStrength();
+        if (s != renderer.artStrength()) {
+            renderer.setArtStrength(s);
+            if (getWidth() > 0 && shownPhoto != null) transitionTo(render(shownPhoto, shownDx, shownDy), 700);
+        }
+        handler.removeCallbacks(advance);
+        handler.postDelayed(advance, settings.showMs());
     }
 
     @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
@@ -68,14 +99,6 @@ public class FrameView extends View {
         if (animator != null) animator.cancel();
     }
 
-    /** Remote ◀: next art-filter level. Redraws the current picture with a quick fade; returns the level name. */
-    public String cycleArtLevel() {
-        settings.cycleArtLevel();
-        renderer.setArtStrength(settings.artStrength());
-        if (getWidth() > 0 && shownPhoto != null) transitionTo(render(shownPhoto, shownDx, shownDy), 700);
-        return settings.artName();
-    }
-
     private Bitmap render(Bitmap photo, float dx, float dy) {
         int w = getWidth(), h = getHeight();
         Bitmap scene = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -83,10 +106,9 @@ public class FrameView extends View {
         return scene;
     }
 
-    private void showNext() {
+    private void show(Bitmap photo, long fadeMs) {
         int w = getWidth(), h = getHeight();
         if (w == 0 || h == 0) return;
-        Bitmap photo = source.next(w, h);
         float drift = 0.004f * h;
         float dx = (random.nextFloat() * 2 - 1) * drift, dy = (random.nextFloat() * 2 - 1) * drift;
         Bitmap scene = render(photo, dx, dy);
@@ -94,7 +116,7 @@ public class FrameView extends View {
         shownPhoto = photo;
         shownDx = dx;
         shownDy = dy;
-        transitionTo(scene, FADE_MS);
+        transitionTo(scene, fadeMs);
     }
 
     private void transitionTo(Bitmap scene, long fadeMs) {

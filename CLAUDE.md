@@ -16,12 +16,14 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 
 ## Look — keep exactly unless the owner asks
 - Off-white bevelled matte, dark walnut frame, charcoal wall, soft shadow (FrameRenderer.java).
-- One photo at a time; 10-minute change; slow 4-second fade; a few pixels of drift per change.
-- **Art treatment on every photo** (ArtTreatment.java; level chosen with ◀ on the remote, Settings.java; default Moderate = 0.5): lower/softer light,
+- One photo at a time; change every 10 minutes by default (Settings page: 1/5/10/30/60 min);
+  slow 4-second fade (1.2 s when the remote asks for next/previous); a few pixels of drift per change.
+- **Art treatment on every photo** (ArtTreatment.java; level chosen on the ▲ Settings page, Settings.java; default Moderate = 0.5): lower/softer light,
   gentle matte contrast, slightly quieter warm colour, faint edge falloff, fine paper grain. Like TCL's
   T-Exhibition / picture-frame TVs. The owner explicitly rejected Google's vivid full-screen Ambient Mode look.
-- Remote: OK/▶ = next photo, ◀ = art filter level (Off/Light/Moderate/Strong, saved; default Moderate),
-  ▼/Menu = Add photos, Back/Home = leave.
+- Remote (the owner's choice, 2026-11-17): ▶/OK = next photo, ◀ = previous photo (history of 100),
+  ▲ = on-TV Settings page (SettingsPanel.java: photo time, art filter with live preview, Add photos;
+  ▲▼ pick, ◀▶ change, Back closes), ▼/Menu = Add photos, Back/Home = leave.
 
 ## Decisions already made (don't re-open without the owner)
 - **Photo source: Google Photos Picker API only** (scope `photospicker.mediaitems.readonly`).
@@ -38,7 +40,7 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 - **Downloads:** `baseUrl=w3840-h2160` (≈3837×2160, ~5–15 MB each). Target ≥ 2,000 photos.
   Warn on screen below 5 GB free; stop adding below a 2 GB reserve; always keep rotating cached photos.
 - **No ambient-light-sensor dimming.** Considered and declined by the owner; brightness is set by the art
-  filter level (◀) and the TV's own picture settings. Don't propose it again.
+  filter level (▲ Settings) and the TV's own picture settings. Don't propose it again.
 - **Updates to the TV:** adb over Wi-Fi via tools/update_tv.sh / update_tv.bat (remembers TV IP in
   tools/tv_ip.txt). A session running on the owner's PC can run these directly.
 
@@ -61,10 +63,11 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
 tools/preview.py renders a framed, art-treated preview of a photo on a computer.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.5** (versionCode 5). Everything is on GitHub `main`.
+Current version: **v0.6** (versionCode 6). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
+- [x] v0.6: ◀/▶ previous/next photo; ▲ Settings page with photo time (1/5/10/30/60 min) and art filter.
 - [x] TV prep done by the owner (photos checked): Developer options ON, USB debugging ON. This TV's
       Debugging section has **no separate Wireless/Network debugging toggle** — try `adb connect IP:5555`
       (Android TV normally listens there when USB debugging is on). Leave everything else at defaults;
@@ -86,7 +89,13 @@ Current version: **v0.5** (versionCode 5). Everything is on GitHub `main`.
       whether the request reaches the TV. Next: have the owner scan once while `adb logcat SetupServer:I *:S`
       runs; try Samsung Internet; check phone VPN / Private DNS / "secure Wi-Fi". Workaround: sign in from
       the PC browser.
-- [ ] Still to test: rotation + ◀ levels with real photos, screensaver kicking in, update_tv script.
+- [x] v0.6 on the TV (2026-11-17), all 1,990 photos downloaded (~2.3 GB). Checked with adb key presses +
+      screenshots: ▶ next, ◀ back to the same photo, ▲ Settings card (▲▼ focus, ◀▶ change, live filter,
+      Back closes without leaving the app), setting saved in shared_prefs/settings.xml; screensaver
+      started via `am start -n com.android.systemui/.Somnambulator` shows the frame
+      (dumpsys dreams: FrameDreamService).
+- [ ] Still to test: timed rotation over a real interval, screensaver starting by itself after idle,
+      update_tv script; the owner to try the remote himself.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner

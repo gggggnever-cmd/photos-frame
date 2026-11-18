@@ -9,10 +9,11 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements SettingsPanel.Host {
     private static final int REQ_ADD = 1;
     private FrameView frame;
     private TextView storageNote, levelNote;
+    private SettingsPanel panel;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -22,7 +23,7 @@ public class MainActivity extends Activity {
         if (!frame.hasOwnPhotos()) {
             // Quiet one-time hint while only the placeholder samples are showing.
             TextView hint = new TextView(this);
-            hint.setText("Press ▼ on the remote to add your photos");
+            hint.setText("Press ▼ on the remote to add your photos  ·  ▲ for settings");
             hint.setTextColor(0x99F1EDE4);
             hint.setTextSize(16);
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -45,27 +46,48 @@ public class MainActivity extends Activity {
         FrameLayout.LayoutParams lv = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         lv.bottomMargin = 60;
         root.addView(levelNote, lv);
+        panel = new SettingsPanel(this, new Settings(this), this);
+        panel.setVisibility(View.GONE);
+        root.addView(panel, new FrameLayout.LayoutParams(panel.cardWidth(), -2, Gravity.CENTER));
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
     @Override public boolean onKeyDown(int code, KeyEvent e) {
+        if (panel.isOpen()) return panel.onKey(code);
         switch (code) {
-            case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_ENTER:
-                frame.skip();
+            case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
+                frame.next();
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
-                levelNote.animate().cancel();
-                levelNote.setText("Art filter: " + frame.cycleArtLevel());
-                levelNote.setAlpha(1f);
-                levelNote.animate().alpha(0f).setStartDelay(2500).setDuration(800);
+                if (!frame.back()) note("This is the first photo");
+                return true;
+            case KeyEvent.KEYCODE_DPAD_UP:
+                panel.open();
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_MENU:
-                startActivityForResult(new Intent(this, AddPhotosActivity.class), REQ_ADD);
+                addPhotos();
                 return true;
         }
         return super.onKeyDown(code, e);
+    }
+
+    @Override public void onBackPressed() {
+        if (panel.isOpen()) close(); else super.onBackPressed();
+    }
+
+    // SettingsPanel.Host
+    @Override public void settingsChanged() { frame.applySettings(); }
+    @Override public void addPhotos() { close(); startActivityForResult(new Intent(this, AddPhotosActivity.class), REQ_ADD); }
+    @Override public void close() { panel.setVisibility(View.GONE); }
+
+    /** A short message near the bottom that fades away. */
+    private void note(String s) {
+        levelNote.animate().cancel();
+        levelNote.setText(s);
+        levelNote.setAlpha(1f);
+        levelNote.animate().alpha(0f).setStartDelay(2500).setDuration(800);
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {

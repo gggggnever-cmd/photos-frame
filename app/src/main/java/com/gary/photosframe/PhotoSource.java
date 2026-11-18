@@ -20,6 +20,10 @@ final class PhotoSource {
     private final List<String> items = new ArrayList<>();
     private int next = 0;
     private boolean own;
+    // Photos already shown, so ◀ can go back. pos = index of the one on screen.
+    private static final int HISTORY = 100;
+    private final List<String> shown = new ArrayList<>();
+    private int pos = -1;
 
     PhotoSource(Context ctx) {
         this.ctx = ctx;
@@ -45,11 +49,24 @@ final class PhotoSource {
     boolean isEmpty() { return items.isEmpty(); }
     boolean hasOwnPhotos() { return own; }
 
-    /** Decodes the next photo, downsampled to roughly fit maxW x maxH. */
+    /** Decodes the next photo, downsampled to roughly fit maxW x maxH. After going back, replays forward first. */
     Bitmap next(int maxW, int maxH) {
+        if (pos < shown.size() - 1) return load(shown.get(++pos), maxW, maxH);
         if (items.isEmpty()) return null;
         if (next >= items.size()) reload();
-        String id = items.get(next++);
+        shown.add(items.get(next++));
+        if (shown.size() > HISTORY) shown.remove(0);
+        pos = shown.size() - 1;
+        return load(shown.get(pos), maxW, maxH);
+    }
+
+    /** Decodes the photo shown before the current one, or returns null if there is none (start of history). */
+    Bitmap previous(int maxW, int maxH) {
+        if (pos <= 0) return null;
+        return load(shown.get(--pos), maxW, maxH);
+    }
+
+    private Bitmap load(String id, int maxW, int maxH) {
         try {
             BitmapFactory.Options o = new BitmapFactory.Options();
             o.inJustDecodeBounds = true;

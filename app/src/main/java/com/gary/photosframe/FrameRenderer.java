@@ -18,7 +18,9 @@ final class FrameRenderer {
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private ArtTreatment art = new ArtTreatment();
 
-    void setArtStrength(float s) { art = new ArtTreatment(s); }
+    private float artStrength = -1f;
+    void setArtStrength(float s) { artStrength = s; art = new ArtTreatment(s); }
+    float artStrength() { return artStrength; }
 
     /** offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
     void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY) {
