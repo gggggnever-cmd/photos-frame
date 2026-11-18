@@ -6,8 +6,8 @@ android {
         applicationId 'com.gary.photosframe'
         minSdk 28
         targetSdk 34
-        versionCode 8
-        versionName '0.8'
+        versionCode 9
+        versionName '0.9'
     }
     buildTypes {
         // The TV's CPU is slow and debuggable builds run tight loops several times slower, so the

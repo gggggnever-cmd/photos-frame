@@ -42,6 +42,11 @@ To keep the pictures up for hours, check that the TV isn't set to switch the scr
 **Settings → System → Power & Energy** — set the "turn off screen / auto power off" timer
 to the longest option or **Never**.
 
+**Make the remote's art button open Photos Frame (optional):** on the TV go to
+**Settings → System → Accessibility → Photos Frame art button** and switch it **On** (choose **Allow**).
+It only looks at the art button; every other button works as normal. Switch it off there to get
+TCL's T-Exhibition back on that button.
+
 To go back to Google's screensaver later:
 ```
 adb shell settings delete secure screensaver_components

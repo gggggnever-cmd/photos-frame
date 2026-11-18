@@ -26,6 +26,9 @@ Photos come only through the official Google Photos **Picker API**
 (scope `photospicker.mediaitems.readonly`). Photos saved to your library from
 Partner Sharing are pickable too.
 
+The remote's art button can open Photos Frame instead of TCL's T-Exhibition (optional accessibility
+helper `ArtKeyService.java`; switched on in TV Settings → Accessibility).
+
 On the frame: **▶ / OK** next photo; **◀** previous photo; **▲** Settings page (time between
 photos 1/5/10/30/60 min, art filter level, Add photos; `SettingsPanel.java`); **▼** Add photos.
 

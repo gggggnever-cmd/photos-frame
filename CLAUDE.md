@@ -89,7 +89,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.8** (versionCode 8). Everything is on GitHub `main`.
+Current version: **v0.9** (versionCode 9). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -128,6 +128,17 @@ Current version: **v0.8** (versionCode 8). Everything is on GitHub `main`.
       (dumpsys dreams: FrameDreamService).
 - [ ] Still to test: timed rotation over a real interval, screensaver starting by itself after idle,
       update_tv script; the owner to try the remote himself.
+- [x] v0.9 (2026-11-18): **art button on the remote opens Photos Frame** (ArtKeyService, an
+      accessibility service that filters only TCL key 4181 / scan 507; TCL's system otherwise sends it to
+      T-Exhibition via TclShortCutKeyManager.startExhibit, with no setting to change that; searched
+      system/secure/global settings, getprop and TCL's config provider). **The owner switched it on himself** in
+      Settings → System → Accessibility (don't enable accessibility services from adb). Verified with a real
+      press: Photos Frame opened. NB: `adb shell input keyevent` presses skip accessibility filters, so
+      only real remote presses can test it.
+- Screensaver: already Photos Frame. The home-screen "Screensaver" button and Ambient mode start it too
+  (logged: DreamController starting FrameDreamService). With the filter Off and full-screen look it looks
+  like Google's photo screensaver, which caused confusion. Google's Ambient mode menu doesn't list it;
+  picking an option there may reset `screensaver_components` (re-run the update script if so).
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner

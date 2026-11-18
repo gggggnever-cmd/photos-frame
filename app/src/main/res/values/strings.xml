@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="art_key_label">Photos Frame art button</string>
+    <string name="art_key_description">Makes the art button on the remote open Photos Frame instead of T-Exhibition. It only looks at that one button; all other buttons work as normal, and it does not read anything on the screen.</string>
+</resources>
