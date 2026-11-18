@@ -174,6 +174,12 @@ engineering-design agent's recommendation: Phase 1 trips on the TV (store at 108
 trips, Settings → Trip, two-trip alternate, storage budget with eviction); Phase 2 PC trip loader (album
 download/Takeout → PC shrinks → adb push); live PC streaming and Takeout→Drive rejected. Verified: Picker
 search by keywords/dates/places/album titles (no album tab, no select-whole-album); 1080p size measured.
+Follow-ups (2026-11-18): docs/album_metadata_research.md: NO legitimate way to read album names/dates
+(Library API read scopes deleted; Data Portability has no Photos and isn't offered in Canada; Takeout always
+includes media). docs/trip_naming_design.md: trips found automatically from capture-date gaps (>2 empty
+days = new trip), named "Nov 2025 · 12 days" with a cover; optional one spoken word right after a pick
+(TV keyboard mic; Google RecognitionService present on the TV). The owner: no typing, no manual assigning;
+picker per-day select circles + search is how he picks; budget must be user-set (default 20 GB).
 
 ## Idea parked by the owner (2026-11-18): "Highlights" / trip overview — DON'T BUILD until he asks
 The owner's words: an "executive overview" of a trip: pick the most important photos (say ~30, maybe user-set)
