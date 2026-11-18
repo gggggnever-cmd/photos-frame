@@ -82,3 +82,15 @@ whole 4 seconds. Do not bake texture into the slide bitmaps.
 One logical pixel is 2 x 2 panel pixels, about 1 mm on the 85" screen, roughly the finest detail the eye
 resolves from 3 m. Paper tooth is per-pixel on purpose; canvas threads are 2 logical px (about 2 mm, a medium-coarse canvas).
 Do not scale the tiles.
+
+## Additions (v0.14, 2026-11-18), after the owner compared the filter with a description of Frame-TV paper art
+Pixel maths in PrintEffects.java (pure Java); preview on the PC with tools/PrintPreview.java.
+- **Relief:** both texture heights are lit from the top left before becoming tiles (height x 0.5 +
+  diagonal slope), so tooth, fibres and weave read as raised. Paper gains ~900 short curved fibres.
+- **Ink soak:** Paper and Canvas blend a 3x3 blur into the photo by min(0.45, 0.10 + 0.15 s).
+- **Paper cut** (third Print surface): on a ~600 px copy, 4 bilateral passes (colour spread 22), k-means
+  12 colours (k-means++, seed 42), near-identical colours merged (< 16 RGB), 3 majority passes, regions under
+  1/3000 of the area merged; sheet colours = mean of the unsmoothed photo, saturation x1.2. Full size: each
+  pixel takes the sheet with the biggest tent-weighted vote of a 4x4 neighbourhood; darker sheets sit higher
+  and cast a soft shadow down-right (length 0.4-0.8% of height, darkness min(0.45, 0.22 + 0.1 s)). Tone stops
+  at the Moderate level so the sheets stay colourful. Paper texture over it.

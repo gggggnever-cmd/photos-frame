@@ -4,7 +4,7 @@ A personal Google TV app (built for a TCL NXTFRAME) that shows your own Google P
 full screen, edge to edge. Upright photos are shown three side by side, whole, with paper-coloured gaps. A "Framed" look
 (off-white bevelled matte, dark walnut frame, charcoal wall) can be chosen in Settings.
 Pictures change every 10 minutes (adjustable) with a slow 4-second fade.
-Photos can get a "print" filter (▲ Settings: Off/Light/Moderate/Strong/Extra strong/Maximum, surface Paper or Canvas):
+Photos can get a "print" filter (▲ Settings: Off/Light/Moderate/Strong/Extra strong/Maximum, surface Paper, Canvas or Paper cut):
 a warm paper white and ink-black ends, slightly quieter colour, a fine paper or canvas texture and a
 soft gallery light, so they read like prints on the TV's matte screen. No blur or painterly effects.
 It also works as the TV's screensaver.

@@ -56,6 +56,7 @@ public class FrameView extends View {
     private volatile ArtTreatment art;              // built on the slides thread (texture tiles take a moment)
     private float bakedStrength = -1f;              // slides thread: level the prepared slide was baked with
     private int bakedLook = -1;
+    private boolean bakedCut;                       // slides thread: the prepared slide was cut as Paper cut
     private int bakedOrder = -1;
     private int bakedPlay = -1, bakedHighlights;
     private String bakedDay = "";
@@ -231,7 +232,8 @@ public class FrameView extends View {
                 prepared = null;
                 return;
             }
-            if (settings.artStrength() == bakedStrength && settings.look() == bakedLook) return;
+            if (settings.artStrength() == bakedStrength && settings.look() == bakedLook
+                    && (settings.surface() == Settings.SURFACE_CUT) == bakedCut) return;
             ensureArt();
             prepared = null;
             Scene s = compose(shown.ids, w, h);
@@ -269,13 +271,15 @@ public class FrameView extends View {
         ArtTreatment a = art;
         int look = settings.look();
         bakedLook = look;
+        int surface = settings.surface();
+        bakedCut = surface == Settings.SURFACE_CUT;
         List<Bitmap> photos = new ArrayList<>();
         List<String> drawn = new ArrayList<>();
         int colW = ids.isEmpty() ? w : w / ids.size();
         for (String id : ids) {
             Bitmap raw = source.load(id, colW, h);
             if (raw == null) continue;
-            Bitmap toned = a.bake(raw);
+            Bitmap toned = a.bake(raw, surface);
             if (toned != raw) raw.recycle();
             photos.add(toned);
             drawn.add(id);

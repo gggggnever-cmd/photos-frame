@@ -48,8 +48,8 @@ final class Settings {
     int look() { return clamp(prefs.getInt("look", LOOK_FULL), LOOK_NAMES.length, LOOK_FULL); }
     void setLook(int l) { prefs.edit().putInt("look", l).apply(); }
 
-    static final String[] SURFACE_NAMES = {"Paper", "Canvas"};
-    static final int SURFACE_PAPER = 0, SURFACE_CANVAS = 1;
+    static final String[] SURFACE_NAMES = {"Paper", "Canvas", "Paper cut"};
+    static final int SURFACE_PAPER = 0, SURFACE_CANVAS = 1, SURFACE_CUT = 2;   // Paper cut: flat colour sheets
     int surface() { return clamp(prefs.getInt("surface", SURFACE_PAPER), SURFACE_NAMES.length, SURFACE_PAPER); }
     void setSurface(int v) { prefs.edit().putInt("surface", v).apply(); }
 

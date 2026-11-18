@@ -95,7 +95,8 @@ changes how long sign-ins last. (The photos already on the TV keep showing eithe
   - **Change photo every:** 30 seconds, 1 minute, 5 minutes, 10 minutes (the starting setting), 30 minutes or 1 hour.
   - **Print filter:** Off, Light, Moderate (the starting setting), Strong, Extra strong or Maximum. Makes photos look like prints
     on paper rather than a bright screen. The photo on screen changes to show it.
-  - **Print surface:** Paper (the starting setting) or Canvas: the fine texture the filter adds.
+  - **Print surface:** Paper (the starting setting), Canvas, or **Paper cut** (the photo rebuilt from a few flat
+    colours, like layered cut paper with soft shadows). Needs the Print filter on (not Off).
   - **Look:** Full screen (the starting setting; upright photos appear three side by side) or Framed.
   - **Trip:** which trips play. Press OK for the list: All trips, or tick one or more (ticked trips are
     mixed together). Hold OK on a trip to give it a name (you can type or press the mic and say it).

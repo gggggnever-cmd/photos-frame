@@ -192,7 +192,12 @@ Current version: **v0.14** (versionCode 14). Everything is on GitHub `main`.
       (migrates "favourites_only"); round.txt h[3] = play number (old true/false read), h[7] use, h[8] count.
       APK limited to armeabi-v7a (ML Kit libs; 17.6 MB). Also: sign-in log now redacts URL-encoded codes;
       sign-in screen says to use a computer if the phone can't reach the page.
-      TO CHECK ON THE TV: checker speed and "done" log, places count looks right, Highlights look good,
+      **Print filter additions** (the owner showed Gemini's two "Frame TV paper" styles): relief-lit paper fibres /
+      canvas weave and a slight ink soak for Paper and Canvas; new Print surface **Paper cut** (flat colour
+      sheets with soft shadows; docs/print_filter_spec.md "Additions"). PC preview: tools/PrintPreview.java.
+      11 JUnit tests pass (8 Highlights, 3 PrintEffects).
+      TO CHECK ON THE TV: Paper cut bake time per slide (PC ~0.7 s one thread), how it looks on the matte panel,
+      checker speed and "done" log, places count looks right, Highlights look good,
       settings/menu rows fit, the owner's settings unchanged after install.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [ ] Publish the consent screen so sign-ins don't expire weekly.
