@@ -1,0 +1,15 @@
+# Build output
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+
+# Private: family photos and Google OAuth keys never go into git
+app/src/main/assets/photos/
+app/src/main/assets/oauth_client.json
+client_secret*.json
+preview.jpg
+samples/
+.picker_state.json
+picked_items.json
