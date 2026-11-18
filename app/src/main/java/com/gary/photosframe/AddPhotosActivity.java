@@ -316,6 +316,7 @@ public class AddPhotosActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         qr = new ImageView(this);
+        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
         LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(dp(260), dp(260));
         qp.rightMargin = dp(48);
         root.addView(qr, qp);
@@ -355,7 +356,9 @@ public class AddPhotosActivity extends Activity {
         nameBox.addView(nameInfo);
         col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(16)));
         col.addView(nameBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        root.addView(col, new LinearLayout.LayoutParams(dp(640), LinearLayout.LayoutParams.WRAP_CONTENT));
+        // Fill whatever width is left after the QR: a fixed width overflowed the 960dp TV screen,
+        // which squeezed the QR (cutting off its left edge) and pushed the text off the right edge.
+        root.addView(col, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         setContentView(root);
     }
 
