@@ -4,11 +4,12 @@ The owner has already explained all of this once. **Do not ask him to repeat it.
 README.md and INSTALL.md, then carry on. Ask only about things that are genuinely new.
 
 ## Who and what
-- **The owner** owns the project and the TV. His assistant **the owner's assistant** sometimes drives sessions for him.
-  the owner's wife is **the owner's partner**; they use Google Photos Partner Sharing so either phone can take trip photos.
+- **The owner** owns the project and the TV; **the owner's assistant** sometimes drives sessions.
+  The owner and their partner use Google Photos Partner Sharing so either phone can take trip photos.
+  Real names, addresses and accounts are in CLAUDE.local.md (gitignored, local to the PC).
 - **TV:** TCL 85" A300W (NXTFRAME), Google TV, ~64 GB storage (~50 GB free for apps).
-  Not OLED. TV IP address: **<TV-IP>** (Wi-Fi "<home Wi-Fi>"; Cast name "<Cast name>", adb product
-  `<adb product>`, model "Smart TV"; ~46 GB free). The owner's PC is <PC-IP> (also on Wi-Fi).
+  Not OLED. TV IP address, Wi-Fi, Cast name, adb product: see CLAUDE.local.md
+  (model "Smart TV"; ~46 GB free). The owner's PC is on the same Wi-Fi.
 - **Goal:** a personal (sideloaded, not Play Store) Google TV app that shows the owner's own Google Photos
   like a framed picture on the wall, also usable as the TV's screensaver, with new photos easy to add.
 - **How the owner likes instructions:** plain, numbered, step-by-step, "as if for a 10-year-old". Short status
@@ -74,18 +75,18 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   tools/tv_ip.txt). A session running on the owner's PC can run these directly.
 
 ## Google Cloud
-- Project **<your Cloud project>**, account <owner account>. OAuth consent screen name "Photos Frame",
+- Project and Google account: see CLAUDE.local.md. OAuth consent screen name "Photos Frame",
   External, the owner is a test user. Photos Picker API enabled (free, no billing).
-- Clients: **Desktop** client (<desktop-client-id>) ← the one the app uses.
+- Clients: **Desktop** client (id in CLAUDE.local.md) ← the one the app uses.
   "Photos Frame TV" (limited-input) client exists but is unusable for Photos; can be ignored/deleted.
 - Consent screen **In production** since 2026-11-18 (sign-ins no longer expire weekly).
 
-## Public web pages and Google publishing (the owner's assistant, 2026-11-18) — needed for any wider release
-the owner's assistant (the owner's assistant, via <assistant app>) did this to publish the OAuth consent screen ("In production" verified
+## Public web pages and Google publishing (2026-11-18) — needed for any wider release
+The owner's assistant did this to publish the OAuth consent screen ("In production" verified
 2026-11-18). **If the owner ever folds Photos Frame into Zero Studio or distributes it widely, start here.**
 - The GitHub repo **gggggnever-cmd/photos-frame is now PUBLIC** (was private) and serves **GitHub Pages**
   from `main` / root: https://gggggnever-cmd.github.io/photos-frame/
-- `index.html` — home page (what the app is, contact <owner email>, link to privacy policy).
+- `index.html` — home page (what the app is, owner's contact email, link to privacy policy).
 - `privacy.html` — privacy policy: single-user personal app; only Picker-selected photos; stored on the TV;
   nothing sent to the developer or third parties; no analytics/ads/tracking. **Rewrite it for a real
   multi-user release** (it says "single-user"; must match the store's Data safety form).
@@ -149,7 +150,7 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       `SetupServer` with the auth code redacted).
 - [ ] **Open bug: the owner's phone (Chrome) can't open http://<TV-IP>:8080/**
       (`ERR_TOO_MANY_RETRIES`), though the PC on the same Wi-Fi loads it and the TV can ping the phone
-      (likely <PC-IP>). No phone request has been seen in the `SetupServer` log yet, so it's unknown
+      (address in CLAUDE.local.md). No phone request has been seen in the `SetupServer` log yet, so it's unknown
       whether the request reaches the TV. Research 2026-11-18: SetupServer logs every accepted socket, so
       nothing reaches the TV; ERR_TOO_MANY_RETRIES (-375) comes from auth/cert restarts or retries on a
       reused socket, which points at a proxy or VPN on the phone (Wi-Fi Proxy setting, Samsung Secure
@@ -221,7 +222,7 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       absorbed all burst siblings (1,990 instead of ~1,092) — fixed: Shrinker now keeps mtime. Self-heals
       next round. Checked on the TV 11:20-11:32: checker done, 1,865 photos in 2,981 s, 1,580 with people,
       285 places; Places only round = 205 (scenery, food, streets; misses people seen from behind, as expected).
-      First Highlights (30) were almost all the owner's partner posing + near-repeats, so Highlights now mixes people/places
+      First Highlights (30) were almost all the partner posing + near-repeats, so Highlights now mixes people/places
       (people share <= 60%, firm alternation) and spaces picks >= 5 min apart; re-checked: good mix.
       Settings restored (Highlights per trip back to 30). STILL TO CHECK:
       checker speed and "done" log, places count looks right, Highlights look good,
@@ -263,7 +264,7 @@ BUILT in v0.14 (see status).  Original thinking: Thinking: a Play choice "Places
 - On-device face detection once per photo, in the background, cached in files/library/meta.tsv
   (android.media.FaceDetector needs no extra library; ML Kit face detection with its bundled model is more
   accurate, e.g. side-on faces, at a few MB).
-- Rule: skip a photo if any face is bigger than a small share of the frame (the owner or the owner's partner posing); tiny
+- Rule: skip a photo if any face is bigger than a small share of the frame (the owner or partner posing); tiny
   faces of passers-by in a street scene don't count. Can't tell "us" from strangers (no face recognition).
 - Misses: people seen from behind or far away. A hidden-style "not a places photo" mark in the photo menu
   could fix mistakes. Shares the face scores with the parked "Highlights" idea.
@@ -286,8 +287,8 @@ and play just those. Thinking so far (nothing built):
 The owner will open Claude Code on his PC and ask to set everything up. Do it end to end without manual
 steps for him beyond the unavoidable ones:
 1. Clone https://github.com/gggggnever-cmd/photos-frame (public since 2026-11-18).
-2. Find his Desktop key: search Downloads etc. for `client_secret*.json` whose client_id starts with
-   `<desktop-client-id>`; copy to app/src/main/assets/oauth_client.json (gitignored). Not the TV client.
+2. Find his Desktop key: search Downloads etc. for `client_secret*.json` whose client_id matches the Desktop
+   client in CLAUDE.local.md; copy to app/src/main/assets/oauth_client.json (gitignored). Not the TV client.
 3. Install JDK 17+, Android SDK (platform 34, build-tools 34, platform-tools/adb), Gradle 8.14; build.
 4. Find the TV on the LAN yourself (e.g. scan for port 5555, or `adb mdns services`), install with
    tools/update_tv, set as screensaver. The owner must turn on Developer options + USB/network debugging on
@@ -297,14 +298,13 @@ steps for him beyond the unavoidable ones:
 Placeholder photos are not in git; the frame shows an empty wall until photos are picked — fine.
 
 ## The owner's PC toolchain (set up 2026-11-17)
-JDK 21 at `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`, SDK at `%USERPROFILE%\Android\Sdk`
-(platform 34 added), Gradle at `%USERPROFILE%\tools\gradle-8.14\bin\gradle`. In Git Bash, set
+JDK 21, Android SDK (platform 34 added) and Gradle 8.14 under the user's folder (paths in CLAUDE.local.md). In Git Bash, set
 `MSYS_NO_PATHCONV=1` before adb shell commands with paths. Install a build with
 `adb -s <TV-IP>:5555 install -r app/build/outputs/apk/release/app-release.apk`.
-`python3` on this PC is the Windows Store stub; a real Python is in the <python-venv> venv.
+`python3` on this PC is the Windows Store stub; a real Python's path is in CLAUDE.local.md.
 
 ## History (short)
-- First session (cloud, Nov 2026): research → Picker spike → v0.1–v0.5. the owner's assistant (the owner's assistant)
+- First session (cloud, Nov 2026): research → Picker spike → v0.1–v0.5. The owner's assistant
   drove part of it. Ruled out: shared albums, phone helper app, TV device-code sign-in, light sensor.
 - First local session (the owner's PC, 2026-11-17): toolchain, first TV install, two sign-in fixes,
   sign-in done from the PC browser, first ~2,000 photos picked.

@@ -250,5 +250,5 @@ Keep one flat photo store and add membership lists, so a photo that is in two tr
 6. How much TV storage are you comfortable giving the frame: 5, 10 or 20 GB?
 7. Is frame-size quality (sharp at the size the app draws today) fine, or do you want sharper copies kept in case the app later draws in true 4K?
 8. For "compare my two Tokyo trips": two photos side by side on one screen, or the trips taking turns?
-9. Should the owner's partner's photos of the same trip be in the trip too (they must be saved into your library first)?
+9. Should your partner's photos of the same trip be in the trip too (they must be saved into your library first)?
 10. Are originals of old trips still on your phone or PC anywhere, or only in Google Photos? (Only matters if Google exports prove slow.)

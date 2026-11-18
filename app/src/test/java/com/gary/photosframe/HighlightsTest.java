@@ -98,7 +98,7 @@ public class HighlightsTest {
     }
 
     @Test public void mixesPeopleAndPlaces() {
-        // Like the owner's first-trip trip: 85% of photos have someone posing, and those are a bit sharper.
+        // Like the owner's first trip: 85% of photos have someone posing, and those are a bit sharper.
         Random r = new Random(5);
         List<Highlights.Cand> c = new ArrayList<>();
         for (int k = 0; k < 200; k++) {

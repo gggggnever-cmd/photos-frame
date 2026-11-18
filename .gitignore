@@ -16,3 +16,6 @@ picked_items.json
 preview_*.jpg
 compare_*.jpg
 tools/tv_ip.txt
+
+# Private notes with real names, addresses and accounts
+CLAUDE.local.md

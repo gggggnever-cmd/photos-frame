@@ -64,7 +64,7 @@ skipping dark or blurred ones. Small cover files are made once in the background
   "Split here"), rarely needed.
 - **Effort:** M (it is most of Phase 1 of the trips design, minus the naming screens).
 - **Risks:** date names of old trips blur together ("Mar 2016" vs "May 2016"); the cover carries
-  the recognition. the owner's partner's and the owner's phones need roughly correct clocks (phones set them
+  the recognition. Both phones need roughly correct clocks (phones set them
   automatically).
 - **If album names/dates arrive:** an album's date range overrides the gap rule (the album is the
   truth about where a trip starts and ends) and its title becomes the name.
@@ -133,7 +133,7 @@ the trip's dates and take the place from there: most frequent country in the eve
   trip: nothing.
 - **Typed / said per trip:** nothing.
 - **Accuracy:** high when the bookings went to the owner's Gmail and "Events from Gmail" is on; nothing
-  when the owner's partner booked, or for road trips. **(unverified for the owner's account)**: he can check in one
+  when someone else booked, or for road trips. **(unverified for the owner's account)**: he can check in one
   minute by opening Google Calendar on a past trip's dates.
 - **Effort:** M (second scope in Auth.java, one Calendar API call per trip, location parsing).
 - **Risks:** it widens what the app may read beyond the "Picker only" decision in CLAUDE.md, so it

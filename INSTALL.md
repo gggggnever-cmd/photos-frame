@@ -84,7 +84,7 @@ Partner sharing → Save to your account → All photos).
 **Avoid signing in every week (one-time, on a computer):** while the Google Cloud project is
 in "Testing" mode, Google ends the TV's sign-in after 7 days, so the next "Add photos" would
 ask you to sign in again. To stop that: go to **console.cloud.google.com**, pick project
-**<your Cloud project>**, search **"Google Auth Platform"** (or "OAuth consent screen"),
+(your project), search **"Google Auth Platform"** (or "OAuth consent screen"),
 open **Audience**, and click **Publish app → Confirm**. Nothing becomes public — it only
 changes how long sign-ins last. (The photos already on the TV keep showing either way.)
 
