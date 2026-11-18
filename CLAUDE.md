@@ -78,8 +78,7 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   External, the owner is a test user. Photos Picker API enabled (free, no billing).
 - Clients: **Desktop** client (<desktop-client-id>) ← the one the app uses.
   "Photos Frame TV" (limited-input) client exists but is unusable for Photos; can be ignored/deleted.
-- Consent screen is (as far as we know) still in **Testing** → sign-ins expire after 7 days.
-  Recommended: Google Auth Platform → Audience → **Publish app** (see INSTALL.md step 5).
+- Consent screen **In production** since 2026-11-18 (sign-ins no longer expire weekly).
 
 ## Private files (gitignored — never commit, never put in a public place)
 - `app/src/main/assets/oauth_client.json` = the owner's Desktop `client_secret.json`. Needed to build.
@@ -219,7 +218,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       one-photo menu fit; settings unchanged. Not seen: the 3-photo menu hint (shortened so it fits one line).
       Older notes above use the old names.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
-- [ ] Publish the consent screen so sign-ins don't expire weekly. **The owner asked the owner's assistant (<assistant app>) to do it** (2026-11-18).
+- [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
+      2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks
+      to sign in again, do it once (expect Google's "unverified app" screen: Advanced → Go to Photos Frame).
 - [ ] Remind the owner (he asked, 2026-11-18): next time he adds photos from the phone, try the phone checklist
       (type the address in Chrome by hand; Wi-Fi Proxy = None; VPN / Secure Wi-Fi off; try Samsung Internet).
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
