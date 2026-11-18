@@ -91,3 +91,9 @@ it stops adding photos but keeps showing the ones it already has.
 ## Updating the app later
 Repeat step 3 with the new `PhotosFrame.apk` (`adb connect …`, then `adb install -r …`).
 Your photos and sign-in are kept.
+
+## Updating later
+Put `tools/update_tv.sh` (Mac/Linux) or `tools/update_tv.bat` (Windows) in the `platform-tools`
+folder with the new `PhotosFrame.apk`, then run `./update_tv.sh 192.168.1.42` (or `update_tv.bat 192.168.1.42`).
+After the first run it remembers the TV, so next time just `./update_tv.sh`. If your computer is
+connected to Claude through Remote Control, Claude can run this for you.
