@@ -80,6 +80,24 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   "Photos Frame TV" (limited-input) client exists but is unusable for Photos; can be ignored/deleted.
 - Consent screen **In production** since 2026-11-18 (sign-ins no longer expire weekly).
 
+## Public web pages and Google publishing (the owner's assistant, 2026-11-18) — needed for any wider release
+the owner's assistant (the owner's assistant, via <assistant app>) did this to publish the OAuth consent screen ("In production" verified
+2026-11-18). **If the owner ever folds Photos Frame into Zero Studio or distributes it widely, start here.**
+- The GitHub repo **gggggnever-cmd/photos-frame is now PUBLIC** (was private) and serves **GitHub Pages**
+  from `main` / root: https://gggggnever-cmd.github.io/photos-frame/
+- `index.html` — home page (what the app is, contact <owner email>, link to privacy policy).
+- `privacy.html` — privacy policy: single-user personal app; only Picker-selected photos; stored on the TV;
+  nothing sent to the developer or third parties; no analytics/ads/tracking. **Rewrite it for a real
+  multi-user release** (it says "single-user"; must match the store's Data safety form).
+- `google721cc4a7188302b3.html` — Google Search Console domain-ownership file for the Pages site. Don't
+  delete or rename it (Google re-checks ownership).
+- Consent screen: External, In production, **not verified** (users see "unverified app"; 100-user lifetime
+  cap, 2 used). Mass distribution needs Google **OAuth verification** of the sensitive Picker scope (home page,
+  privacy page, demo video, possibly a security review), a brand/logo, and its own Cloud project/clients
+  rather than the owner's personal one. Play Store would also need a real signing key (today: debug key).
+- Because the repo is public: never commit oauth_client.json, photos, APKs or tools/tv_ip.txt (all gitignored).
+  CLAUDE.md itself (family names, TV IP, account name) is public now — trim it before any wider release.
+
 ## Private files (gitignored — never commit, never put in a public place)
 - `app/src/main/assets/oauth_client.json` = the owner's Desktop `client_secret.json`. Needed to build.
 - `app/src/main/assets/photos/` = optional placeholder photos (shown until real ones are picked).
@@ -267,7 +285,7 @@ and play just those. Thinking so far (nothing built):
 ## Setting up on the owner's PC (first local session)
 The owner will open Claude Code on his PC and ask to set everything up. Do it end to end without manual
 steps for him beyond the unavoidable ones:
-1. Clone https://github.com/gggggnever-cmd/photos-frame (private; help with GitHub login if needed).
+1. Clone https://github.com/gggggnever-cmd/photos-frame (public since 2026-11-18).
 2. Find his Desktop key: search Downloads etc. for `client_secret*.json` whose client_id starts with
    `<desktop-client-id>`; copy to app/src/main/assets/oauth_client.json (gitignored). Not the TV client.
 3. Install JDK 17+, Android SDK (platform 34, build-tools 34, platform-tools/adb), Gradle 8.14; build.
