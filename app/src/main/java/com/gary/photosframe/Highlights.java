@@ -25,6 +25,12 @@ import java.util.Set;
 final class Highlights {
     /** Largest face height as a share of the photo's long side from which a person is "in" the photo. */
     static final float PERSON_FACE = 0.025f;
+    /**
+     * Tallest person (whole body, any direction, from the person finder) as a share of the photo's height
+     * from which someone is "in" the photo. Seen on the TV (2026-11-18): faces alone missed people from
+     * behind, side-on, in sunglasses, or standing small in a garden; far-off strangers stay under this.
+     */
+    static final float PERSON_BODY = 0.15f;
     /** Two highlights closer together than this are near-duplicates (avoided unless nothing else is left). */
     // Seen on the TV (2026-11-18): photos a minute or two apart were often the same spot, so 5 minutes.
     static final long NEAR_SECONDS = 300;
@@ -38,15 +44,19 @@ final class Highlights {
         final float maxFace;    // largest face height / photo's long side (0 if none)
         final float sharp;      // variance of the Laplacian on a ~960 px grey copy (bigger = sharper)
         final float bright;     // mean brightness 0..1
-        Score(int faces, float maxFace, float sharp, float bright) {
-            this.faces = faces; this.maxFace = maxFace; this.sharp = sharp; this.bright = bright;
+        final float body;       // tallest person / photo height (0 if none; -1 = not looked for yet)
+        Score(int faces, float maxFace, float sharp, float bright) { this(faces, maxFace, sharp, bright, 0); }
+        Score(int faces, float maxFace, float sharp, float bright, float body) {
+            this.faces = faces; this.maxFace = maxFace; this.sharp = sharp; this.bright = bright; this.body = body;
         }
-        String encode() { return faces + "\t" + maxFace + "\t" + sharp + "\t" + bright; }
+        Score withBody(float b) { return new Score(faces, maxFace, sharp, bright, b); }
+        String encode() { return faces + "\t" + maxFace + "\t" + sharp + "\t" + bright + "\t" + body; }
         static Score decode(String[] p, int from) {
+            float body = p.length > from + 4 ? Float.parseFloat(p[from + 4]) : -1;   // older files: not looked for
             return new Score(Integer.parseInt(p[from]), Float.parseFloat(p[from + 1]),
-                    Float.parseFloat(p[from + 2]), Float.parseFloat(p[from + 3]));
+                    Float.parseFloat(p[from + 2]), Float.parseFloat(p[from + 3]), body);
         }
-        boolean hasPerson() { return faces > 0 && maxFace >= PERSON_FACE; }
+        boolean hasPerson() { return (faces > 0 && maxFace >= PERSON_FACE) || body >= PERSON_BODY; }
     }
 
     static boolean isPlace(Score s) { return !s.hasPerson(); }

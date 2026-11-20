@@ -6,8 +6,8 @@ android {
         applicationId 'com.gary.photosframe'
         minSdk 28
         targetSdk 34
-        versionCode 16
-        versionName '0.16'
+        versionCode 18
+        versionName '0.18'
         // The TV runs 32-bit ARM; leave out ML Kit's other chips (keeps the app ~30 MB smaller).
         ndk { abiFilters 'armeabi-v7a' }
     }
@@ -19,6 +19,7 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+    androidResources { noCompress 'tflite' }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 
@@ -26,5 +27,7 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     // Face finding for Places only / Highlights, with the model inside the app (works offline, on the TV).
     implementation 'com.google.mlkit:face-detection:16.1.7'
+    // Finds whole people (from behind, side-on, small in the scene) for Places only. Model in assets.
+    implementation 'org.tensorflow:tensorflow-lite-task-vision:0.4.4'
     testImplementation 'junit:junit:4.13.2'
 }

@@ -236,12 +236,33 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       Prefs/indices unchanged. The owner kept the v0.14 Paper texture upgrade. Checked on the TV: Settings and
       one-photo menu fit; settings unchanged. Not seen: the 3-photo menu hint (shortened so it fits one line).
       Older notes above use the old names.
+- [x] v0.16 (2026-11-18): Add-photos screen: text column was a fixed 640dp, overflowing the 960dp screen and
+      cutting off the QR's left edge; now weight 1. Checked on the TV; the owner's phone scan then worked
+      (phone sign-in bug looks resolved).
+- [x] v0.17 (2026-11-18): **Places only misses fixed with a person finder.** The owner showed two misses (people
+      small in an archway / on a chairlift). Contact sheets of all 304 "places" showed ~25% had people: from
+      behind, side-on, sunglasses, small in a garden. Faces can't fix that, so PhotoChecker also runs
+      EfficientDet-Lite0 (COCO, assets/person_detector.tflite, TFLite Task Vision 0.4.4, ~0.4 s/photo on the
+      TV): Score.body = tallest "person" box / photo height (score >= 0.4); a person is "in" when body >=
+      Highlights.PERSON_BODY 0.15 or the old face rule. scores.tsv gets a 6th column; older rows are re-checked
+      (faces/sharpness kept). APK 17.6 → 27 MB. NOT YET REVIEWED: the new Places set (the TV was moved
+      mid-run; the run resumes by itself). To review: install a debug build briefly (same key, `run-as` works),
+      pull files/library/scores.tsv, contact-sheet the places, reinstall release.
+- [x] v0.18 (2026-11-20): **art-button reminder.** After the TV was wall-mounted the art button went back to
+      T-Exhibition: enabled_accessibility_services was empty (rewritten by `android`). AOSP turns an
+      accessibility service off when its app is **force-stopped** (onHandleForceStop); `install -r` does NOT
+      (checked). So never `am force-stop` / `am start -S` this app. Apps can't prevent it, so ArtKeyReminder:
+      when the frame or screensaver opens with the helper off, a bottom line shows 10 s, at most once a day;
+      a short OK in that window opens Accessibility settings (this TV has no per-service details page; the
+      only TV OEM link is the shortcut picker). The screensaver turns interactive only for those 10 s (other
+      buttons still end it). Test: `am start --activity-single-top -n com.gary.photosframe/.MainActivity --ez
+      test_art_reminder true`. Checked on the TV: line shows, OK opens Accessibility. The owner re-enabled the
+      helper himself. TV got a new IP after the move (see CLAUDE.local.md).
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks
       to sign in again, do it once (expect Google's "unverified app" screen: Advanced → Go to Photos Frame).
-- [ ] Remind the owner (he asked, 2026-11-18): next time he adds photos from the phone, try the phone checklist
-      (type the address in Chrome by hand; Wi-Fi Proxy = None; VPN / Secure Wi-Fi off; try Samsung Internet).
+- [x] Phone sign-in: worked on 2026-11-18 after the v0.16 QR fix (reminder no longer needed).
 - [x] TV IP recorded above and in tools/tv_ip.txt (gitignored; local to the PC).
 - Possible later: in-app "check for updates"; tuning art strength / matte size / timing after the owner
   lives with it for a few days.

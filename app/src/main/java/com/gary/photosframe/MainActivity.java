@@ -13,6 +13,8 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private static final int REQ_ADD = 1;
     private FrameView frame;
     private TextView storageNote, levelNote;
+    private FrameLayout root;
+    private long reminderUntil;   // while the art-button reminder shows, a short OK opens the setting
     private SettingsPanel panel;
     private PhotoMenu menu;
     private TripPanel tripPanel;
@@ -25,7 +27,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         frame = new FrameView(this);
         root.addView(frame);
         if (!frame.hasOwnPhotos()) {
@@ -67,6 +69,22 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        // adb test: am start -n com.gary.photosframe/.MainActivity --ez test_art_reminder true
+        boolean test = getIntent().getBooleanExtra("test_art_reminder", false);
+        getIntent().removeExtra("test_art_reminder");
+        if (ArtKeyReminder.due(this, test)) {
+            ArtKeyReminder.show(this, root);
+            reminderUntil = android.os.SystemClock.uptimeMillis() + ArtKeyReminder.SHOW_MS;
+        }
+    }
+
+    @Override protected void onNewIntent(android.content.Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
     }
 
     @Override public boolean onKeyDown(int code, KeyEvent e) {
@@ -118,7 +136,10 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 return true;
             }
             if (renaming != null) return super.onKeyUp(code, e);
-            if (!longPressed && !menu.isOpen() && !panel.isOpen() && e.isTracking() && !e.isCanceled()) frame.next();
+            if (!longPressed && !menu.isOpen() && !panel.isOpen() && e.isTracking() && !e.isCanceled()) {
+                if (android.os.SystemClock.uptimeMillis() < reminderUntil) { reminderUntil = 0; ArtKeyReminder.openSettings(this); }
+                else frame.next();
+            }
             longPressed = false;
             return true;
         }

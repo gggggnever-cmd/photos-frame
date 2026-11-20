@@ -376,14 +376,25 @@ final class PhotoLibrary {
     /** Photos not checked yet (the photo checker works through these). */
     synchronized List<String> unscored() {
         List<String> out = new ArrayList<>();
-        for (String id : photos) if (id.startsWith("file:") && !scores.containsKey(name(id))) out.add(id);
+        for (String id : photos) {
+            if (!id.startsWith("file:")) continue;
+            Highlights.Score s = scores.get(name(id));
+            if (s == null || s.body < 0) out.add(id);   // never checked, or checked before the person finder
+        }
         return out;
     }
+
+    /** The checker's earlier result for a photo (to reuse faces/sharpness when only the person finder is new). */
+    synchronized Highlights.Score score(String id) { return scores.get(name(id)); }
 
     /** {checked, total} for the Settings page while the checker runs. */
     synchronized int[] checkProgress() {
         int done = 0, total = 0;
-        for (String id : photos) if (id.startsWith("file:")) { total++; if (scores.containsKey(name(id))) done++; }
+        for (String id : photos) if (id.startsWith("file:")) {
+            total++;
+            Highlights.Score s = scores.get(name(id));
+            if (s != null && s.body >= 0) done++;
+        }
         return new int[]{done, total};
     }
 
@@ -653,7 +664,7 @@ final class PhotoLibrary {
         writeText("meta.tsv", sb.toString());
     }
 
-    /** scores.tsv: name, faces, largest face, sharpness, brightness. places.txt: name, 1 (a place) / 0 (people). */
+    /** scores.tsv: name, faces, largest face, sharpness, brightness, tallest person (missing in older files). places.txt: name, 1 (a place) / 0 (people). */
     private void readScores() {
         for (String line : readLines("scores.tsv")) {
             String[] p = line.split("\t", -1);

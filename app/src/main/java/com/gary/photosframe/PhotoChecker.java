@@ -14,6 +14,12 @@ import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
+import org.tensorflow.lite.support.image.TensorImage;
+import org.tensorflow.lite.task.core.BaseOptions;
+import org.tensorflow.lite.task.vision.detector.Detection;
+import org.tensorflow.lite.task.vision.detector.ObjectDetector;
+
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +29,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Background job: looks at each photo once and remembers (files/library/scores.tsv) its faces, sharpness
  * and brightness, for Places only and Highlights. Everything happens on the TV; nothing is uploaded.
  * Faces: ML Kit face detection with its model bundled in the app (no face recognition: it finds faces,
- * it doesn't know whose). Runs at low priority with short pauses so the frame stays smooth.
+ * it doesn't know whose). People: a small object finder (EfficientDet-Lite0, COCO "person", in assets)
+ * that sees whole bodies, so people from behind, side-on or small in the scene count too.
+ * Runs at low priority with short pauses so the frame stays smooth.
  * New photos are checked after each download (kick() again).
  */
 final class PhotoChecker {
@@ -64,12 +72,24 @@ final class PhotoChecker {
         } catch (Throwable e) {
             Log.w("PhotoChecker", "ML Kit unavailable, using the basic face finder: " + e);
         }
+        ObjectDetector bodies = null;
+        try {
+            bodies = ObjectDetector.createFromFileAndOptions(ctx, "person_detector.tflite",
+                    ObjectDetector.ObjectDetectorOptions.builder()
+                            .setBaseOptions(BaseOptions.builder().setNumThreads(2).build())
+                            .setScoreThreshold(BODY_SCORE)
+                            .setMaxResults(10)
+                            .setLabelAllowList(Collections.singletonList("person"))
+                            .build());
+        } catch (Throwable e) {
+            Log.w("PhotoChecker", "person finder unavailable, faces only: " + e);
+        }
         Map<String, Highlights.Score> batch = new HashMap<>();
         int done = 0, people = 0;
         for (String id : todo) {
             Highlights.Score s = null;
             try {
-                s = check(id, detector);
+                s = check(id, lib.score(id), detector, bodies);
             } catch (Throwable e) {
                 Log.w("PhotoChecker", "skipped " + id + ": " + e);
             }
@@ -85,11 +105,17 @@ final class PhotoChecker {
         }
         lib.addScores(batch, true);
         if (detector != null) detector.close();
+        if (bodies != null) bodies.close();
         Log.i("PhotoChecker", "done: " + done + " photos in " + (SystemClock.uptimeMillis() - t0) / 1000 + " s, "
                 + people + " with people, " + (done - people) + " places");
     }
 
-    private static Highlights.Score check(String id, FaceDetector detector) throws Exception {
+    /** Person finder confidence from which a box counts (small people often score 0.4-0.6). */
+    private static final float BODY_SCORE = 0.4f;
+
+    /** old = an earlier result for this photo (faces/sharpness kept, only the person finder runs), or null. */
+    private static Highlights.Score check(String id, Highlights.Score old, FaceDetector detector,
+                                          ObjectDetector bodies) throws Exception {
         if (!id.startsWith("file:")) return null;
         String path = id.substring(5);
         BitmapFactory.Options o = new BitmapFactory.Options();
@@ -104,6 +130,9 @@ final class PhotoChecker {
         Bitmap b = BitmapFactory.decodeFile(path, o);
         if (b == null) return null;
         try {
+            float body = bodies == null ? 0 : tallestPerson(b, bodies);
+            Log.d("PhotoChecker", "person " + path.substring(path.lastIndexOf('/') + 1) + " " + body);
+            if (old != null) return old.withBody(body);
             int bw = b.getWidth(), bh = b.getHeight(), longSide = Math.max(bw, bh);
             int[] px = new int[bw * bh];
             b.getPixels(px, 0, bw, 0, 0, bw, bh);
@@ -122,10 +151,18 @@ final class PhotoChecker {
                 faces = (int) basic[0];
                 maxFace = basic[1];
             }
-            return new Highlights.Score(faces, maxFace, tone[0], tone[1]);
+            return new Highlights.Score(faces, maxFace, tone[0], tone[1], body);
         } finally {
             b.recycle();
         }
+    }
+
+    /** Height of the tallest person found, as a share of the photo's height (0 if nobody). */
+    private static float tallestPerson(Bitmap b, ObjectDetector bodies) {
+        List<Detection> found = bodies.detect(TensorImage.fromBitmap(b));
+        float max = 0;
+        for (Detection d : found) max = Math.max(max, d.getBoundingBox().height() / b.getHeight());
+        return Math.min(max, 1f);
     }
 
     /** {variance of the Laplacian (sharpness), mean brightness 0..1} on the grey image. */
