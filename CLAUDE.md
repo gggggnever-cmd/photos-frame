@@ -267,6 +267,8 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       shows "Adding photos: …" bottom-right and rescans every 3 min while downloading (reloadQuietly, no skip).
       Trips skipped at naming aren't asked again in the same visit. Installed; NOT yet tried with a real pick
       (the TV was in use). Unknown: how long Google keeps a picked session (expireTime undocumented).
+- [x] v0.20 (2026-11-21): **5, 10 and 20 second intervals** (owner asked). Saved as seconds, so old choices keep
+      (DEFAULT_INTERVAL index moved to 6 = 10 min). Auto-advance fade is min(4 s, interval/4). Installed; Settings checked on the TV.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks

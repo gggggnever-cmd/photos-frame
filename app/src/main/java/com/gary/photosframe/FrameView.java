@@ -74,7 +74,8 @@ public class FrameView extends View {
 
     private final Runnable advance = new Runnable() {
         @Override public void run() {
-            requestNext(FADE_MS);
+            // Short intervals (5-20 s) get a quicker fade, so each photo is still fully seen for a while.
+            requestNext(Math.min(FADE_MS, settings.showMs() / 4));
             ui.postDelayed(this, settings.showMs());
         }
     };

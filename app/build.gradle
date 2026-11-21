@@ -6,8 +6,8 @@ android {
         applicationId 'com.gary.photosframe'
         minSdk 28
         targetSdk 34
-        versionCode 19
-        versionName '0.19'
+        versionCode 20
+        versionName '0.20'
         // The TV runs 32-bit ARM; leave out ML Kit's other chips (keeps the app ~30 MB smaller).
         ndk { abiFilters 'armeabi-v7a' }
     }

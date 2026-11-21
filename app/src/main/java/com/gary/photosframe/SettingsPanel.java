@@ -104,7 +104,7 @@ final class SettingsPanel extends LinearLayout {
 
     private void change(int dir) {
         if (focus == ROW_INTERVAL) {
-            int n = Settings.INTERVAL_SECONDS.length;   // no wrap: 30 seconds … 1 hour
+            int n = Settings.INTERVAL_SECONDS.length;   // no wrap: 5 seconds … 1 hour
             settings.setInterval(Math.max(0, Math.min(n - 1, settings.interval() + dir)));
         } else if (focus == ROW_ART) {
             int n = Settings.ART_STRENGTHS.length;

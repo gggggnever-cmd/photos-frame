@@ -10,8 +10,9 @@ final class Settings {
     static final float[] ART_STRENGTHS = {0f, 0.25f, 0.5f, 1f, 1.5f, 2f};
     static final int DEFAULT_ART_LEVEL = 2;   // Moderate
 
-    static final int[] INTERVAL_SECONDS = {30, 60, 300, 600, 1800, 3600};
-    static final int DEFAULT_INTERVAL = 3;    // 10 minutes
+    // 5, 10, 20 seconds added 2026-11-21 at the owner's request. Saved as seconds, so older choices keep.
+    static final int[] INTERVAL_SECONDS = {5, 10, 20, 30, 60, 300, 600, 1800, 3600};
+    static final int DEFAULT_INTERVAL = 6;    // 10 minutes
 
     private final SharedPreferences prefs;
     Settings(Context ctx) { prefs = ctx.getSharedPreferences("settings", Context.MODE_PRIVATE); }
