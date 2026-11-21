@@ -23,6 +23,8 @@ final class Picker {
             pollMs = Math.max(2000, Http.durationMs(pc == null ? null : pc.optString("pollInterval"), 5000));
             timeoutAtMs = System.currentTimeMillis() + Http.durationMs(pc == null ? null : pc.optString("timeoutIn"), 30 * 60 * 1000);
         }
+        /** An already-picked session known only by its id (the download queue after a restart). */
+        Session(String id) { this.id = id; pickerUri = ""; pollMs = 5000; timeoutAtMs = 0; }
     }
 
     static final class Item {

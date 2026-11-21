@@ -258,6 +258,15 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       buttons still end it). Test: `am start --activity-single-top -n com.gary.photosframe/.MainActivity --ez
       test_art_reminder true`. Checked on the TV: line shows, OK opens Accessibility. The owner re-enabled the
       helper himself. TV got a new IP after the move (see CLAUDE.local.md).
+- [ ] v0.19 (2026-11-20): **pick in lots, download in the background.** The owner wants to pick 2,000, then
+      1,500, then more, without waiting. DownloadQueue (process-wide, one worker thread) takes each pick; the
+      Add photos screen names new trips, then shows a fresh QR at once ("N photos added to the queue. More?")
+      with a live queue line; Back leaves and downloads carry on. baseUrls die after 60 min, so the session
+      stays open until its lot is done and is re-listed (fresh links) per 100-photo chunk once 45 min old;
+      sessions waiting are saved in files/download_queue.txt and resumed when MainActivity starts. The frame
+      shows "Adding photos: …" bottom-right and rescans every 3 min while downloading (reloadQuietly, no skip).
+      Trips skipped at naming aren't asked again in the same visit. Installed; NOT yet tried with a real pick
+      (the TV was in use). Unknown: how long Google keeps a picked session (expireTime undocumented).
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks

@@ -24,7 +24,8 @@ import java.util.List;
 
 /**
  * "Add photos": sign in once with the device code, then show a QR code for the Google Photos
- * picker, wait while the user picks on their phone, and download the picks into files/photos.
+ * picker, wait while the user picks on their phone, queue the pick for download (DownloadQueue),
+ * then show a new code for the next lot. Downloads carry on in the background after Back.
  */
 public class AddPhotosActivity extends Activity {
     static final String EXTRA_ADDED = "added";
@@ -49,10 +50,8 @@ public class AddPhotosActivity extends Activity {
     private EditText nameField;
     private final List<NewTrip> toName = new ArrayList<>();   // UI thread
     private int naming = -1;                                   // index in toName, -1 when not naming
-    private volatile String progressText = "";
-    private volatile boolean downloadDone;
-    private String summaryTitle, summaryBody;
-    private boolean summaryProblem;
+    private volatile boolean namingOpen;
+    private TextView queueLine;
     private PhotoLibrary library;
 
     @Override protected void onCreate(Bundle b) {
@@ -60,6 +59,7 @@ public class AddPhotosActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         auth = new Auth(this);
         buildUi();
+        ui.post(tick);
         start();
     }
 
@@ -132,92 +132,102 @@ public class AddPhotosActivity extends Activity {
         }
     }
 
+    /**
+     * Shows a QR code, waits for the pick, hands it to the background DownloadQueue, lets the owner name
+     * any new trips, then shows a fresh QR code for the next lot. Back leaves; downloads carry on.
+     */
     private void pick() throws IOException, InterruptedException {
-        Picker picker = new Picker(auth);
-        Picker.Session s = picker.create();
-        String warn = Storage.warning(this);
-        show(s.pickerUri, "Choose photos for the frame",
-                "Scan with your phone to open Google Photos.\n"
-                        + "Tip: type the trip's album name in the search box, then tap the circle next to each day.\n"
-                        + "You can pick up to 2,000 photos at a time. For a bigger trip, add the rest later and they join the same trip."
-                        + (warn == null ? "" : "\n\n" + warn), null);
-        try {
-            while (!stopped && !picker.isDone(s)) {
-                if (System.currentTimeMillis() > s.timeoutAtMs) throw new IOException("Choosing took too long, so it stopped.");
-                Thread.sleep(s.pollMs);
-            }
-            if (stopped) return;
-            show(null, "Bringing your photos to the frame…", "", null);
-            List<Picker.Item> items = picker.photos(s);
-            library = PhotoLibrary.get(this);
-            Settings settings = new Settings(this);
-
-            // Work out the trips in this pick from the photos' dates, before anything downloads.
-            List<String> days = new ArrayList<>();
-            for (Picker.Item it : items) days.add(it.day);
-            List<NewTrip> unnamed = new ArrayList<>();
-            String pickStart = null, pickEnd = null;
-            for (String[] r : Trips.cluster(days)) {
-                NewTrip t = new NewTrip(r[0], r[1]);
-                for (Picker.Item it : items) if (!it.day.isEmpty() && it.day.compareTo(r[0]) >= 0 && it.day.compareTo(r[1]) <= 0) t.items.add(it);
-                if (pickStart == null) pickStart = r[0];
-                pickEnd = r[1];
-                if (library.nameFor(r[0], r[1]).isEmpty()) unnamed.add(t);   // already named: photos just join it
-            }
-            if (!unnamed.isEmpty()) {
-                // Four small previews per trip, spread across it, so the owner recognises it.
-                File tmp = getCacheDir();
-                for (NewTrip t : unnamed) {
-                    int n = t.items.size();
-                    for (int k = 0; k < Math.min(4, n); k++) {
-                        Bitmap bmp = picker.thumbnail(t.items.get(k * n / Math.min(4, n)), tmp);
-                        if (bmp != null) t.covers.add(bmp);
-                    }
+        DownloadQueue.resetReport();
+        library = PhotoLibrary.get(this);
+        int lastPick = 0;
+        while (!stopped) {
+            Picker picker = new Picker(auth);
+            Picker.Session s = picker.create();
+            boolean handedOver = false;
+            try {
+                String warn = Storage.warning(this);
+                if (lastPick == 0) {
+                    show(s.pickerUri, "Choose photos for the frame",
+                            "Scan with your phone to open Google Photos.\n"
+                                    + "Tip: type the trip's album name in the search box, then tap the circle next to each day.\n"
+                                    + "Up to 2,000 photos at a time. After you tap Done, a new code appears here for the\n"
+                                    + "next lot while these download in the background."
+                                    + (warn == null ? "" : "\n\n" + warn), null);
+                } else {
+                    show(s.pickerUri, String.format("%,d", lastPick) + " photos added to the queue. More?",
+                            "Scan this new code to pick the next lot (up to 2,000), or press Back:\n"
+                                    + "the photos keep downloading while the frame plays, and join the same trip."
+                                    + (warn == null ? "" : "\n\n" + warn), null);
                 }
-                ui.post(() -> { toName.addAll(unnamed); nextName(); });
-            }
-
-            // Download, keeping photos within "Space for photos": clear the least-played trip if needed.
-            final long budget = settings.spaceBytes();
-            final long[] used = {library.photoBytes()};
-            final String keepStart = pickStart, keepEnd = pickEnd;
-            Picker.Result r = picker.download(items, Storage.photoDir(this), new Picker.RoomCheck() {
-                @Override public boolean hasRoom() {
-                    while (used[0] + Storage.PHOTO_ESTIMATE_BYTES > budget) {
-                        long freed = library.clearLeastPlayedTrip(keepStart, keepEnd, settings.trips());
-                        if (freed <= 0) return false;
-                        used[0] -= freed;
-                    }
-                    return Storage.hasRoomForOne(AddPhotosActivity.this);
+                boolean picked = false;
+                while (!stopped) {
+                    if (picker.isDone(s)) { picked = true; break; }
+                    if (System.currentTimeMillis() > s.timeoutAtMs) break;   // code too old: show a fresh one
+                    Thread.sleep(s.pollMs);
                 }
-                @Override public void added(long bytes) { used[0] += bytes; }
-            }, (done, total) -> {
-                progressText = "Downloading " + done + " of " + total + "   ·   "
-                        + Storage.gb(used[0]) + " of " + Storage.gb(budget) + " used for photos";
-                ui.post(this::showProgress);
-            });
-            StringBuilder sum = new StringBuilder();
-            if (r.alreadyThere > 0) sum.append(r.alreadyThere).append(" were already on the frame.\n");
-            if (r.failed > 0) sum.append(r.failed).append(" didn't arrive. Pick them again another time.\n");
-            if (r.noRoom > 0) sum.append(r.noRoom).append(" were not added: the space for photos is full "
-                    + "(Settings → Space for photos).\n");
-            String after = Storage.warning(this);
-            if (after != null && r.noRoom == 0) sum.append(after).append("\n");
-            boolean problem = r.failed > 0 || r.noRoom > 0;
-            sum.append(problem ? "\nPress Back to return to the frame." : "Returning to the frame…");
-            int added = r.added;
-            setResult(RESULT_OK, getIntent().putExtra(EXTRA_ADDED, added));
-            ui.post(() -> {
-                summaryTitle = added == 1 ? "1 new photo added" : added + " new photos added";
-                summaryBody = sum.toString();
-                summaryProblem = problem;
-                downloadDone = true;
-                if (naming < 0) showSummary();
-            });
-        } finally {
-            picker.delete(s);
+                if (stopped || !picked) continue;
+                show(null, "Reading your pick…", "", null);
+                List<Picker.Item> items = picker.photos(s);
+
+                // Work out the trips in this pick from the photos' dates.
+                List<String> days = new ArrayList<>();
+                for (Picker.Item it : items) days.add(it.day);
+                List<NewTrip> unnamed = new ArrayList<>();
+                String pickStart = null, pickEnd = null;
+                for (String[] r : Trips.cluster(days)) {
+                    NewTrip t = new NewTrip(r[0], r[1]);
+                    for (Picker.Item it : items) if (!it.day.isEmpty() && it.day.compareTo(r[0]) >= 0 && it.day.compareTo(r[1]) <= 0) t.items.add(it);
+                    if (pickStart == null) pickStart = r[0];
+                    pickEnd = r[1];
+                    // Already named, or offered earlier in this visit: the photos just join it.
+                    if (library.nameFor(r[0], r[1]).isEmpty() && !askedAbout(r[0], r[1])) unnamed.add(t);
+                }
+                DownloadQueue.add(this, s.id, pickStart, pickEnd, items);
+                handedOver = true;
+                lastPick = items.size();
+                if (!unnamed.isEmpty()) {
+                    // Four small previews per trip, spread across it, so the owner recognises it.
+                    File tmp = getCacheDir();
+                    for (NewTrip t : unnamed) {
+                        int n = t.items.size();
+                        for (int k = 0; k < Math.min(4, n); k++) {
+                            Bitmap bmp = picker.thumbnail(t.items.get(k * n / Math.min(4, n)), tmp);
+                            if (bmp != null) t.covers.add(bmp);
+                        }
+                        asked.add(new String[] {t.start, t.end});
+                    }
+                    namingOpen = true;
+                    ui.post(() -> { toName.clear(); toName.addAll(unnamed); naming = -1; nextName(); });
+                    while (namingOpen && !stopped) Thread.sleep(300);
+                }
+            } finally {
+                if (!handedOver) picker.delete(s);
+            }
         }
     }
+
+    /** Trips offered for naming during this visit, so a skipped one isn't asked again for the next lot. */
+    private final List<String[]> asked = new ArrayList<>();   // add-photos thread only
+    private boolean askedAbout(String start, String end) {
+        for (String[] a : asked) if (a[0].compareTo(end) <= 0 && a[1].compareTo(start) >= 0) return true;   // overlaps
+        return false;
+    }
+
+    /** The queue line under the text, refreshed every two seconds while this screen is open. */
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            if (stopped) return;
+            String st = DownloadQueue.status(), pr = DownloadQueue.problems();
+            int added = DownloadQueue.addedTotal();
+            StringBuilder s = new StringBuilder();
+            if (st != null) s.append(st);
+            else if (added > 0) s.append("All downloaded: ").append(String.format("%,d", added)).append(" new photos");
+            if (!pr.isEmpty()) s.append(s.length() > 0 ? "\n" : "").append(pr);
+            queueLine.setText(s);
+            queueLine.setVisibility(s.length() == 0 ? View.GONE : View.VISIBLE);
+            ui.postDelayed(this, 2000);
+        }
+    };
 
     /** Shows the naming screen for the next unnamed trip, or the progress/summary when all are done. */
     private void nextName() {
@@ -226,13 +236,14 @@ public class AddPhotosActivity extends Activity {
             naming = -1;
             nameBox.setVisibility(View.GONE);
             hideKeyboard();
-            if (downloadDone) showSummary(); else showProgress();
+            show(null, "Getting a new code…", "", null);
+            namingOpen = false;
             return;
         }
         NewTrip t = toName.get(naming);
         qr.setVisibility(View.GONE);
         title.setText(toName.size() == 1 ? "A new trip" : "New trip " + (naming + 1) + " of " + toName.size());
-        body.setText(progressText);
+        body.setText("");
         code.setVisibility(View.GONE);
         nameTitle.setText(Trips.label(t.start, t.end, "", t.items.size()));
         nameInfo.setText(t.items.size() + " photos.  Say or type a name (e.g. Egypt) and press OK.\n"
@@ -270,24 +281,6 @@ public class AddPhotosActivity extends Activity {
     private void hideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (imm != null) imm.hideSoftInputFromWindow(nameField.getWindowToken(), 0);
-    }
-
-    private void showProgress() {
-        if (naming >= 0) { body.setText(progressText); return; }
-        if (downloadDone) return;
-        qr.setVisibility(View.GONE);
-        title.setText("Bringing your photos to the frame…");
-        body.setText(progressText);
-        code.setVisibility(View.GONE);
-    }
-
-    private void showSummary() {
-        nameBox.setVisibility(View.GONE);
-        qr.setVisibility(View.GONE);
-        title.setText(summaryTitle);
-        body.setText(summaryBody);
-        code.setVisibility(View.GONE);
-        if (!summaryProblem) ui.postDelayed(this::finish, 3000);
     }
 
     @Override public void onBackPressed() {
@@ -333,6 +326,10 @@ public class AddPhotosActivity extends Activity {
         col.addView(body);
         col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(12)));
         col.addView(code);
+        queueLine = text(16, INK, Typeface.SANS_SERIF);
+        queueLine.setVisibility(View.GONE);
+        col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(12)));
+        col.addView(queueLine);
 
         nameBox = new LinearLayout(this);
         nameBox.setOrientation(LinearLayout.VERTICAL);

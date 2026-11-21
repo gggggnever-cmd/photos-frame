@@ -15,6 +15,27 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private TextView storageNote, levelNote;
     private FrameLayout root;
     private long reminderUntil;   // while the art-button reminder shows, a short OK opens the setting
+    // Photos still downloading in the background: a small corner line, and the frame takes in new photos.
+    private TextView queueNote;
+    private int seenAdded;
+    private long lastRescan;
+    private final android.os.Handler ui = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable queueTick = new Runnable() {
+        @Override public void run() {
+            String st = DownloadQueue.status();
+            queueNote.setText(st == null ? "" : "Adding photos: " + st);
+            queueNote.setVisibility(st == null ? View.GONE : View.VISIBLE);
+            int added = DownloadQueue.addedCount();
+            long now = android.os.SystemClock.uptimeMillis();
+            // Rescan now and then (each rescan reads the new photos' dates), and once at the end.
+            if (added != seenAdded && (st == null || now - lastRescan > 3 * 60 * 1000)) {
+                seenAdded = added;
+                lastRescan = now;
+                frame.reloadQuietly();
+            }
+            ui.postDelayed(this, 5000);
+        }
+    };
     private SettingsPanel panel;
     private PhotoMenu menu;
     private TripPanel tripPanel;
@@ -56,6 +77,18 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         FrameLayout.LayoutParams lv = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         lv.bottomMargin = 60;
         root.addView(levelNote, lv);
+        queueNote = new TextView(this);
+        queueNote.setTextColor(0x99F1EDE4);
+        queueNote.setTextSize(13);
+        queueNote.setShadowLayer(6, 0, 0, 0xFF000000);
+        queueNote.setVisibility(View.GONE);
+        FrameLayout.LayoutParams qn = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        qn.bottomMargin = 16;
+        qn.rightMargin = 24;
+        root.addView(queueNote, qn);
+        DownloadQueue.resume(this);   // carries on with picks still waiting from before a restart
+        seenAdded = DownloadQueue.addedCount();
+        lastRescan = android.os.SystemClock.uptimeMillis();
         panel = new SettingsPanel(this, new Settings(this), this);
         panel.setVisibility(View.GONE);
         root.addView(panel, new FrameLayout.LayoutParams(panel.cardWidth(), -2, Gravity.CENTER));
@@ -80,6 +113,13 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
             ArtKeyReminder.show(this, root);
             reminderUntil = android.os.SystemClock.uptimeMillis() + ArtKeyReminder.SHOW_MS;
         }
+        ui.removeCallbacks(queueTick);
+        ui.post(queueTick);
+    }
+
+    @Override protected void onPause() {
+        ui.removeCallbacks(queueTick);
+        super.onPause();
     }
 
     @Override protected void onNewIntent(android.content.Intent i) {
@@ -281,7 +321,12 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
-        if (req == REQ_ADD && res == RESULT_OK) frame.reload();
+        // Photos picked just now download in the background; queueTick brings them in as they arrive.
+        if (req == REQ_ADD && DownloadQueue.addedCount() != seenAdded) {
+            seenAdded = DownloadQueue.addedCount();
+            lastRescan = android.os.SystemClock.uptimeMillis();
+            frame.reload();
+        }
         showStorageWarning();
     }
 

@@ -110,6 +110,11 @@ public class FrameView extends View {
         skip();
     }
 
+    /** Takes in photos that arrived in the background, without changing the picture on screen. */
+    public void reloadQuietly() {
+        bg.post(() -> { if (source != null) source.reload(); prepared = null; PhotoChecker.kick(getContext()); });
+    }
+
     /** The photos on screen now, left to right (for the photo menu). */
     public List<String> currentPhotos() {
         return current == null ? Collections.emptyList() : current.drawnIds;
