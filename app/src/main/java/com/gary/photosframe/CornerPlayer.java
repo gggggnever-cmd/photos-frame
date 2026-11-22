@@ -78,6 +78,39 @@ final class CornerPlayer {
                 + JSONObject.quote(link.list == null ? "" : link.list) + ")");
     }
 
+    /**
+     * Carries on where YouTube last was (asked 2026-11-22): the same playlist or mix, the same song, the same
+     * second. Saved every few seconds while playing (see save()), so it survives restarts and updates.
+     */
+    private void resume() {
+        ensure();
+        web.setVisibility(View.VISIBLE);
+        showing = true;
+        hidden = false;
+        state = "{}";
+        run("corner.load(" + JSONObject.quote(prefs.getString("resume_id", "")) + ","
+                + JSONObject.quote(prefs.getString("resume_list", "")) + ",true,"
+                + prefs.getInt("resume_index", 0) + "," + prefs.getInt("resume_time", 0) + ")");
+    }
+
+    private long savedAt;
+
+    /** Remembers the song, its place in the playlist and the second, at most every 10 s. */
+    private void save(String json) {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - savedAt < 10_000) return;
+        try {
+            JSONObject j = new JSONObject(json);
+            String id = j.optString("id", "");
+            int st = j.optInt("state", -1);
+            if (!id.matches("[A-Za-z0-9_-]{11}") || (st != 1 && st != 2)) return;
+            savedAt = now;
+            prefs.edit().putString("resume_id", id).putString("resume_list", j.optString("list", ""))
+                    .putInt("resume_index", Math.max(0, j.optInt("index", 0)))
+                    .putInt("resume_time", Math.max(0, j.optInt("time", 0))).apply();
+        } catch (Exception ignored) { }
+    }
+
     void toggle() { if (hidden) { unhide(); return; } run("corner.toggle()"); }
 
     /**
@@ -87,9 +120,9 @@ final class CornerPlayer {
      */
     String step() {
         if (!showing) {
-            if (last == null) return null;
+            if (!prefs.contains("resume_id") && last == null) return null;
             prefs.edit().putInt("size", WIDTH_DP.length - 1).apply();
-            play(last);
+            if (prefs.contains("resume_id")) resume(); else play(last);
             place();
             return "YouTube: " + SIZE_NAMES[size()];
         }
@@ -252,7 +285,7 @@ final class CornerPlayer {
             }
         });
         web.addJavascriptInterface(new Object() {
-            @JavascriptInterface public void state(String json) { state = json; }
+            @JavascriptInterface public void state(String json) { state = json; save(json); }
             @JavascriptInterface public void error(int code) { Log.i("CornerPlayer", "YouTube error " + code); }
             @JavascriptInterface public void shape(String id) { lookUpShape(id); }
         }, "TV");

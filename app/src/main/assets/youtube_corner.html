@@ -16,8 +16,8 @@ font:16px sans-serif;text-align:center;padding:12px;box-sizing:border-box;z-inde
 <script>
 // YouTube's official embedded player (IFrame API), shown in a corner of the frame. Driven from Java
 // through window.corner.*; reports back through the Android bridge "TV".
-var player = null, apiReady = false, pending = null, volume = 60, wanted = null, mix = false, shapeOf = '', aspect = 16 / 9, zoom = 1;
-function onYouTubeIframeAPIReady() { apiReady = true; if (pending) { var p = pending; pending = null; load(p.v, p.l); } }
+var player = null, apiReady = false, pending = null, volume = 60, wanted = null, mix = false, curList = '', shapeOf = '', aspect = 16 / 9, zoom = 1;
+function onYouTubeIframeAPIReady() { apiReady = true; if (pending) { var p = pending; pending = null; load(p.v, p.l, p.noMix, p.index, p.start); } }
 function msg(t) { var m = document.getElementById('msg'); m.textContent = t || ''; m.style.display = t ? 'flex' : 'none'; }
 
 // Fill the window: size the player to the video's own shape and let the window trim the overflow, so a
@@ -38,8 +38,9 @@ function shape(id) {
 window.addEventListener('resize', fit);
 
 // A single song keeps going: with no playlist, YouTube's mix for that song ("RD" + id) plays after it.
-function load(v, l, noMix) {
-  wanted = {v: v, l: l};
+// index/start: resume a playlist at a song and a second (after a restart, 2026-11-22).
+function load(v, l, noMix, index, start) {
+  wanted = {v: v, l: l, noMix: noMix, index: index, start: start};
   if (!apiReady) { pending = wanted; return; }
   if (player) { try { player.destroy(); } catch (e) {} player = null; }
   var box = document.getElementById('box');
@@ -50,6 +51,9 @@ function load(v, l, noMix) {
   var vars = {autoplay: 1, controls: 0, playsinline: 1, rel: 0, iv_load_policy: 3, fs: 0, disablekb: 1,
               origin: location.origin};
   if (list) { vars.list = list; vars.listType = 'playlist'; }
+  if (list && index > 0) vars.index = index;
+  if (start > 5) vars.start = Math.floor(start);
+  curList = list;
   var opts = {width: '100%', height: '100%', playerVars: vars,
     events: {
       onReady: function (e) { e.target.setVolume(volume); e.target.playVideo(); msg(''); fit(); report(); },
@@ -79,7 +83,8 @@ function report() {
   var list = player.getPlaylist ? player.getPlaylist() : null;
   // id: the phone page shows the video's thumbnail as artwork
   TV.state(JSON.stringify({id: (d && d.video_id) || '', title: (d && d.title) || '', author: (d && d.author) || '', state: player.getPlayerState(),
-    index: player.getPlaylistIndex ? player.getPlaylistIndex() : -1, count: list ? list.length : 0, volume: volume, mix: mix}));
+    index: player.getPlaylistIndex ? player.getPlaylistIndex() : -1, count: list ? list.length : 0, volume: volume, mix: mix,
+    list: curList, time: player.getCurrentTime ? Math.floor(player.getCurrentTime()) : 0}));
 }
 window.corner = {
   load: load,

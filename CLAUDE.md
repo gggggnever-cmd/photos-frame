@@ -346,6 +346,11 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       New albums start as just played so space clearing doesn't take them first. Today's batch imported with
       the adb extra test_album_name/from/to: "Mom & Dad", 439 photos (arrivals 14:30-15:25). Albums list seen on
       the TV. NOT yet tried: the choice screen after a real pick, and playing a ticked album.
+- [x] v0.38 (2026-11-22): **▼ resumes YouTube after a restart**: CornerPlayer.save() keeps resume_id / resume_list
+      (the effective list, RD… for mixes) / resume_index / resume_time in "corner" prefs every 10 s while playing
+      or paused; a short ▼ with nothing showing reloads it (playerVars list+index+start, videoId = the song).
+      Only with nothing ever saved does ▼ open Add photos. Tested: song 3 of 17 at 36 s → reinstall → ▼ → same
+      song at ~40 s, ⏭ went to 4 of 17.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs
