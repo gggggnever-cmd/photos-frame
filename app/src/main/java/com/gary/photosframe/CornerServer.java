@@ -41,13 +41,20 @@ final class CornerServer {
         if (instance == null) { instance = new CornerServer(ctx.getApplicationContext()); instance.start(); }
     }
 
+    /** Starts the server without a frame screen (the always-on helper calls this, for the phones' bedtime). */
+    static synchronized void ensureRunning(Context ctx) {
+        if (instance == null) { instance = new CornerServer(ctx.getApplicationContext()); instance.start(); }
+    }
+
     /** The frame screen is closing: stop sending it commands (the server keeps listening). */
     static synchronized void detach(Commands c) { if (active == c) active = null; }
 
     private final String key;
+    private final Context app;
     private ServerSocket server;
 
     private CornerServer(Context ctx) {
+        app = ctx;
         SharedPreferences p = ctx.getSharedPreferences("corner", Context.MODE_PRIVATE);
         String k = p.getString("key", "");
         if (k.isEmpty()) {
@@ -113,12 +120,13 @@ final class CornerServer {
         String path = target, query = "";
         int q = target.indexOf('?');
         if (q >= 0) { path = target.substring(0, q); query = target.substring(q + 1); }
-        String k = "", c = "", a = "";
+        String k = "", c = "", a = "", who = "", charging = "";
         for (String kv : query.split("&")) {
             int eq = kv.indexOf('=');
             if (eq < 0) continue;
             String name = kv.substring(0, eq), value = URLDecoder.decode(kv.substring(eq + 1), "UTF-8");
             if (name.equals("k")) k = value; else if (name.equals("c")) c = value; else if (name.equals("a")) a = value;
+            else if (name.equals("who")) who = value; else if (name.equals("charging")) charging = value;
         }
         OutputStream out = s.getOutputStream();
         Log.i("CornerServer", "request " + path + (c.isEmpty() ? "" : " " + c) + (key.equals(k) ? "" : " (no or wrong key)"));
@@ -143,6 +151,10 @@ final class CornerServer {
                         : "{\"ok\":false,\"error\":" + org.json.JSONObject.quote(err) + "}");
                 break;
             }
+            case "/phone":   // a phone automation: plugged in or unplugged (see Bedtime)
+                send(out, "200 OK", "text/plain; charset=utf-8", charging.equals("forget") ? Bedtime.forget(app, who)
+                        : Bedtime.report(app, who, charging.equals("1") || charging.equalsIgnoreCase("true")));
+                break;
             case "/state":
                 Commands now = active;
                 send(out, "200 OK", "application/json", now == null ? "{\"showing\":false}" : now.state());

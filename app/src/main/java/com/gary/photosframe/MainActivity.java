@@ -135,6 +135,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         ui.removeCallbacks(queueTick);
         ui.post(queueTick);
         corner.onResume();
+        Bedtime.frameShowing = true;
         CornerServer.attach(this, cornerCommands);   // the screen in front takes the phone's commands
     }
 
@@ -147,6 +148,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     @Override protected void onPause() {
         ui.removeCallbacks(queueTick);
         corner.onPause();
+        Bedtime.frameShowing = false;
         super.onPause();
     }
 

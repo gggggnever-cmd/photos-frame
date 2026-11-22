@@ -78,9 +78,16 @@ public class ArtKeyService extends AccessibilityService {
         return true;   // consume both down and up so T-Exhibition doesn't also start
     }
 
+    /** Puts the TV into standby ("lock screen" on a TV). False if the helper is switched off. */
+    static boolean sleepTv() {
+        ArtKeyService s = running;
+        return s != null && s.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);
+    }
+
     @Override protected void onServiceConnected() {
         running = this;
         registerReceiver(screen, new IntentFilter(Intent.ACTION_SCREEN_ON));
+        CornerServer.ensureRunning(this);   // phones can report charging even when only the screensaver is up
     }
 
     @Override public boolean onUnbind(Intent i) {

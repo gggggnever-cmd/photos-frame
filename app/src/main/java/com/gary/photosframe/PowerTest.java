@@ -22,9 +22,7 @@ final class PowerTest {
 
     /** Asks the art-button helper to "lock the screen", which on a TV normally means standby. */
     static boolean sleep() {
-        ArtKeyService s = ArtKeyService.running;
-        if (s == null) { Log.i(TAG, "sleep: helper not running"); return false; }
-        boolean ok = s.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
+        boolean ok = ArtKeyService.sleepTv();
         Log.i(TAG, "sleep: lock-screen action returned " + ok);
         return ok;
     }

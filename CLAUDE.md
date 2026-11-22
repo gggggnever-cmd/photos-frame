@@ -286,6 +286,19 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       wake itself: in standby its exact ELAPSED_REALTIME_WAKEUP alarm shows as type 3 (non-wakeup) and fires only
       when something else wakes the TV (TIME_TICK stalls too). So "on when we're home" needs an outside waker
       (Google Home automation, phone cast, IR blaster); the app can do "off" and open the frame after a wake.
+- [x] v0.22 (2026-11-21): **frame after an automatic wake.** ArtKeyService keeps the time of the last key (not
+      which) and listens for SCREEN_ON; 6 s after a wake with no key in the 8 s before and no music playing
+      (AudioManager.isMusicActive: a phone casting), it opens MainActivity. Tested with a Cast wake from the PC.
+      NOT yet known: whether the remote's power key reaches the accessibility filter while asleep (if not,
+      a remote power-on would also open the frame); the owner will test.
+- [x] v0.23: CornerServer became one app-wide server (attach/detach per frame screen) that retries the port;
+      it used to die when the frame screen was re-created (likely why the owner's phone scan failed). Logs
+      each request (path, no key).
+- [x] v0.24 (2026-11-21): **bedtime when both phones charge.** Phones' automations call
+      /phone?k=KEY&who=NAME&charging=1|0 (or =forget) on port 8081; Bedtime keeps {name: charging, time};
+      phones heard from this week all charging + 9 pm-5 am + 60 s grace → ArtKeyService.sleepTv(), but only
+      while MainActivity or the screensaver shows (a film is never cut off). The helper starts the server too.
+      Tested from the PC with two pretend phones (then forgotten). Phones' automations not set up yet.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks
