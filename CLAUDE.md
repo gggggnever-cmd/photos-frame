@@ -307,6 +307,13 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       AutoOff (30 s check, in the helper's process): photos or screensaver showing, no remote press, no sound
       (Spotify, YouTube corner) for that long since the later of last key / photos came on → sleepTv().
       Default Never. Installed quietly while the TV slept; NOT yet tried on screen.
+- [x] v0.26 (2026-11-22): YouTube corner fixes, tried on the TV. (1) Playlist-only links threw "Invalid video id" in the
+      IFrame API because videoId was passed as undefined; now the key is left out. (2) A single video plays as YouTube's
+      mix (list RD+id, ~50 songs) so music keeps going; falls back to the lone video if the mix fails. (3) The player is
+      sized to the video's shape (oEmbed, fetched in Java: CornerPlayer.lookUpShape) so 4:3 videos fill the window.
+      (4) Phone button "Trim black edges" (zoom 1 / 1.2 / 1.4) for videos with bars burned into the picture.
+      Chrome on the owner's phone can't reach the TV's port 8081 (ERR_TOO_MANY_RETRIES, request never arrives);
+      Samsung Internet works, so the phone page now says to use it.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks

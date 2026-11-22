@@ -34,7 +34,8 @@ final class CornerPlayer {
     private static final String BASE = "https://com.gary.photosframe/";
     private static final int[] GRAVITY = {
             Gravity.BOTTOM | Gravity.END, Gravity.BOTTOM | Gravity.START, Gravity.TOP | Gravity.START, Gravity.TOP | Gravity.END};
-    private static final int[] WIDTH_DP = {352, 512};   // 16:9 small / large on the 960 dp wide TV screen
+    private static final int[] WIDTH_DP = {352, 512};
+    private static final double[] ZOOM = {1, 1.2, 1.4};   // "Trim black edges": off, some, more   // 16:9 small / large on the 960 dp wide TV screen
 
     private final Context ctx;
     private final FrameLayout root;
@@ -76,6 +77,13 @@ final class CornerPlayer {
         run("corner.volume(" + v + ")");
     }
 
+    /** Crops in a step (for videos whose picture has black bars of its own), then back to none. */
+    void zoom() {
+        int z = (prefs.getInt("zoom", 0) + 1) % ZOOM.length;
+        prefs.edit().putInt("zoom", z).apply();
+        run("corner.zoom(" + ZOOM[z] + ")");
+    }
+
     /** Next corner, clockwise from bottom-right. */
     void move() {
         prefs.edit().putInt("corner", (prefs.getInt("corner", 0) + 1) % GRAVITY.length).apply();
@@ -109,6 +117,7 @@ final class CornerPlayer {
             j.put("showing", showing);
             j.put("volume", prefs.getInt("volume", 60));
             j.put("big", prefs.getInt("size", 0) == 1);
+            j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);
             return j.toString();
         } catch (Exception e) {
             return "{\"showing\":" + showing + "}";
@@ -131,17 +140,47 @@ final class CornerPlayer {
             @Override public void onPageFinished(WebView v, String url) {
                 pageReady = true;
                 run("corner.volume(" + prefs.getInt("volume", 60) + ")");
+                run("corner.zoom(" + ZOOM[prefs.getInt("zoom", 0) % ZOOM.length] + ")");
                 if (pendingJs != null) { String js = pendingJs; pendingJs = null; run(js); }
             }
         });
         web.addJavascriptInterface(new Object() {
             @JavascriptInterface public void state(String json) { state = json; }
             @JavascriptInterface public void error(int code) { Log.i("CornerPlayer", "YouTube error " + code); }
+            @JavascriptInterface public void shape(String id) { lookUpShape(id); }
         }, "TV");
         // Under the Settings card and menus, over the photos.
         root.addView(web, 1, new FrameLayout.LayoutParams(1, 1));
         place();
         web.loadDataWithBaseURL(BASE, asset("youtube_corner.html"), "text/html", "utf-8", null);
+    }
+
+    /** The video's own width/height from YouTube's oEmbed, so the window can fill without black bars. */
+    private void lookUpShape(String id) {
+        if (id == null || !id.matches("[A-Za-z0-9_-]{11}")) return;
+        new Thread(() -> {
+            try {
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(
+                        "https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=" + id).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(8000);
+                try (InputStream in = c.getInputStream()) {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    byte[] b = new byte[4096];
+                    for (int n; (n = in.read(b)) > 0; ) out.write(b, 0, n);
+                    JSONObject j = new JSONObject(out.toString(StandardCharsets.UTF_8.name()));
+                    double w = j.optDouble("width", 0), h = j.optDouble("height", 0);
+                    if (w > 0 && h > 0) {
+                        Log.i("CornerPlayer", "video shape " + (int) w + "x" + (int) h);
+                        run("corner.aspect(" + JSONObject.quote(id) + "," + (w / h) + ")");
+                    }
+                } finally {
+                    c.disconnect();
+                }
+            } catch (Exception e) {
+                Log.i("CornerPlayer", "couldn't get the video's shape: " + e);
+            }
+        }, "corner-shape").start();
     }
 
     private void place() {

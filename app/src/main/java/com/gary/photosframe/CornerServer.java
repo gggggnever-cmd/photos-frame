@@ -188,12 +188,15 @@ final class CornerServer {
                     + "<div class=row><button data-c=prev>⏮</button><button data-c=toggle id=pp>⏯</button><button data-c=next>⏭</button></div>"
                     + "<div class=row><button data-c=voldown>Vol −</button><button data-c=volup>Vol +</button></div>"
                     + "<div class=row><button data-c=move>Move corner</button><button data-c=size id=size>Bigger</button></div>"
+                    + "<div class=row><button data-c=zoom id=zoom>Trim black edges</button></div>"
                     + "<div class=row><button data-c=close class=quiet>Close the corner</button></div>"
                     + "<details><summary>How to use</summary><ol>"
                     + "<li>In the YouTube app, open a video or playlist and tap <b>Share → Copy link</b>.</li>"
                     + "<li>Come back here, tap the box, choose <b>Paste</b>, then <b>Play on TV</b>.</li>"
                     + "<li>Your own playlists play if they're <b>Public</b> or <b>Unlisted</b> (not Private).</li>"
-                    + "<li>Keep this page: Chrome menu ⋮ → <b>Add to Home screen</b>.</li></ol></details>";
+                    + "<li>A single song keeps going: similar songs (YouTube's mix) play after it.</li>"
+                    + "<li>Keep this page: in Samsung Internet, menu ☰ → <b>Add page to → Home screen</b>. "
+                    + "(Chrome on some phones can't reach the TV; Samsung Internet can.)</li></ol></details>";
             String js = "var K=" + org.json.JSONObject.quote(key) + ";"
                     + "function q(id){return document.getElementById(id)}"
                     + "function cmd(c,a){q('err').textContent='';return fetch('/cmd?k='+K+'&c='+c+(a?'&a='+encodeURIComponent(a):''))"
@@ -206,7 +209,7 @@ final class CornerServer {
                     + "var t=s.showing?(s.title?s.title+(s.author?' \\u00b7 '+s.author:''):'Loading\\u2026'):'Nothing playing';"
                     + "if(s.showing&&s.count>1)t+='  ('+(s.index+1)+' of '+s.count+')';"
                     + "if(s.showing&&s.state==2)t='Paused: '+t;"
-                    + "q('now').textContent=t;q('size').textContent=s.big?'Smaller':'Bigger'}).catch(function(){})}"
+                    + "q('now').textContent=t;q('size').textContent=s.big?'Smaller':'Bigger';q('zoom').textContent=['Trim black edges','Trim more','No trim'][s.zoom||0]}).catch(function(){})}"
                     + "poll();setInterval(poll,3000);";
             return shell(body, js);
         }

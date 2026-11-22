@@ -402,6 +402,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 case "volup": corner.volume(+10); break;
                 case "voldown": corner.volume(-10); break;
                 case "move": corner.move(); break;
+                case "zoom": corner.zoom(); break;
                 case "size": corner.bigger(!isBig()); break;
                 case "close": corner.close(); break;
             }
