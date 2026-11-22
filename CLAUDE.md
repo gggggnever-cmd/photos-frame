@@ -328,6 +328,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
 - [x] v0.34 (2026-11-22, owner's swap): **short ▼ shrinks the YouTube corner** Full → Large → Medium → Small →
       paused and hidden → Full and playing; **hold ▼ opens Add photos**. If no song was ever played, short ▼ still
       opens Add photos (first-run hint says "Press ▼"). Tested with adb key events.
+- [x] v0.35 (2026-11-22): ▼ gains a **music only** step after Small: the WebView shrinks to 1x1 px and keeps playing;
+      next ▼ is off (paused, hidden). Don't use setAlpha(0) for this: the video stalled in buffering (state 3)
+      when the view wasn't drawn. Tested 40 s steady playback at 1 px and a clean screencap.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

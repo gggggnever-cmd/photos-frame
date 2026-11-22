@@ -51,7 +51,8 @@ final class CornerPlayer {
     private String pendingJs;
     private volatile String state = "{}";
     private volatile boolean showing, wasPlaying;
-    private volatile boolean hidden;   // "hold ▼": still loaded, but paused and out of sight
+    private volatile boolean hidden;   // ▼ "off": still loaded, but paused and out of sight
+    private volatile boolean musicOnly; // ▼ "music only": playing, but the window is fully see-through
     private YouTubeLink last;           // so hold ▼ can bring back the last song after it was closed
 
     CornerPlayer(Context ctx, FrameLayout root) {
@@ -80,8 +81,8 @@ final class CornerPlayer {
     void toggle() { if (hidden) { unhide(); return; } run("corner.toggle()"); }
 
     /**
-     * The remote's ▼ (asked 2026-11-22, smaller each press): Full screen → Large → Medium → Small → paused and
-     * hidden → Full screen and playing again. After Close it brings the last song back. Returns a short note for the screen,
+     * The remote's ▼ (asked 2026-11-22, smaller each press): Full screen → Large → Medium → Small → music only
+     * (window invisible, still playing) → off (paused and hidden) → Full screen and playing again. After Close it brings the last song back. Returns a short note for the screen,
      * or null if nothing has been played yet. Call on the UI thread.
      */
     String step() {
@@ -103,6 +104,15 @@ final class CornerPlayer {
             place();
             return "YouTube: " + SIZE_NAMES[size()];
         }
+        if (!musicOnly) {
+            // A 1-pixel window in the corner: still drawn, so the video keeps playing (a fully see-through view
+            // made YouTube stall buffering, 2026-11-22), but nobody can see it.
+            musicOnly = true;
+            place();
+            return "YouTube: music only. Press ▼ again to turn it off.";
+        }
+        musicOnly = false;
+        place();
         hidden = true;
         run("corner.pause()");
         if (web != null) web.setVisibility(View.INVISIBLE);
@@ -111,6 +121,8 @@ final class CornerPlayer {
 
     private void unhide() {
         hidden = false;
+        musicOnly = false;
+        place();
         if (web != null) web.setVisibility(View.VISIBLE);
         run("corner.play()");
     }
@@ -147,6 +159,7 @@ final class CornerPlayer {
         prefs.edit().putInt("size", (size() + 1) % WIDTH_DP.length).apply();
         place();
         if (hidden) unhide();
+        else if (musicOnly) { musicOnly = false; place(); }
     }
     private int size() { int s = prefs.getInt("size", 0); return s >= 0 && s < WIDTH_DP.length ? s : 0; }
 
@@ -154,6 +167,8 @@ final class CornerPlayer {
     void close() {
         showing = false;
         hidden = false;
+        musicOnly = false;
+        place();
         state = "{}";
         if (web != null) { run("corner.stop()"); web.setVisibility(View.GONE); }
     }
@@ -177,6 +192,7 @@ final class CornerPlayer {
             j.put("volume", prefs.getInt("volume", 60));
             j.put("size", size());
             j.put("hidden", hidden);
+            j.put("musicOnly", musicOnly);
             j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);
             j.put("blend", prefs.getInt("blend", 0) % BLEND.length);
             return j.toString();
@@ -250,7 +266,9 @@ final class CornerPlayer {
         float d = ctx.getResources().getDisplayMetrics().density;
         int wdp = WIDTH_DP[size()];
         FrameLayout.LayoutParams lp;
-        if (wdp == 0) {   // Full screen: over the whole photo (the soft edges and Blend still apply)
+        if (musicOnly) {   // music only: 1 pixel in the corner
+            lp = new FrameLayout.LayoutParams(1, 1, Gravity.BOTTOM | Gravity.END);
+        } else if (wdp == 0) {   // Full screen: over the whole photo (the soft edges and Blend still apply)
             lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
         } else {
             int w = Math.round(wdp * d);

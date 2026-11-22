@@ -209,7 +209,7 @@ final class CornerServer {
                     + "function poll(){fetch('/state?k='+K).then(function(r){return r.json()}).then(function(s){"
                     + "var t=s.showing?(s.title?s.title+(s.author?' \\u00b7 '+s.author:''):'Loading\\u2026'):'Nothing playing';"
                     + "if(s.showing&&s.count>1)t+='  ('+(s.index+1)+' of '+s.count+')';"
-                    + "if(s.showing&&s.state==2)t='Paused: '+t;if(s.hidden)t='Hidden (press ▼ on the remote): '+t;"
+                    + "if(s.showing&&s.state==2)t='Paused: '+t;if(s.hidden)t='Off (press ▼ on the remote): '+t;if(s.musicOnly)t='Music only: '+t;"
                     + "q('now').textContent=t;q('size').textContent='Size: '+['Small','Medium','Large','Full screen'][s.size||0];q('zoom').textContent=['Trim black edges','Trim more','No trim'][s.zoom||0];q('blend').textContent='Blend: '+['Off','Light','Medium','Strong'][s.blend||0]}).catch(function(){})}"
                     + "poll();setInterval(poll,3000);";
             return shell(body, js);
