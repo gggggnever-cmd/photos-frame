@@ -227,6 +227,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         if (tripPanel.isOpen()) { tripPanel.onKey(KeyEvent.KEYCODE_BACK, false); return; }
         if (menu.isOpen()) closeMenu();
         else if (panel.isOpen()) close();
+        else if (corner.showing()) { corner.close(); note("YouTube corner closed"); }   // the remote's Back (2026-11-22)
         else super.onBackPressed();
     }
 

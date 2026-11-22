@@ -314,6 +314,7 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       (4) Phone button "Trim black edges" (zoom 1 / 1.2 / 1.4) for videos with bars burned into the picture.
       Chrome on the owner's phone can't reach the TV's port 8081 (ERR_TOO_MANY_RETRIES, request never arrives);
       Samsung Internet works, so the phone page now says to use it.
+- [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks
