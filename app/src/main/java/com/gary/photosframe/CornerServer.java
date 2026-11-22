@@ -195,8 +195,9 @@ final class CornerServer {
                     + "<li>Come back here, tap the box, choose <b>Paste</b>, then <b>Play on TV</b>.</li>"
                     + "<li>Your own playlists play if they're <b>Public</b> or <b>Unlisted</b> (not Private).</li>"
                     + "<li>A single song keeps going: similar songs (YouTube's mix) play after it.</li>"
-                    + "<li>Keep this page: in Samsung Internet, menu ☰ → <b>Add page to → Home screen</b>. "
-                    + "(Chrome on some phones can't reach the TV; Samsung Internet can.)</li></ol></details>";
+                    + "<li>Keep this page: browser menu → <b>Add to Home screen</b>.</li>"
+                    + "<li>If Chrome says the site can't be reached: phone Settings → Apps → Chrome → Permissions → "
+                    + "<b>Nearby devices → Allow</b>.</li></ol></details>";
             String js = "var K=" + org.json.JSONObject.quote(key) + ";"
                     + "function q(id){return document.getElementById(id)}"
                     + "function cmd(c,a){q('err').textContent='';return fetch('/cmd?k='+K+'&c='+c+(a?'&a='+encodeURIComponent(a):''))"

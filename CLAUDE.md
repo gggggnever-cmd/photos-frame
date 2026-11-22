@@ -314,6 +314,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       (4) Phone button "Trim black edges" (zoom 1 / 1.2 / 1.4) for videos with bars burned into the picture.
       Chrome on the owner's phone can't reach the TV's port 8081 (ERR_TOO_MANY_RETRIES, request never arrives);
       Samsung Internet works, so the phone page now says to use it.
+      Cause found the same day: Chrome lacked Android's **Nearby devices** permission (local network access);
+      allowing it fixed Chrome. The phone page's help now says so (v0.29, built and pushed; NOT installed yet:
+      the owner was playing music in the corner. Install when the corner is idle).
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs
