@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -36,6 +37,8 @@ import java.util.Set;
  * - hidden.txt / favourites.txt: chosen with a long press on OK.
  * - round.txt: the current round's order and how far it has got, so a restart carries on instead of
  *   reshuffling ("every photo once before any repeat" holds across restarts, updates and power-offs).
+ * - trips.tsv: names of the automatic date trips; files/albums.json (AlbumStore): membership albums. A photo
+ *   in an album plays as part of that album only; every other photo keeps its date trip.
  *
  * A round contains one photo per burst (photos taken within BURST_SECONDS of the burst's first); the next
  * round shows a different member of each burst. Order is Shuffle, or One day at a time (days in random
@@ -91,8 +94,15 @@ final class PhotoLibrary {
     // Trips (see Trips.java): remembered entries (names, last played, cleared) and the trips computed now.
     private final List<Trips.Entry> entries = new ArrayList<>();
     private final List<Trips.Trip> trips = new ArrayList<>();
-    private final Map<String, Trips.Trip> tripOf = new HashMap<>();   // file name → trip
+    private final Map<String, Trips.Trip> tripOf = new HashMap<>();   // file name → trip or album
     private long tripsWritten;
+
+    // Membership albums (AlbumStore): their photos leave the date trips and play as one album.
+    private final AlbumStore albums;
+    private final List<Trips.Trip> albumGroups = new ArrayList<>();   // each album's photos on the TV now
+    private final Map<AlbumStore.Album, Set<String>> albumDays = new HashMap<>();   // days its photos were taken
+    private long albumsWritten;
+    private boolean albumsDirty;
     private long roundStart;                                           // wall clock ms when the round began
 
     private PhotoLibrary(Context ctx) {
@@ -104,6 +114,7 @@ final class PhotoLibrary {
         readSet("favourites.txt", favourites);
         readScores();
         readEntries();
+        albums = new AlbumStore(new File(ctx.getFilesDir(), "albums.json"));
         scanFiles();
         readRound();          // restore the saved round (and fit new photos into it) before anything writes it
     }
@@ -135,17 +146,29 @@ final class PhotoLibrary {
         computeTrips();
     }
 
-    // ---- Trips ----
+    // ---- Trips and albums ----
 
     private void computeTrips() {
         trips.clear();
         tripOf.clear();
+        albumGroups.clear();
+        albumDays.clear();
         if (!own) return;
+        // Photos in a membership album belong to it only; the rest form the date trips exactly as before.
+        List<String> loose = new ArrayList<>();
+        Map<AlbumStore.Album, List<String>> inAlbum = new LinkedHashMap<>();
+        for (String id : photos) {
+            AlbumStore.Album a = albums.albumOf(name(id));
+            if (a == null) { loose.add(id); continue; }
+            List<String> l = inAlbum.get(a);
+            if (l == null) inAlbum.put(a, l = new ArrayList<>());
+            l.add(id);
+        }
         List<String> days = new ArrayList<>();
-        for (String id : photos) days.add(dayOf(id));
+        for (String id : loose) days.add(dayOf(id));
         for (String[] r : Trips.cluster(days)) trips.add(new Trips.Trip(r[0], r[1]));
         int t = 0;
-        List<String> sorted = new ArrayList<>(photos);
+        List<String> sorted = new ArrayList<>(loose);
         sorted.sort(Comparator.comparing(this::dayOf));
         for (String id : sorted) {
             String d = dayOf(id);
@@ -170,42 +193,74 @@ final class PhotoLibrary {
             trip.entry = e;
         }
         if (changed) writeEntries();
+
+        // Albums are dated by their own photos (for the list's order and label), like trips.
+        boolean albumsChanged = false;
+        for (Map.Entry<AlbumStore.Album, List<String>> en : inAlbum.entrySet()) {
+            AlbumStore.Album a = en.getKey();
+            List<String> ids = en.getValue();
+            ids.sort(Comparator.comparingLong(this::takenOf));
+            Set<String> seen = new HashSet<>();
+            String start = "", end = "";
+            for (String id : ids) {
+                String d = dayOf(id);
+                if (d.isEmpty()) continue;
+                seen.add(d);
+                if (start.isEmpty() || d.compareTo(start) < 0) start = d;
+                if (end.isEmpty() || d.compareTo(end) > 0) end = d;
+            }
+            Trips.Trip g = new Trips.Trip(start, end, a);
+            g.ids.addAll(ids);
+            for (String id : ids) tripOf.put(name(id), g);
+            albumGroups.add(g);
+            albumDays.put(a, seen);
+            if (a.gone || !start.equals(a.start) || !end.equals(a.end)) {
+                a.gone = false;            // its photos are back (picked again)
+                a.start = start;
+                a.end = end;
+                albumsChanged = true;
+            }
+        }
+        if (albumsChanged) saveAlbums();
     }
 
-    /** True when the photo belongs to one of the chosen trips (or no trips are chosen). */
+    /** True when the photo belongs to one of the chosen trips or albums (or nothing is chosen). */
     private boolean inChosenTrips(String id, String chosen) {
         if (chosen.isEmpty()) return true;
         Trips.Trip t = tripOf.get(name(id));
         if (t == null) return false;
-        for (String range : chosen.split(";")) {
-            String[] r = range.split("~");
-            if (r.length == 2 && Trips.overlap(t.start, t.end, r[0], r[1]) > 0) return true;
-        }
-        return false;
+        if (t.album != null) return AlbumStore.chosenAlbum(chosen, t.album.id);
+        return AlbumStore.chosenRange(chosen, t.start, t.end);
     }
 
     /**
-     * For the Trip setting: every trip on the TV, then trips that were cleared (marked gone).
-     * Each row: {start, end, label, photo count, "gone" or ""}.
+     * For "Albums to play": date trips and membership albums on the TV (newest first), then the ones cleared
+     * to make room. Each row: {start, end, label, photo count, "gone" or "", key, "album" or "trip"}, where
+     * key is how the setting names it ("start~end" or "album:<id>").
      */
     synchronized List<String[]> tripRows() {
-        List<String[]> out = new ArrayList<>();
-        for (int i = trips.size() - 1; i >= 0; i--) {     // newest first
-            Trips.Trip t = trips.get(i);
-            out.add(new String[]{t.start, t.end, t.label(), String.valueOf(t.ids.size()), ""});
-        }
-        List<Trips.Entry> gone = new ArrayList<>();
-        for (Trips.Entry e : entries) if (e.gone) gone.add(e);
-        gone.sort((a, b) -> b.start.compareTo(a.start));
-        for (Trips.Entry e : gone)
-            out.add(new String[]{e.start, e.end, Trips.label(e.start, e.end, e.name, e.goneCount), String.valueOf(e.goneCount), "gone"});
-        return out;
+        List<String[]> on = new ArrayList<>(), gone = new ArrayList<>();
+        for (Trips.Trip t : trips)
+            on.add(new String[]{t.start, t.end, t.label(), String.valueOf(t.ids.size()), "", t.key(), "trip"});
+        for (Trips.Trip g : albumGroups)
+            on.add(new String[]{g.start, g.end, g.label(), String.valueOf(g.ids.size()), "", g.key(), "album"});
+        for (Trips.Entry e : entries) if (e.gone)
+            gone.add(new String[]{e.start, e.end, Trips.label(e.start, e.end, e.name, e.goneCount), String.valueOf(e.goneCount),
+                    "gone", e.start + "~" + e.end, "trip"});
+        for (AlbumStore.Album a : albums.all()) if (a.gone)
+            gone.add(new String[]{a.start, a.end, Trips.label(a.start, a.end, a.name, a.goneCount), String.valueOf(a.goneCount),
+                    "gone", AlbumStore.token(a.id), "album"});
+        Comparator<String[]> newestFirst = (a, b) -> b[0].compareTo(a[0]);
+        on.sort(newestFirst);
+        gone.sort(newestFirst);
+        on.addAll(gone);
+        return on;
     }
 
-    /** The trip a photo belongs to: {start, end, label}, or null (undated). */
+    /** The trip or album a photo belongs to: {start, end, label, key}, or null (an undated photo in no album). */
     synchronized String[] tripOfPhoto(String id) {
         Trips.Trip t = tripOf.get(name(id));
-        return t == null ? null : new String[]{t.start, t.end, t.label()};
+        return t == null ? null : new String[]{t.start, t.end, t.label(), t.key()};
     }
 
     /** Names the remembered trip that best matches [start, end] (creating it if new). Empty name clears it. */
@@ -219,16 +274,117 @@ final class PhotoLibrary {
         writeEntries();
     }
 
-    /** The name remembered for [start, end], or "" (used to skip naming a trip that already has one). */
-    synchronized String nameFor(String start, String end) {
-        Trips.Entry e = Trips.best(entries, start, end);
-        return e == null ? "" : e.name;
+    /** Renames by key ("start~end" or "album:<id>"). An album keeps its old name when the new one is empty. */
+    synchronized void rename(String key, String newName) {
+        String album = AlbumStore.albumId(key);
+        if (album != null) {
+            if (albums.rename(album, newName)) saveAlbums();
+            return;
+        }
+        String[] r = key.split("~");
+        if (r.length == 2) nameTrip(r[0], r[1], newName);
+    }
+
+    /**
+     * Where a pick with these dates would go by default: the album or trip it overlaps most, as
+     * {key, label, overlap days, album id or "", "named" or "", start, end}, or null when nothing overlaps.
+     * An album counts the days it really has photos on (an album gathered over years must not swallow
+     * every new pick); a trip counts its whole date range. Albums win a tie.
+     */
+    synchronized String[] bestMatch(String start, String end) {
+        String[] best = null;
+        int most = 0;
+        for (Trips.Trip t : trips) {
+            int o = Trips.overlap(start, end, t.start, t.end);
+            if (o > most) { most = o; best = new String[]{t.key(), t.label(), String.valueOf(o), "", t.name().isEmpty() ? "" : "named", t.start, t.end}; }
+        }
+        for (Trips.Entry e : entries) {
+            if (!e.gone) continue;   // a trip cleared for space comes back with its name when picked again
+            int o = Trips.overlap(start, end, e.start, e.end);
+            if (o > most) {
+                most = o;
+                best = new String[]{e.start + "~" + e.end, Trips.label(e.start, e.end, e.name, e.goneCount), String.valueOf(o), "",
+                        e.name.isEmpty() ? "" : "named", e.start, e.end};
+            }
+        }
+        for (Trips.Trip g : albumGroups) {
+            int o = 0;
+            for (String d : albumDays.get(g.album)) if (Trips.overlap(start, end, d, d) > 0) o++;
+            if (o > 0 && o >= most) { most = o; best = new String[]{g.key(), g.album.name, String.valueOf(o), g.album.id, "named", g.start, g.end}; }
+        }
+        return best;
+    }
+
+    /** Every membership album for the Add photos choice: {id, name, photo count}, newest first. */
+    synchronized List<String[]> albumChoices() {
+        List<AlbumStore.Album> list = new ArrayList<>(albums.all());
+        list.sort((a, b) -> Long.compare(b.created, a.created));
+        List<String[]> out = new ArrayList<>();
+        for (AlbumStore.Album a : list) out.add(new String[]{a.id, a.name, String.valueOf(a.files.size())});
+        return out;
+    }
+
+    /** A new album with this name (or the existing one of that name). Returns its id. */
+    synchronized String createAlbum(String name) {
+        AlbumStore.Album a = albums.named(name);
+        if (a == null) a = albums.create(name, System.currentTimeMillis());
+        saveAlbums();
+        return a.id;
+    }
+
+    /**
+     * Puts photo files in an album (out of any other); they leave the date trips. Called per photo while a
+     * batch downloads, so the file is written at most every few seconds unless saveNow.
+     */
+    synchronized void addToAlbum(String albumId, Collection<String> fileNames, boolean saveNow) {
+        if (albums.add(albumId, fileNames) > 0) {
+            albumsDirty = true;
+            Set<String> names = new HashSet<>(fileNames);
+            for (String id : photos) if (names.contains(name(id))) { computeTrips(); break; }   // already on the TV: regroup now
+        }
+        if (albumsDirty && (saveNow || System.currentTimeMillis() - albumsWritten > 5000)) saveAlbums();
+    }
+
+    synchronized void flushAlbums() { if (albumsDirty) saveAlbums(); }
+
+    /**
+     * One-time import (adb test extra): every photo file that arrived between from and to (lastModified, ms)
+     * goes into the album of this name, created if needed. Returns {photos in the range, newly added}.
+     */
+    synchronized int[] importAlbum(String name, long from, long to) {
+        List<String> names = new ArrayList<>();
+        File[] files = Storage.photoDir(ctx).listFiles();
+        if (files != null) for (File f : files) {
+            long m = f.lastModified();
+            if (f.getName().endsWith(".jpg") && m >= from && m <= to) names.add(f.getName());
+        }
+        AlbumStore.Album a = albums.named(name);
+        if (a == null) a = albums.create(name, System.currentTimeMillis());
+        int added = albums.add(a.id, names);
+        saveAlbums();
+        scanFiles();
+        reconcileRound();
+        Log.i("AlbumImport", "album \"" + a.name + "\" (" + a.id + "): " + names.size() + " photos arrived in the range, "
+                + added + " newly added, " + a.files.size() + " in the album now");
+        return new int[]{names.size(), added};
+    }
+
+    private void saveAlbums() {
+        albums.save();
+        albumsWritten = System.currentTimeMillis();
+        albumsDirty = false;
     }
 
     private void markPlayed(String id) {
         Trips.Trip t = tripOf.get(name(id));
-        if (t == null || t.entry == null) return;
+        if (t == null) return;
         long now = System.currentTimeMillis();
+        if (t.album != null) {
+            t.album.lastPlayed = now;
+            if (now - albumsWritten > 10 * 60_000L) saveAlbums();   // keep writes rare
+            return;
+        }
+        if (t.entry == null) return;
         t.entry.lastPlayed = now;
         if (now - tripsWritten > 10 * 60_000L) writeEntries();   // keep writes rare
     }
@@ -241,16 +397,20 @@ final class PhotoLibrary {
     }
 
     /**
-     * Clears the least-recently-played trip from the TV to make room: deletes its photos and remembers it
-     * as "gone" (name kept). Never touches trips overlapping [keepStart, keepEnd] or the chosen trips.
-     * Returns the bytes freed (0 if nothing could be cleared).
+     * Clears the least-recently-played trip or album from the TV to make room: deletes its photos and
+     * remembers it as "gone" (name and album membership kept, so picking them again brings it back).
+     * Never touches trips overlapping [keepStart, keepEnd], the album keepAlbum (the batch downloading),
+     * or the chosen trips and albums. Returns the bytes freed (0 if nothing could be cleared).
      */
-    synchronized long clearLeastPlayedTrip(String keepStart, String keepEnd, String chosen) {
+    synchronized long clearLeastPlayedTrip(String keepStart, String keepEnd, String keepAlbum, String chosen) {
         Trips.Trip victim = null;
-        for (Trips.Trip t : trips) {
-            if (keepStart != null && Trips.overlap(t.start, t.end, keepStart, keepEnd) > 0) continue;
+        List<Trips.Trip> all = new ArrayList<>(trips);
+        all.addAll(albumGroups);
+        for (Trips.Trip t : all) {
+            if (t.album != null && t.album.id.equals(keepAlbum)) continue;
+            if (t.album == null && keepStart != null && Trips.overlap(t.start, t.end, keepStart, keepEnd) > 0) continue;
             if (!chosen.isEmpty() && !t.ids.isEmpty() && inChosenTrips(t.ids.get(0), chosen)) continue;
-            if (victim == null || t.entry.lastPlayed < victim.entry.lastPlayed) victim = t;
+            if (victim == null || t.lastPlayed() < victim.lastPlayed()) victim = t;
         }
         if (victim == null) return 0;
         long freed = 0;
@@ -260,11 +420,18 @@ final class PhotoLibrary {
             if (f.delete()) freed += len;
             favourites.remove(name(id));
         }
-        victim.entry.gone = true;
-        victim.entry.goneCount = victim.ids.size();
-        writeEntries();
+        if (victim.album != null) {
+            victim.album.gone = true;
+            victim.album.goneCount = victim.ids.size();
+            saveAlbums();
+        } else {
+            victim.entry.gone = true;
+            victim.entry.goneCount = victim.ids.size();
+            writeEntries();
+        }
         writeSet("favourites.txt", favourites);
-        Log.i("PhotoLibrary", "cleared trip " + victim.label() + " to make room: " + victim.ids.size() + " photos, " + freed / 1_000_000 + " MB");
+        Log.i("PhotoLibrary", "cleared " + (victim.album != null ? "album " : "trip ") + victim.label() + " to make room: "
+                + victim.ids.size() + " photos, " + freed / 1_000_000 + " MB");
         scanFiles();
         reconcileRound();
         return freed;

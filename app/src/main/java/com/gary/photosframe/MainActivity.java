@@ -45,8 +45,8 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private TripPanel tripPanel;
     private android.widget.LinearLayout renameBox;
     private android.widget.EditText renameField;
-    private TextView renameTitle;
-    private String[] renaming;                 // {start, end} of the trip being renamed, or null
+    private TextView renameTitle, renameHint;
+    private String renaming;                   // key of the trip or album being renamed ("start~end" or "album:<id>"), or null
     private boolean renameFromTrips;
     private boolean longPressed;   // OK was held: the menu opened, so its release must not skip
     private boolean downHeld;      // ▼ was held: Add photos opened, so its release must not step the YouTube corner
@@ -123,6 +123,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         getIntent().removeExtra("test_power");
         if (wakeIn > 0) PowerTest.wakeIn(this, wakeIn);
         if ("sleep".equals(power)) ui.postDelayed(PowerTest::sleep, 1500);
+        importAlbumForTest();
         if (ArtKeyReminder.due(this, test)) {
             ArtKeyReminder.show(this, root);
             reminderUntil = android.os.SystemClock.uptimeMillis() + ArtKeyReminder.SHOW_MS;
@@ -271,18 +272,18 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         frame.applySettings();
     }
     @Override public void closeTrips() { tripPanel.setVisibility(View.GONE); panel.update(); panel.setVisibility(View.VISIBLE); }
-    @Override public void renameTrip(String start, String end, String label) { openRename(start, end, label, true); }
+    @Override public void renameTrip(String key, String label) { openRename(key, label, true); }
     @Override public String tripLabel(String id) {
         String[] t = frame.tripOfPhoto(id);
         return t == null ? null : t[2];
     }
     @Override public void renameTripOf(String id) {
         String[] t = frame.tripOfPhoto(id);
-        if (t == null) { note("This photo has no date, so it isn't in a trip"); return; }
-        openRename(t[0], t[1], t[2], false);
+        if (t == null) { note("This photo has no date, so it isn't in an album"); return; }
+        openRename(t[3], t[2], false);
     }
 
-    /** A small box with the TV keyboard (which has a mic) to name a trip. Empty = back to the date name. */
+    /** A small box with the TV keyboard (which has a mic) to name an album or trip. Empty = a trip's date name. */
     private void buildRenameBox(FrameLayout root) {
         renameBox = new android.widget.LinearLayout(this);
         renameBox.setOrientation(android.widget.LinearLayout.VERTICAL);
@@ -300,18 +301,20 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         renameField.setOnEditorActionListener((v, a, ev) -> { saveRename(); return true; });
         renameBox.addView(renameField);
         renameBox.addView(Ui.gap(this, 12));
-        renameBox.addView(Ui.text(this, "Leave it empty to use the dates instead.", Ui.HINT, Ui.SOFT));
+        renameHint = Ui.text(this, "", Ui.HINT, Ui.SOFT);
+        renameBox.addView(renameHint);
         renameBox.addView(Ui.gap(this, 16));
         renameBox.addView(Ui.keys(this, "OK", "Save", "Back", "Cancel"));
         renameBox.setVisibility(View.GONE);
         root.addView(renameBox, new FrameLayout.LayoutParams(Math.round(560 * getResources().getDisplayMetrics().density), -2, Gravity.CENTER));
     }
 
-    private void openRename(String start, String end, String label, boolean fromTrips) {
-        renaming = new String[]{start, end};
+    private void openRename(String key, String label, boolean fromTrips) {
+        renaming = key;
         renameFromTrips = fromTrips;
         tripPanel.setVisibility(View.GONE);
-        renameTitle.setText("Name this trip: " + label.replace("  ·  ", " · "));
+        renameTitle.setText("Name this album: " + label.replace("  ·  ", " · "));
+        renameHint.setText(AlbumStore.albumId(key) != null ? "Leave it empty to keep its name." : "Leave it empty to use the dates instead.");
         renameField.setText("");
         renameBox.setVisibility(View.VISIBLE);
         Ui.fadeIn(renameBox);
@@ -325,12 +328,12 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
 
     private void saveRename() {
         if (renaming == null) return;
-        String[] r = renaming;
+        String key = renaming;
         String name = renameField.getText().toString().trim();
-        boolean back = renameFromTrips;
+        boolean back = renameFromTrips, album = AlbumStore.albumId(key) != null;
         closeRename();
-        frame.nameTrip(r[0], r[1], name, () -> {
-            note(name.isEmpty() ? "Trip name removed; it shows its dates again" : "Trip named \"" + name + "\"");
+        frame.rename(key, name, () -> {
+            note(!name.isEmpty() ? "Album named \"" + name + "\"" : album ? "Name kept" : "Name removed; it shows its dates again");
             if (back) { tripPanel.reload(); tripPanel.setVisibility(View.VISIBLE); }
         });
     }
@@ -345,6 +348,30 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         if (back) tripPanel.setVisibility(View.VISIBLE);
         frame.requestFocus();
     }
+    /**
+     * adb-only, one time (2026-11-22): puts every photo that arrived in a time window into an album, for
+     * a batch picked before albums existed. Dates are the files' arrival times (Shrinker keeps them):
+     * am start --activity-single-top -n com.gary.photosframe/.MainActivity --es test_album_name "Mom & Dad"
+     *   --el test_album_from <epoch ms> --el test_album_to <epoch ms>
+     */
+    private void importAlbumForTest() {
+        String name = getIntent().getStringExtra("test_album_name");
+        long from = getIntent().getLongExtra("test_album_from", -1), to = getIntent().getLongExtra("test_album_to", -1);
+        getIntent().removeExtra("test_album_name");
+        getIntent().removeExtra("test_album_from");
+        getIntent().removeExtra("test_album_to");
+        if (name == null) return;
+        if (name.trim().isEmpty() || from < 0 || to < from) {
+            android.util.Log.w("AlbumImport", "needs test_album_name, test_album_from <= test_album_to (epoch ms)");
+            return;
+        }
+        android.content.Context app = getApplicationContext();
+        new Thread(() -> {
+            int[] r = PhotoLibrary.get(app).importAlbum(name.trim(), from, to);
+            ui.post(() -> { frame.reloadQuietly(); note(r[0] + " photos in \"" + name.trim() + "\" (" + r[1] + " newly added)"); });
+        }, "album-import").start();
+    }
+
     @Override public void unhideAll() { frame.unhideAll(); note("Hidden photos will show again"); }
 
     // YouTube corner

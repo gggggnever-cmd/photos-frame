@@ -22,7 +22,7 @@ final class PhotoMenu extends LinearLayout {
         Boolean isPlace(String id);         // true: shows in Places only; false: has people; null: not checked yet
         void togglePlace(String id);
         void highlight(int index);
-        String tripLabel(String id);        // "Nov 2025 · 12 days", or null
+        String tripLabel(String id);        // its album or trip, e.g. "Nov 2025 · 12 days", or null
         void renameTripOf(String id);
         void closeMenu();
     }
@@ -45,7 +45,7 @@ final class PhotoMenu extends LinearLayout {
         setBackground(Ui.card(ctx));
         addView(Ui.title(ctx, "This photo", Ui.TITLE));
         addView(Ui.gap(ctx, 12));
-        String[] names = {"Which photo", "Favourite", "Hide this photo", "In \"Places only\"", "Name this trip", "Close"};
+        String[] names = {"Which photo", "Favourite", "Hide this photo", "In \"Places only\"", "Name this album", "Close"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);

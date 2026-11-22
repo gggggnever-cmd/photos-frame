@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,10 @@ import java.util.Map;
  * pick's session is kept open until its batch is done and its list is fetched again (fresh links) before
  * each chunk once the old links are 45 minutes old. The waiting sessions are saved in
  * files/download_queue.txt, so the queue carries on after the app restarts while Google still has them.
+ *
+ * Each batch carries the membership album it goes into ("" = the automatic date trips). The owner may
+ * choose the album on the TV after the batch was queued (setAlbum); every photo saved from then on, and
+ * every one already saved, goes into it.
  */
 final class DownloadQueue {
     private static final String TAG = "DownloadQueue";
@@ -30,10 +35,11 @@ final class DownloadQueue {
 
     private static final class Batch {
         final String session, keepStart, keepEnd;
+        String album;                // membership album id, or "" (guarded by the class lock: the owner may change it)
         List<Picker.Item> items;     // null until listed (after a restart)
         long listedAt;
-        Batch(String session, String keepStart, String keepEnd, List<Picker.Item> items) {
-            this.session = session; this.keepStart = keepStart; this.keepEnd = keepEnd; this.items = items;
+        Batch(String session, String keepStart, String keepEnd, String album, List<Picker.Item> items) {
+            this.session = session; this.keepStart = keepStart; this.keepEnd = keepEnd; this.album = album; this.items = items;
             this.listedAt = items == null ? 0 : System.currentTimeMillis();
         }
     }
@@ -46,13 +52,33 @@ final class DownloadQueue {
     private static boolean resumed;
 
     /** Queues one pick. The session now belongs to the queue (it deletes it when the batch is done). */
-    static void add(Context ctx, String session, String keepStart, String keepEnd, List<Picker.Item> items) {
+    static void add(Context ctx, String session, String keepStart, String keepEnd, String album, List<Picker.Item> items) {
         Context app = ctx.getApplicationContext();
         synchronized (DownloadQueue.class) {
-            waiting.add(new Batch(session, keepStart == null ? "" : keepStart, keepEnd == null ? "" : keepEnd, items));
+            waiting.add(new Batch(session, keepStart == null ? "" : keepStart, keepEnd == null ? "" : keepEnd,
+                    album == null ? "" : album, items));
             save(app);
             startWorker(app);
         }
+    }
+
+    /**
+     * The owner chose a membership album for a pick already queued (or already finished): photos still to
+     * come go into it, and the ones already saved are moved into it now. Call off the UI thread.
+     */
+    static void setAlbum(Context ctx, String session, String album, List<Picker.Item> items) {
+        if (album == null || album.isEmpty()) return;
+        Context app = ctx.getApplicationContext();
+        synchronized (DownloadQueue.class) {
+            for (Batch b : waiting) if (b.session.equals(session)) b.album = album;
+            save(app);
+        }
+        // After the id is set: a photo saved before this is on disk now; one saved after it reads the new id.
+        File dir = Storage.photoDir(app);
+        List<String> saved = new ArrayList<>();
+        for (Picker.Item it : items) if (new File(dir, it.fileName()).exists()) saved.add(it.fileName());
+        PhotoLibrary.get(app).addToAlbum(album, saved, true);
+        Log.i(TAG, "batch " + session + " goes into album " + album + " (" + saved.size() + " photos already saved)");
     }
 
     /** After a restart: carries on with picks that were still waiting. Safe to call more than once. */
@@ -66,7 +92,8 @@ final class DownloadQueue {
                 if (!f.exists()) return;
                 for (String line : Files.readAllLines(f.toPath(), StandardCharsets.UTF_8)) {
                     String[] p = line.split("\t", -1);
-                    if (p.length >= 3 && !p[0].isEmpty()) waiting.add(new Batch(p[0], p[1], p[2], null));
+                    // Lines saved before albums (2026-11-22) have no 4th field: the date trips, as then.
+                    if (p.length >= 3 && !p[0].isEmpty()) waiting.add(new Batch(p[0], p[1], p[2], p.length > 3 ? p[3] : "", null));
                 }
             } catch (IOException e) {
                 Log.w(TAG, "couldn't read the saved queue: " + e);
@@ -138,6 +165,7 @@ final class DownloadQueue {
                     if (b.items != null) failedTotal += Math.max(0, b.items.size() - doneInCurrent);
                 }
             }
+            PhotoLibrary.get(app).flushAlbums();
             picker.delete(new Picker.Session(b.session));
             synchronized (DownloadQueue.class) {
                 waiting.remove(b);
@@ -156,7 +184,7 @@ final class DownloadQueue {
         Picker.RoomCheck room = new Picker.RoomCheck() {
             @Override public boolean hasRoom() {
                 while (used[0] + Storage.PHOTO_ESTIMATE_BYTES > budget) {
-                    long freed = library.clearLeastPlayedTrip(b.keepStart, b.keepEnd, settings.trips());
+                    long freed = library.clearLeastPlayedTrip(b.keepStart, b.keepEnd, albumOf(b), settings.trips());
                     if (freed <= 0) return false;
                     used[0] -= freed;
                 }
@@ -165,13 +193,21 @@ final class DownloadQueue {
             @Override public void added(long bytes) { used[0] += bytes; addedCount++; }
         };
         int total = b.items.size();
+        File dir = Storage.photoDir(app);
         for (int from = 0; from < total; from += CHUNK) {
             if (stale(b)) relist(picker, b);
             List<Picker.Item> chunk = b.items.subList(from, Math.min(total, from + CHUNK));
             final int base = from;
-            Picker.Result r = picker.download(chunk, Storage.photoDir(app), room, (done, n) -> {
-                synchronized (DownloadQueue.class) { doneInCurrent = base + done; }
+            Picker.Result r = picker.download(chunk, dir, room, (done, n) -> {
+                String album;
+                synchronized (DownloadQueue.class) { doneInCurrent = base + done; album = b.album; }
+                // Each photo joins the batch's album as soon as it is saved (or found already there).
+                // Outside the queue's lock: the library has its own.
+                String name = chunk.get(done - 1).fileName();
+                if (!album.isEmpty() && new File(dir, name).exists())
+                    library.addToAlbum(album, Collections.singletonList(name), false);
             });
+            library.flushAlbums();
             synchronized (DownloadQueue.class) {
                 addedTotal += r.added;
                 alreadyTotal += r.alreadyThere;
@@ -181,6 +217,8 @@ final class DownloadQueue {
         }
         Log.i(TAG, "batch done: " + total + " photos");
     }
+
+    private static synchronized String albumOf(Batch b) { return b.album; }
 
     private static boolean stale(Batch b) { return System.currentTimeMillis() - b.listedAt > FRESH_MS; }
 
@@ -205,7 +243,9 @@ final class DownloadQueue {
 
     private static void save(Context app) {
         StringBuilder s = new StringBuilder();
-        for (Batch b : waiting) s.append(b.session).append('\t').append(b.keepStart).append('\t').append(b.keepEnd).append('\n');
+        // session, keepStart, keepEnd, album id ("" = date trips; older lines have only the first three)
+        for (Batch b : waiting)
+            s.append(b.session).append('\t').append(b.keepStart).append('\t').append(b.keepEnd).append('\t').append(b.album).append('\n');
         File f = file(app), tmp = new File(f.getPath() + ".tmp");
         try (FileOutputStream out = new FileOutputStream(tmp)) {
             out.write(s.toString().getBytes(StandardCharsets.UTF_8));

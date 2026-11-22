@@ -63,7 +63,10 @@ final class Settings {
     String day() { return prefs.getString("day", ""); }
     void setDay(String d) { prefs.edit().putString("day", d).apply(); }
 
-    /** Trips to play: "start~end;start~end" (days as yyyy:MM:dd), or "" for all trips. */
+    /**
+     * Albums to play: tokens joined by ";", each a date trip "start~end" (days as yyyy:MM:dd) or a membership
+     * album "album:<id>" (see AlbumStore); "" for all. Values saved before albums have only ranges.
+     */
     String trips() { return prefs.getString("trips", ""); }
     void setTrips(String t) { prefs.edit().putString("trips", t).apply(); }
 

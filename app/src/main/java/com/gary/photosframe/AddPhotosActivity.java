@@ -6,19 +6,16 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,19 +37,32 @@ public class AddPhotosActivity extends Activity {
     private TextView title, body, code;
     private boolean canRetry;
 
-    // Naming new trips while the photos download (one screen per new trip).
-    private static final class NewTrip {
-        final String start, end;
-        final List<Picker.Item> items = new ArrayList<>();
-        final List<Bitmap> covers = new ArrayList<>();
-        NewTrip(String start, String end) { this.start = start; this.end = end; }
+    // After each pick, one screen asks where the batch goes (BatchChoice) while the photos download.
+    private BatchChoice choice;
+    private volatile boolean choosing;                 // the add-photos thread waits while the screen is up
+    private volatile BatchChoice.Option chosenOption;  // set on the UI thread before choosing turns false
+    private volatile String chosenName;
+
+    /** Where a batch goes by default: an album (albumId), an existing trip, or a new trip by date (isNew). */
+    private static final class Target {
+        String albumId = "", label = "", start = "", end = "";
+        boolean named, isNew;
+        int overlap;
     }
-    private LinearLayout nameBox, coverRow;
-    private TextView nameTitle, nameInfo;
-    private EditText nameField;
-    private final List<NewTrip> toName = new ArrayList<>();   // UI thread
-    private int naming = -1;                                   // index in toName, -1 when not naming
-    private volatile boolean namingOpen;
+
+    /**
+     * Lots picked earlier in this visit and where they went. They may not have downloaded yet, so the
+     * library doesn't know their trip or album; a later lot with the same dates joins the same one.
+     */
+    private static final class Lot {
+        final String start, end, albumId, label;
+        final boolean named;
+        Lot(String start, String end, String albumId, String label, boolean named) {
+            this.start = start; this.end = end; this.albumId = albumId; this.label = label; this.named = named;
+        }
+    }
+    private final List<Lot> lots = new ArrayList<>();   // add-photos thread only
+
     private TextView queueLine;
     private PhotoLibrary library;
 
@@ -69,7 +79,7 @@ public class AddPhotosActivity extends Activity {
 
     @Override public boolean onKeyDown(int k, KeyEvent e) {
         if (canRetry && (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER)) { start(); return true; }
-        if (naming >= 0 && k == KeyEvent.KEYCODE_ENTER) { saveName(false); return true; }
+        if (choice.isOpen() && choice.onKey(k)) return true;
         return super.onKeyDown(k, e);
     }
 
@@ -136,8 +146,8 @@ public class AddPhotosActivity extends Activity {
     }
 
     /**
-     * Shows a QR code, waits for the pick, hands it to the background DownloadQueue, lets the owner name
-     * any new trips, then shows a fresh QR code for the next lot. Back leaves; downloads carry on.
+     * Shows a QR code, waits for the pick, hands it to the background DownloadQueue, asks on one screen
+     * where the batch goes, then shows a fresh QR code for the next lot. Back leaves; downloads carry on.
      */
     private void pick() throws IOException, InterruptedException {
         DownloadQueue.resetReport();
@@ -161,7 +171,7 @@ public class AddPhotosActivity extends Activity {
                     show(s.pickerUri, String.format("%,d", lastPick) + " photos added to the queue. More?", new String[] {
                                     "Scan this new code to pick the next lot, up to 2,000.",
                                     "Or press Back when you have finished."},
-                            "The photos keep downloading while the frame plays, and join the same trip."
+                            "The photos keep downloading while the frame plays, and go into the album you chose."
                                     + (warn == null ? "" : "\n\n" + warn), null);
                 }
                 boolean picked = false;
@@ -174,48 +184,113 @@ public class AddPhotosActivity extends Activity {
                 show(null, "Reading your pick…", null, "", null);
                 List<Picker.Item> items = picker.photos(s);
 
-                // Work out the trips in this pick from the photos' dates.
+                // The pick's dates, grouped the way trips are, and where the batch goes unless the owner says otherwise.
                 List<String> days = new ArrayList<>();
                 for (Picker.Item it : items) days.add(it.day);
-                List<NewTrip> unnamed = new ArrayList<>();
-                String pickStart = null, pickEnd = null;
-                for (String[] r : Trips.cluster(days)) {
-                    NewTrip t = new NewTrip(r[0], r[1]);
-                    for (Picker.Item it : items) if (!it.day.isEmpty() && it.day.compareTo(r[0]) >= 0 && it.day.compareTo(r[1]) <= 0) t.items.add(it);
-                    if (pickStart == null) pickStart = r[0];
-                    pickEnd = r[1];
-                    // Already named, or offered earlier in this visit: the photos just join it.
-                    if (library.nameFor(r[0], r[1]).isEmpty() && !askedAbout(r[0], r[1])) unnamed.add(t);
-                }
-                DownloadQueue.add(this, s.id, pickStart, pickEnd, items);
+                List<String[]> clusters = Trips.cluster(days);
+                String pickStart = clusters.isEmpty() ? null : clusters.get(0)[0];
+                String pickEnd = clusters.isEmpty() ? null : clusters.get(clusters.size() - 1)[1];
+                Target target = defaultFor(clusters, items);
+                // Queued at once with the default, so downloading starts while the owner decides.
+                DownloadQueue.add(this, s.id, pickStart, pickEnd, target.albumId, items);
                 handedOver = true;
                 lastPick = items.size();
-                if (!unnamed.isEmpty()) {
-                    // Four small previews per trip, spread across it, so the owner recognises it.
-                    File tmp = getCacheDir();
-                    for (NewTrip t : unnamed) {
-                        int n = t.items.size();
-                        for (int k = 0; k < Math.min(4, n); k++) {
-                            Bitmap bmp = picker.thumbnail(t.items.get(k * n / Math.min(4, n)), tmp);
-                            if (bmp != null) t.covers.add(bmp);
-                        }
-                        asked.add(new String[] {t.start, t.end});
-                    }
-                    namingOpen = true;
-                    ui.post(() -> { toName.clear(); toName.addAll(unnamed); naming = -1; nextName(); });
-                    while (namingOpen && !stopped) Thread.sleep(300);
+
+                // Four small previews spread across the pick, so the owner recognises it.
+                List<Bitmap> covers = new ArrayList<>();
+                int n = items.size();
+                for (int k = 0; k < Math.min(4, n); k++) {
+                    Bitmap bmp = picker.thumbnail(items.get(k * n / Math.min(4, n)), getCacheDir());
+                    if (bmp != null) covers.add(bmp);
                 }
+                List<BatchChoice.Option> opts = options(target);
+                String heading = String.format("%,d photos", n) + (pickStart == null ? "" : "  ·  " + Trips.months(pickStart, pickEnd));
+                chosenOption = opts.get(0);
+                chosenName = null;
+                choosing = true;
+                ui.post(() -> openChoice(heading, covers, opts));
+                while (choosing && !stopped) Thread.sleep(300);
+                apply(chosenOption, chosenName, target, s.id, items, clusters);
             } finally {
                 if (!handedOver) picker.delete(s);
             }
         }
     }
 
-    /** Trips offered for naming during this visit, so a skipped one isn't asked again for the next lot. */
-    private final List<String[]> asked = new ArrayList<>();   // add-photos thread only
-    private boolean askedAbout(String start, String end) {
-        for (String[] a : asked) if (a[0].compareTo(end) <= 0 && a[1].compareTo(start) >= 0) return true;   // overlaps
-        return false;
+    /**
+     * The default for a pick: the album or trip its dates overlap most (lots picked earlier in this visit
+     * count too, as they may not have arrived yet); otherwise a new album by date, which is simply the
+     * automatic date trip, named like one ("Oct 2026 · 7 days").
+     */
+    private Target defaultFor(List<String[]> clusters, List<Picker.Item> items) {
+        Target best = null;
+        for (String[] r : clusters) {
+            for (Lot l : lots) {
+                int o = Trips.overlap(r[0], r[1], l.start, l.end);
+                if (o > 0 && (best == null || o > best.overlap)) best = target(l.albumId, l.label, l.start, l.end, l.named, o);
+            }
+            String[] m = library.bestMatch(r[0], r[1]);   // {key, label, overlap, albumId, named, start, end}
+            if (m != null) {
+                int o = Integer.parseInt(m[2]);
+                if (best == null || o > best.overlap) best = target(m[3], m[1], m[5], m[6], !m[4].isEmpty(), o);
+            }
+        }
+        if (best != null) return best;
+        String[] big = null;
+        int most = -1;
+        for (String[] r : clusters) {
+            int c = 0;
+            for (Picker.Item it : items) if (!it.day.isEmpty() && it.day.compareTo(r[0]) >= 0 && it.day.compareTo(r[1]) <= 0) c++;
+            if (c > most) { most = c; big = r; }
+        }
+        Target t = big == null ? target("", "Undated photos", "", "", true, 0)   // no dates: they stay with all photos
+                : target("", Trips.label(big[0], big[1], "", most), big[0], big[1], false, 0);
+        t.isNew = true;
+        return t;
+    }
+
+    private static Target target(String albumId, String label, String start, String end, boolean named, int overlap) {
+        Target t = new Target();
+        t.albumId = albumId; t.label = label.replace("  ·  ", " · "); t.start = start; t.end = end;
+        t.named = named; t.overlap = overlap;
+        return t;
+    }
+
+    /** The rows of the choice screen: the default first, then naming, a new album, and the albums to add to. */
+    private List<BatchChoice.Option> options(Target t) {
+        List<BatchChoice.Option> out = new ArrayList<>();
+        out.add(new BatchChoice.Option(BatchChoice.DEFAULT, (t.isNew ? "New album: " : "Add to ") + t.label,
+                t.albumId.isEmpty() ? "by date" : "", t.albumId, t.label));
+        if (t.albumId.isEmpty() && !t.named && !t.start.isEmpty())
+            out.add(new BatchChoice.Option(BatchChoice.NAME, "Name this album", "e.g. Egypt", "", ""));
+        out.add(new BatchChoice.Option(BatchChoice.NEW, "New album…", "type a name", "", ""));
+        for (String[] a : library.albumChoices())   // {id, name, count}
+            if (!a[0].equals(t.albumId))
+                out.add(new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + a[1], String.format("%,d", Integer.parseInt(a[2])) + " photos", a[0], a[1]));
+        return out;
+    }
+
+    /** Carries out the owner's choice (on the add-photos thread) and remembers it for the next lots. */
+    private void apply(BatchChoice.Option o, String name, Target t, String session, List<Picker.Item> items, List<String[]> clusters) {
+        String albumId = t.albumId, label = t.label;
+        boolean named = t.named;
+        if (o.kind == BatchChoice.NEW && name != null) {
+            albumId = library.createAlbum(name);
+            label = name;
+            named = true;
+            DownloadQueue.setAlbum(this, session, albumId, items);
+        } else if (o.kind == BatchChoice.ALBUM) {
+            albumId = o.albumId;
+            label = o.name;
+            named = true;
+            DownloadQueue.setAlbum(this, session, albumId, items);
+        } else if (o.kind == BatchChoice.NAME && name != null) {
+            library.nameTrip(t.start, t.end, name);   // a trip by date: no membership, just its name
+            label = name;
+            named = true;
+        }
+        Log.i("AddPhotos", items.size() + " photos go to " + (albumId.isEmpty() ? "date trip " : "album " + albumId + " ") + label);
+        for (String[] r : clusters) lots.add(new Lot(r[0], r[1], albumId, label, named));
     }
 
     /** The queue line under the text, refreshed every two seconds while this screen is open. */
@@ -234,66 +309,27 @@ public class AddPhotosActivity extends Activity {
         }
     };
 
-    /** Shows the naming screen for the next unnamed trip, or the progress/summary when all are done. */
-    private void nextName() {
-        naming++;
-        if (naming >= toName.size()) {
-            naming = -1;
-            nameBox.setVisibility(View.GONE);
-            hideKeyboard();
-            show(null, "Getting a new code…", null, "", null);
-            namingOpen = false;
-            return;
-        }
-        NewTrip t = toName.get(naming);
+    /** Swaps the QR screen for the choice of where the batch goes. */
+    private void openChoice(String heading, List<Bitmap> covers, List<BatchChoice.Option> opts) {
         qrTile.setVisibility(View.GONE);
         steps.removeAllViews();
-        footer.setVisibility(View.GONE);   // Back means "skip" here; the lines under the name box say so
-        title.setText(toName.size() == 1 ? "A new trip" : "New trip " + (naming + 1) + " of " + toName.size());
+        footer.setVisibility(View.GONE);   // the choice card shows its own keys
         body.setVisibility(View.GONE);
         code.setVisibility(View.GONE);
-        nameTitle.setText(Trips.label(t.start, t.end, "", t.items.size()));
-        nameInfo.setText(t.items.size() + " photos.  Say or type a name (e.g. Egypt) and press OK.\n"
-                + "Press Back to skip; the trip will show its dates. You can name it later in Settings → Trips to play.");
-        coverRow.removeAllViews();
-        for (Bitmap bmp : t.covers) {
-            ImageView iv = new ImageView(this);
-            iv.setImageBitmap(bmp);
-            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            iv.setBackground(Ui.shape(this, 0x14F1EDE4, 10));   // rounded corners: the picture is clipped to this shape
-            iv.setClipToOutline(true);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(128), dp(96));
-            lp.rightMargin = dp(8);
-            coverRow.addView(iv, lp);
-        }
-        nameField.setText("");
-        nameBox.setVisibility(View.VISIBLE);
-        nameField.requestFocus();
-        ui.postDelayed(() -> {
-            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-            if (imm != null) imm.showSoftInput(nameField, InputMethodManager.SHOW_IMPLICIT);
-        }, 300);
+        title.setText("Where should these photos go?");
+        choice.open(heading, covers, opts);
     }
 
-    /** Saves the typed/spoken name (empty = keep the date name) and moves on. */
-    private void saveName(boolean keep) {
-        if (naming < 0) return;
-        NewTrip t = toName.get(naming);
-        String name = keep ? "" : nameField.getText().toString().trim();
-        if (!name.isEmpty()) {
-            PhotoLibrary lib = library;
-            new Thread(() -> lib.nameTrip(t.start, t.end, name), "name-trip").start();
-        }
-        nextName();
-    }
-
-    private void hideKeyboard() {
-        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (imm != null) imm.hideSoftInputFromWindow(nameField.getWindowToken(), 0);
+    /** The owner chose (UI thread): hand it to the add-photos thread, which carries it out. */
+    private void chosen(BatchChoice.Option o, String name) {
+        chosenOption = o;
+        chosenName = name;
+        show(null, "Getting a new code…", null, "", null);
+        choosing = false;
     }
 
     @Override public void onBackPressed() {
-        if (naming >= 0) { saveName(true); return; }   // Back while naming = keep the date name
+        if (choice.isOpen()) { choice.back(); return; }   // Back on the choice = the default (or out of typing)
         super.onBackPressed();
     }
 
@@ -354,29 +390,9 @@ public class AddPhotosActivity extends Activity {
         cp.topMargin = dp(14);
         col.addView(code, cp);
 
-        // Naming a new trip: previews, its dates, a box for the name.
-        nameBox = new LinearLayout(this);
-        nameBox.setOrientation(LinearLayout.VERTICAL);
-        nameBox.setVisibility(View.GONE);
-        coverRow = new LinearLayout(this);
-        coverRow.setOrientation(LinearLayout.HORIZONTAL);
-        nameBox.addView(coverRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(96)));
-        nameBox.addView(Ui.gap(this, 16));
-        nameTitle = Ui.title(this, "", 24);
-        nameBox.addView(nameTitle, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        nameBox.addView(Ui.gap(this, 12));
-        nameField = new EditText(this);
-        nameField.setSingleLine(true);
-        nameField.setHint("Name (optional), e.g. Egypt");
-        Ui.field(nameField);                         // a light box with dark text
-        nameField.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        nameField.setOnEditorActionListener((v, actionId, ev) -> { saveName(false); return true; });
-        nameBox.addView(nameField, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        nameBox.addView(Ui.gap(this, 12));
-        nameInfo = Ui.text(this, "", 15, Ui.SOFT);
-        nameInfo.setLineSpacing(0, 1.3f);
-        nameBox.addView(nameInfo);
-        col.addView(nameBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        // Where the batch goes, after each pick (replaces the QR and steps while it shows).
+        choice = new BatchChoice(this, this::chosen);
+        col.addView(choice, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         // Fill whatever width is left after the QR: a fixed width overflowed the 960dp TV screen,
         // which squeezed the QR (cutting off its left edge) and pushed the text off the right edge.
         content.addView(col, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));

@@ -33,15 +33,23 @@ final class Trips {
         }
     }
 
-    /** A trip as computed from the photos on the TV right now. */
+    /**
+     * A trip as computed from the photos on the TV right now, or a membership album's photos on the TV
+     * (album set). Both play, rank highlights and get cleared for space the same way.
+     */
     static final class Trip {
         final String start, end;
         final List<String> ids = new ArrayList<>();
-        Entry entry;             // its remembered entry (always set after Trips.match)
-        Trip(String start, String end) { this.start = start; this.end = end; }
+        Entry entry;             // a date trip's remembered entry (always set after computing); null for an album
+        final AlbumStore.Album album;   // null for a date trip
+        Trip(String start, String end) { this(start, end, null); }
+        Trip(String start, String end, AlbumStore.Album album) { this.start = start; this.end = end; this.album = album; }
         int days() { return dayNumber(end) - dayNumber(start) + 1; }
-        String name() { return entry == null ? "" : entry.name; }
+        String name() { return album != null ? album.name : entry == null ? "" : entry.name; }
         String label() { return Trips.label(start, end, name(), ids.size()); }
+        long lastPlayed() { return album != null ? album.lastPlayed : entry == null ? 0 : entry.lastPlayed; }
+        /** How the "Albums to play" setting names it: "album:<id>" or "start~end". */
+        String key() { return album != null ? AlbumStore.token(album.id) : start + "~" + end; }
     }
 
     /**
@@ -86,6 +94,8 @@ final class Trips {
 
     /** "Egypt · Nov 2025", or "Nov 2025 · 12 days" when unnamed. */
     static String label(String start, String end, String name, int photos) {
+        boolean named = name != null && !name.isEmpty();
+        if (start == null || start.isEmpty()) return named ? name : "Undated photos";   // an album with no dated photos
         String when = months(start, end);
         if (name != null && !name.isEmpty()) return name + "  ·  " + when;
         int days = dayNumber(end) - dayNumber(start) + 1;

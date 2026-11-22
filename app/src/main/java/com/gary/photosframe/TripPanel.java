@@ -14,15 +14,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Settings → Trip: choose which trips play. "All trips" or any number of ticked trips (mixed together).
+ * Settings → Albums to play: date trips and membership albums in one list (the owner thinks of them all as
+ * albums, 2026-11-22). "All albums" or any number ticked (mixed together).
  * ▲▼ move, OK ticks/unticks, hold OK renames, Back saves and closes.
- * Trips cleared to make room are listed greyed as "not on the TV" (pick them again to bring them back).
+ * Ones cleared to make room are listed greyed as "removed to make room" (pick them again to bring them back).
+ * The choice is saved as "start~end" for a date trip and "album:<id>" for an album, joined by ";".
  */
 final class TripPanel extends LinearLayout {
     interface Host {
-        List<String[]> tripRows();          // {start, end, label, count, "gone"|""}
-        void tripsChosen(String chosen);    // "start~end;..." or "" for all
-        void renameTrip(String start, String end, String currentLabel);
+        List<String[]> tripRows();          // {start, end, label, count, "gone"|"", key, "album"|"trip"}
+        void tripsChosen(String chosen);    // "start~end;album:<id>;..." or "" for all
+        void renameTrip(String key, String currentLabel);
         void closeTrips();
     }
 
@@ -41,8 +43,8 @@ final class TripPanel extends LinearLayout {
         setOrientation(VERTICAL);
         setPadding(dp(28), dp(22), dp(28), dp(20));
         setBackground(Ui.card(ctx));
-        addView(Ui.title(ctx, "Trips to play", Ui.TITLE));
-        TextView sub = Ui.text(ctx, "Ticked trips play together.", Ui.HINT, Ui.SOFT);
+        addView(Ui.title(ctx, "Albums to play", Ui.TITLE));
+        TextView sub = Ui.text(ctx, "Ticked albums play together.", Ui.HINT, Ui.SOFT);
         sub.setPadding(0, dp(5), 0, 0);
         addView(sub);
         addView(Ui.gap(ctx, 10));
@@ -70,7 +72,7 @@ final class TripPanel extends LinearLayout {
 
     boolean isOpen() { return getVisibility() == VISIBLE; }
 
-    /** Opens with the current choice ("" = all trips). */
+    /** Opens with the current choice ("" = all). */
     void open(String current) {
         trips = host.tripRows();
         chosen.clear();
@@ -87,7 +89,7 @@ final class TripPanel extends LinearLayout {
         List<Boolean> keep = new ArrayList<>();
         for (String[] t : fresh) {
             boolean c = false;
-            for (int i = 0; i < trips.size(); i++) if (trips.get(i)[0].equals(t[0]) && chosen.get(i)) c = true;
+            for (int i = 0; i < trips.size(); i++) if (trips.get(i)[5].equals(t[5]) && chosen.get(i)) c = true;
             keep.add(c);
         }
         trips = fresh;
@@ -98,7 +100,7 @@ final class TripPanel extends LinearLayout {
     }
 
     boolean onKey(int code, boolean longPress) {
-        int n = trips.size() + 1;   // row 0 = All trips
+        int n = trips.size() + 1;   // row 0 = All albums
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_UP: focus = Math.max(0, focus - 1); break;
             case KeyEvent.KEYCODE_DPAD_DOWN: focus = Math.min(n - 1, focus + 1); break;
@@ -107,7 +109,7 @@ final class TripPanel extends LinearLayout {
                     for (int i = 0; i < chosen.size(); i++) chosen.set(i, false);
                 } else if (longPress) {
                     String[] t = trips.get(focus - 1);
-                    host.renameTrip(t[0], t[1], t[2]);
+                    host.renameTrip(t[5], t[2]);
                     return true;
                 } else if (!"gone".equals(trips.get(focus - 1)[4])) {
                     chosen.set(focus - 1, !chosen.get(focus - 1));
@@ -116,7 +118,7 @@ final class TripPanel extends LinearLayout {
             case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_MENU:
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < trips.size(); i++)
-                    if (chosen.get(i)) sb.append(sb.length() == 0 ? "" : ";").append(trips.get(i)[0]).append('~').append(trips.get(i)[1]);
+                    if (chosen.get(i)) sb.append(sb.length() == 0 ? "" : ";").append(trips.get(i)[5]);
                 host.tripsChosen(sb.toString());
                 host.closeTrips();
                 return true;
@@ -125,19 +127,17 @@ final class TripPanel extends LinearLayout {
         return true;
     }
 
-    private static boolean contains(String chosen, String[] trip) {
-        for (String range : chosen.split(";")) {
-            String[] r = range.split("~");
-            if (r.length == 2 && Trips.overlap(trip[0], trip[1], r[0], r[1]) > 0) return true;
-        }
-        return false;
+    /** Albums match by id; date trips by overlapping dates, so a trip that grew still counts as ticked. */
+    private static boolean contains(String chosen, String[] row) {
+        String id = AlbumStore.albumId(row[5]);
+        return id != null ? AlbumStore.chosenAlbum(chosen, id) : AlbumStore.chosenRange(chosen, row[0], row[1]);
     }
 
     private void build() {
         list.removeAllViews();
         rows.clear();
         ticks.clear();
-        addRow("All trips", "", false);
+        addRow("All albums", "", false);
         for (String[] t : trips) addRow(t[2], "gone".equals(t[4]) ? "removed to make room" : t[3] + " photos", "gone".equals(t[4]));
     }
 

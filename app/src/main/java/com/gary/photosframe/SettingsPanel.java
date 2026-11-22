@@ -17,7 +17,7 @@ final class SettingsPanel extends LinearLayout {
         int placeCount(); int[] checkProgress();   // Places only: how many; {checked, total} photos
         void openTrips();
         void youtubeCorner();   // shows the phone code for the YouTube corner
-        java.util.List<String[]> tripRows();   // {start, end, label, count, "gone"|""}
+        java.util.List<String[]> tripRows();   // {start, end, label, count, "gone"|"", key, "album"|"trip"}
         java.util.List<String[]> days();   // {yyyy:MM:dd, count}, oldest first
     }
 
@@ -48,7 +48,7 @@ final class SettingsPanel extends LinearLayout {
         head.addView(Ui.keys(ctx, "▲▼", "Move", "◀ ▶", "Change", "Back", "Close"));
         addView(head);
         addView(Ui.gap(ctx, 8));
-        String[] names = {"Trips to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
+        String[] names = {"Albums to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
                 "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner", "TV off if remote unused"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
@@ -189,16 +189,18 @@ final class SettingsPanel extends LinearLayout {
         }
     }
 
-    /** "All trips", the one chosen trip's name, or "3 trips together". */
+    /** "All albums", the one chosen album's or trip's name, or "3 albums together". */
     private String tripSummary() {
         String chosen = settings.trips();
-        if (chosen.isEmpty()) return "All trips";
-        String[] ranges = chosen.split(";");
-        if (ranges.length > 1) return ranges.length + " trips together";
-        String[] r = ranges[0].split("~");
-        for (String[] t : host.tripRows())
-            if (r.length == 2 && Trips.overlap(t[0], t[1], r[0], r[1]) > 0) return t[2].replace("  ·  ", " · ");
-        return "1 trip";
+        if (chosen.isEmpty()) return "All albums";
+        String[] tokens = AlbumStore.tokens(chosen);
+        if (tokens.length > 1) return tokens.length + " albums together";
+        for (String[] t : host.tripRows()) {
+            String id = AlbumStore.albumId(t[5]);
+            boolean match = id != null ? AlbumStore.chosenAlbum(chosen, id) : AlbumStore.chosenRange(chosen, t[0], t[1]);
+            if (match) return t[2].replace("  ·  ", " · ");
+        }
+        return "1 album";
     }
 
     /** Day shows only in One day at a time; Highlights play as a story, so Order and Day give way to the count. */

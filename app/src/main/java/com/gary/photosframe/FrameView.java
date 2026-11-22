@@ -150,22 +150,25 @@ public class FrameView extends View {
     public int hiddenCount() { PhotoSource s = source; return s == null ? 0 : s.library().hiddenCount(); }
     public int favouriteCount() { PhotoSource s = source; return s == null ? 0 : s.library().favouriteCount(); }
     public void unhideAll() { bg.post(() -> { source.library().unhideAll(); prepared = null; }); }
-    /** Trip list for Settings → Trip: {start, end, label, count, "gone"|""}. */
+    /** For Settings → Albums to play: {start, end, label, count, "gone"|"", key, "album"|"trip"}. */
     public List<String[]> tripRows() {
         PhotoSource s = source;
         return s == null ? Collections.emptyList() : s.library().tripRows();
     }
 
-    /** {start, end, label} of the trip a photo belongs to, or null. */
+    /** {start, end, label, key} of the trip or album a photo belongs to, or null. */
     public String[] tripOfPhoto(String id) {
         PhotoSource s = source;
         return s == null ? null : s.library().tripOfPhoto(id);
     }
 
-    /** Renames a trip (empty name = back to its date name). Runs off the UI thread, then calls done. */
-    public void nameTrip(String start, String end, String name, Runnable done) {
+    /**
+     * Renames a trip or album by key ("start~end" or "album:<id>"); an empty name puts a trip back to its
+     * date name and leaves an album's name as it was. Runs off the UI thread, then calls done.
+     */
+    public void rename(String key, String name, Runnable done) {
         bg.post(() -> {
-            source.library().nameTrip(start, end, name);
+            source.library().rename(key, name);
             ui.post(done);
         });
     }

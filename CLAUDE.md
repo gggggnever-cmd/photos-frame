@@ -338,6 +338,14 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       Behaviour unchanged. Installed 2026-11-22 and every TV screen screenshotted (Settings fits; photo menu,
       trips list, both QR screens fine). Fixed on the TV: rows passed over quickly stayed enlarged (Ui.focus
       skipped the shrink when the grow hadn't started; now always cancels and animates to the target).
+- [~] v0.37 (2026-11-22): **albums** (owner's rule: trips and albums are one idea). Membership albums in
+      files/albums.json (AlbumStore, TinyJson); photos in no album keep automatic date trips. After each pick one
+      screen (BatchChoice) offers: the default (album/trip with most date overlap, else a new auto-named trip),
+      "New album…" (typed name), or an existing album. Queue lines carry the album id (4th tab field). Ticked
+      albums are `album:<id>` tokens in Settings.trips(). Labels now say "Albums to play" / "Name this album".
+      New albums start as just played so space clearing doesn't take them first. Today's batch imported with
+      the adb extra test_album_name/from/to: "Mom & Dad", 439 photos (arrivals 14:30-15:25). Albums list seen on
+      the TV. NOT yet tried: the choice screen after a real pick, and playing a ticked album.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs
