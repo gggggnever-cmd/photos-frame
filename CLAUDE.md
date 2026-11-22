@@ -325,6 +325,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
 - [x] v0.33 (2026-11-22): **hold ▼** on the remote steps the YouTube corner: Small → Medium → Large → Full screen →
       paused and hidden → Small and playing. After Close it replays the last link. A short ▼ still opens Add photos,
       now on release. Tested with `input keyevent --longpress KEYCODE_DPAD_DOWN`.
+- [x] v0.34 (2026-11-22, owner's swap): **short ▼ shrinks the YouTube corner** Full → Large → Medium → Small →
+      paused and hidden → Full and playing; **hold ▼ opens Add photos**. If no song was ever played, short ▼ still
+      opens Add photos (first-run hint says "Press ▼"). Tested with adb key events.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

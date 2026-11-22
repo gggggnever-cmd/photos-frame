@@ -49,7 +49,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private String[] renaming;                 // {start, end} of the trip being renamed, or null
     private boolean renameFromTrips;
     private boolean longPressed;   // OK was held: the menu opened, so its release must not skip
-    private boolean downHeld;      // ▼ was held: the YouTube corner stepped, so its release must not open Add photos
+    private boolean downHeld;      // ▼ was held: Add photos opened, so its release must not step the YouTube corner
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -187,7 +187,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 panel.open();
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_MENU:
-                // A short press opens Add photos (on release); holding it steps the YouTube corner.
+                // A short press makes the YouTube corner smaller (on release); holding it opens Add photos.
                 if (e.getRepeatCount() == 0) { e.startTracking(); downHeld = false; }
                 return true;
         }
@@ -197,8 +197,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     @Override public boolean onKeyLongPress(int code, KeyEvent e) {
         if (code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_MENU) {
             downHeld = true;
-            String n = corner.step();
-            note(n != null ? n : "Nothing to play yet. Send a song from your phone: ▲ Settings → YouTube corner.");
+            addPhotos();
             return true;
         }
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
@@ -212,7 +211,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
 
     @Override public boolean onKeyUp(int code, KeyEvent e) {
         if (code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_MENU) {
-            if (!downHeld && e.isTracking() && !e.isCanceled()) addPhotos();
+            if (!downHeld && e.isTracking() && !e.isCanceled()) {
+                String n = corner.step();
+                if (n != null) note(n);
+                else addPhotos();   // no YouTube played yet (e.g. a new frame): ▼ adds photos, as the first-run hint says
+            }
             downHeld = false;
             return e.isTracking() || super.onKeyUp(code, e);
         }

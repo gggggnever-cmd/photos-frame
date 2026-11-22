@@ -80,32 +80,33 @@ final class CornerPlayer {
     void toggle() { if (hidden) { unhide(); return; } run("corner.toggle()"); }
 
     /**
-     * The remote's "hold ▼" (asked 2026-11-22): Small → Medium → Large → Full screen → hidden and paused →
-     * Small and playing again. After Close it brings the last song back. Returns a short note for the screen,
+     * The remote's ▼ (asked 2026-11-22, smaller each press): Full screen → Large → Medium → Small → paused and
+     * hidden → Full screen and playing again. After Close it brings the last song back. Returns a short note for the screen,
      * or null if nothing has been played yet. Call on the UI thread.
      */
     String step() {
         if (!showing) {
             if (last == null) return null;
-            prefs.edit().putInt("size", 0).apply();
+            prefs.edit().putInt("size", WIDTH_DP.length - 1).apply();
             play(last);
             place();
-            return "YouTube: " + SIZE_NAMES[0];
+            return "YouTube: " + SIZE_NAMES[size()];
         }
         if (hidden) {
-            prefs.edit().putInt("size", 0).apply();
+            prefs.edit().putInt("size", WIDTH_DP.length - 1).apply();
             place();
             unhide();
-            return "YouTube: " + SIZE_NAMES[0];
+            return "YouTube: " + SIZE_NAMES[size()];
         }
-        if (size() < WIDTH_DP.length - 1) {
-            nextSize();
+        if (size() > 0) {
+            prefs.edit().putInt("size", size() - 1).apply();
+            place();
             return "YouTube: " + SIZE_NAMES[size()];
         }
         hidden = true;
         run("corner.pause()");
         if (web != null) web.setVisibility(View.INVISIBLE);
-        return "YouTube paused and hidden. Hold ▼ to bring it back.";
+        return "YouTube paused and hidden. Press ▼ to bring it back.";
     }
 
     private void unhide() {
