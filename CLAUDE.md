@@ -320,6 +320,8 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       WebView background transparent) so the video melts into the photo. Seen on the TV (screencap), works.
 - [x] v0.31 (2026-11-22): phone button **Blend: Off / Light / Medium / Strong** makes the whole corner video see-through
       (opacity 1 / 0.8 / 0.6 / 0.45 on #box, kept in "corner" prefs). Seen on the TV at Medium; left at Medium.
+- [x] v0.32 (2026-11-22): corner **Size** button cycles Small / Medium / Large (720 dp) / Full screen (MATCH_PARENT,
+      no margin); prefs "size" 0-3 (old 0/1 carry over). With Blend it reads as a double exposure. Seen on the TV.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

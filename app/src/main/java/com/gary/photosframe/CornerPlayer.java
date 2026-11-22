@@ -34,7 +34,8 @@ final class CornerPlayer {
     private static final String BASE = "https://com.gary.photosframe/";
     private static final int[] GRAVITY = {
             Gravity.BOTTOM | Gravity.END, Gravity.BOTTOM | Gravity.START, Gravity.TOP | Gravity.START, Gravity.TOP | Gravity.END};
-    private static final int[] WIDTH_DP = {352, 512};
+    // 16:9 widths on the 960 dp wide TV screen; Large and Full screen added 2026-11-22 (0 = the whole screen).
+    private static final int[] WIDTH_DP = {352, 512, 720, 0};
     private static final double[] ZOOM = {1, 1.2, 1.4};   // "Trim black edges": off, some, more
     // "Blend" (2026-11-22): how see-through the whole video is, so it merges with the photo behind it.
     static final double[] BLEND = {1, 0.8, 0.6, 0.45};
@@ -100,7 +101,9 @@ final class CornerPlayer {
         place();
     }
 
-    void bigger(boolean big) { prefs.edit().putInt("size", big ? 1 : 0).apply(); place(); }
+    /** Next size: Small → Medium → Large → Full screen → Small. */
+    void nextSize() { prefs.edit().putInt("size", (size() + 1) % WIDTH_DP.length).apply(); place(); }
+    private int size() { int s = prefs.getInt("size", 0); return s >= 0 && s < WIDTH_DP.length ? s : 0; }
 
     /** Stops and hides the window (it comes back with the next link). */
     void close() {
@@ -126,7 +129,7 @@ final class CornerPlayer {
             JSONObject j = new JSONObject(state);
             j.put("showing", showing);
             j.put("volume", prefs.getInt("volume", 60));
-            j.put("big", prefs.getInt("size", 0) == 1);
+            j.put("size", size());
             j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);
             j.put("blend", prefs.getInt("blend", 0) % BLEND.length);
             return j.toString();
@@ -198,10 +201,16 @@ final class CornerPlayer {
     private void place() {
         if (web == null) return;
         float d = ctx.getResources().getDisplayMetrics().density;
-        int w = Math.round(WIDTH_DP[prefs.getInt("size", 0) == 1 ? 1 : 0] * d);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, w * 9 / 16, GRAVITY[prefs.getInt("corner", 0) % GRAVITY.length]);
-        int m = Math.round(24 * d);
-        lp.setMargins(m, m, m, m);
+        int wdp = WIDTH_DP[size()];
+        FrameLayout.LayoutParams lp;
+        if (wdp == 0) {   // Full screen: over the whole photo (the soft edges and Blend still apply)
+            lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        } else {
+            int w = Math.round(wdp * d);
+            lp = new FrameLayout.LayoutParams(w, w * 9 / 16, GRAVITY[prefs.getInt("corner", 0) % GRAVITY.length]);
+            int m = Math.round(24 * d);
+            lp.setMargins(m, m, m, m);
+        }
         web.setLayoutParams(lp);
     }
 

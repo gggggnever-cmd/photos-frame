@@ -405,14 +405,13 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 case "move": corner.move(); break;
                 case "zoom": corner.zoom(); break;
                 case "blend": corner.blend(); break;
-                case "size": corner.bigger(!isBig()); break;
+                case "size": corner.nextSize(); break;
                 case "close": corner.close(); break;
             }
         });
         return null;
     }
 
-    private boolean isBig() { return getSharedPreferences("corner", MODE_PRIVATE).getInt("size", 0) == 1; }
 
     // SettingsPanel.Host
     @Override public void settingsChanged() { frame.applySettings(); }
