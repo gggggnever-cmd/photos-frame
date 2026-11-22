@@ -36,6 +36,7 @@ final class CornerPlayer {
             Gravity.BOTTOM | Gravity.END, Gravity.BOTTOM | Gravity.START, Gravity.TOP | Gravity.START, Gravity.TOP | Gravity.END};
     // 16:9 widths on the 960 dp wide TV screen; Large and Full screen added 2026-11-22 (0 = the whole screen).
     private static final int[] WIDTH_DP = {352, 512, 720, 0};
+    static final String[] SIZE_NAMES = {"Small", "Medium", "Large", "Full screen"};
     private static final double[] ZOOM = {1, 1.2, 1.4};   // "Trim black edges": off, some, more
     // "Blend" (2026-11-22): how see-through the whole video is, so it merges with the photo behind it.
     static final double[] BLEND = {1, 0.8, 0.6, 0.45};
@@ -50,6 +51,8 @@ final class CornerPlayer {
     private String pendingJs;
     private volatile String state = "{}";
     private volatile boolean showing, wasPlaying;
+    private volatile boolean hidden;   // "hold ▼": still loaded, but paused and out of sight
+    private YouTubeLink last;           // so hold ▼ can bring back the last song after it was closed
 
     CornerPlayer(Context ctx, FrameLayout root) {
         this.ctx = ctx;
@@ -67,12 +70,49 @@ final class CornerPlayer {
         ensure();
         web.setVisibility(View.VISIBLE);
         showing = true;
+        hidden = false;
+        last = link;
         state = "{}";
         run("corner.load(" + JSONObject.quote(link.video == null ? "" : link.video) + ","
                 + JSONObject.quote(link.list == null ? "" : link.list) + ")");
     }
 
-    void toggle() { run("corner.toggle()"); }
+    void toggle() { if (hidden) { unhide(); return; } run("corner.toggle()"); }
+
+    /**
+     * The remote's "hold ▼" (asked 2026-11-22): Small → Medium → Large → Full screen → hidden and paused →
+     * Small and playing again. After Close it brings the last song back. Returns a short note for the screen,
+     * or null if nothing has been played yet. Call on the UI thread.
+     */
+    String step() {
+        if (!showing) {
+            if (last == null) return null;
+            prefs.edit().putInt("size", 0).apply();
+            play(last);
+            place();
+            return "YouTube: " + SIZE_NAMES[0];
+        }
+        if (hidden) {
+            prefs.edit().putInt("size", 0).apply();
+            place();
+            unhide();
+            return "YouTube: " + SIZE_NAMES[0];
+        }
+        if (size() < WIDTH_DP.length - 1) {
+            nextSize();
+            return "YouTube: " + SIZE_NAMES[size()];
+        }
+        hidden = true;
+        run("corner.pause()");
+        if (web != null) web.setVisibility(View.INVISIBLE);
+        return "YouTube paused and hidden. Hold ▼ to bring it back.";
+    }
+
+    private void unhide() {
+        hidden = false;
+        if (web != null) web.setVisibility(View.VISIBLE);
+        run("corner.play()");
+    }
     void next() { run("corner.next()"); }
     void prev() { run("corner.prev()"); }
     void volume(int delta) {
@@ -102,12 +142,17 @@ final class CornerPlayer {
     }
 
     /** Next size: Small → Medium → Large → Full screen → Small. */
-    void nextSize() { prefs.edit().putInt("size", (size() + 1) % WIDTH_DP.length).apply(); place(); }
+    void nextSize() {
+        prefs.edit().putInt("size", (size() + 1) % WIDTH_DP.length).apply();
+        place();
+        if (hidden) unhide();
+    }
     private int size() { int s = prefs.getInt("size", 0); return s >= 0 && s < WIDTH_DP.length ? s : 0; }
 
     /** Stops and hides the window (it comes back with the next link). */
     void close() {
         showing = false;
+        hidden = false;
         state = "{}";
         if (web != null) { run("corner.stop()"); web.setVisibility(View.GONE); }
     }
@@ -119,7 +164,7 @@ final class CornerPlayer {
         run("corner.pause()");
     }
 
-    void onResume() { if (web != null && showing && wasPlaying) run("corner.play()"); }
+    void onResume() { if (web != null && showing && !hidden && wasPlaying) run("corner.play()"); }
 
     void destroy() { if (web != null) { web.destroy(); web = null; } }
 
@@ -130,6 +175,7 @@ final class CornerPlayer {
             j.put("showing", showing);
             j.put("volume", prefs.getInt("volume", 60));
             j.put("size", size());
+            j.put("hidden", hidden);
             j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);
             j.put("blend", prefs.getInt("blend", 0) % BLEND.length);
             return j.toString();

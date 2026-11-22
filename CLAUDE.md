@@ -322,6 +322,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       (opacity 1 / 0.8 / 0.6 / 0.45 on #box, kept in "corner" prefs). Seen on the TV at Medium; left at Medium.
 - [x] v0.32 (2026-11-22): corner **Size** button cycles Small / Medium / Large (720 dp) / Full screen (MATCH_PARENT,
       no margin); prefs "size" 0-3 (old 0/1 carry over). With Blend it reads as a double exposure. Seen on the TV.
+- [x] v0.33 (2026-11-22): **hold ▼** on the remote steps the YouTube corner: Small → Medium → Large → Full screen →
+      paused and hidden → Small and playing. After Close it replays the last link. A short ▼ still opens Add photos,
+      now on release. Tested with `input keyevent --longpress KEYCODE_DPAD_DOWN`.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

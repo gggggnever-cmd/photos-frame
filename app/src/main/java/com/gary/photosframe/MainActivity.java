@@ -49,6 +49,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private String[] renaming;                 // {start, end} of the trip being renamed, or null
     private boolean renameFromTrips;
     private boolean longPressed;   // OK was held: the menu opened, so its release must not skip
+    private boolean downHeld;      // ▼ was held: the YouTube corner stepped, so its release must not open Add photos
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -186,13 +187,20 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 panel.open();
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_MENU:
-                addPhotos();
+                // A short press opens Add photos (on release); holding it steps the YouTube corner.
+                if (e.getRepeatCount() == 0) { e.startTracking(); downHeld = false; }
                 return true;
         }
         return super.onKeyDown(code, e);
     }
 
     @Override public boolean onKeyLongPress(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_MENU) {
+            downHeld = true;
+            String n = corner.step();
+            note(n != null ? n : "Nothing to play yet. Send a song from your phone: ▲ Settings → YouTube corner.");
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
             longPressed = true;
             if (tripPanel.isOpen()) tripPanel.onKey(code, true);
@@ -203,6 +211,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     }
 
     @Override public boolean onKeyUp(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_MENU) {
+            if (!downHeld && e.isTracking() && !e.isCanceled()) addPhotos();
+            downHeld = false;
+            return e.isTracking() || super.onKeyUp(code, e);
+        }
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
             if (tripPanel.isOpen()) {
                 if (!longPressed && e.isTracking() && !e.isCanceled()) tripPanel.onKey(code, false);
