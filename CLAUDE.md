@@ -315,6 +315,13 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       Chrome on the owner's phone can't reach the TV's port 8081 (ERR_TOO_MANY_RETRIES, request never arrives);
       Samsung Internet works, so the phone page now says to use it.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
+- [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
+      cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs
+      Display.TurnOff.In → "TurnStandby result: 0" → reports CAST::EDISPLAY_ATV: a TV can't CEC-standby itself.
+      GoogleOff runs `logcat -s cast_shell:I` in the helper's process and calls sleepTv() on TurnOff.In.
+      Needs READ_LOGS granted once by adb (`pm grant com.gary.photosframe android.permission.READ_LOGS`, done
+      2026-11-22; survives `install -r`, lost on uninstall). Tested with a fake log line (TV slept, Cast woke it);
+      a real Google Home off still to be tried by the owner. Google may still say something went wrong.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks

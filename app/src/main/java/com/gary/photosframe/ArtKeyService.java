@@ -91,6 +91,7 @@ public class ArtKeyService extends AccessibilityService {
         registerReceiver(screen, new IntentFilter(Intent.ACTION_SCREEN_ON));
         CornerServer.ensureRunning(this);
         AutoOff.start(this);   // phones can report charging even when only the screensaver is up
+        GoogleOff.start(this); // Google Home's "turn off", which this TV can't do by itself
     }
 
     @Override public boolean onUnbind(Intent i) {
