@@ -277,6 +277,15 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       corner); paste a link (YouTubeLink, unit-tested), play/pause, next/prev, volume, move corner, size, close.
       Pauses when the frame leaves, resumes on return. Tested on the TV from the PC: plays, buttons, move,
       size, close, wrong key 403. NOT yet tried: a playlist link, from the owner's phone.
+- [x] 2026-11-21 **power experiment** (PowerTest, adb-only switches test_power=sleep / test_wake_in=N; also
+      MainActivity setTurnScreenOn/setShowWhenLocked; installed in the 0.21 build). Findings: (1) the app CAN
+      sleep the TV: ArtKeyService performGlobalAction(LOCK_SCREEN) -> standby. (2) With TV Settings -> System ->
+      Power & Energy -> Quick Start + Screenless Service ON and the keep-Wi-Fi-in-standby switch in Network
+      settings ON (owner set all three), the sleeping TV stays on Wi-Fi (ping, adb, mDNS "Kitchen") and a Cast
+      launch or Google Home wakes it; before the Wi-Fi switch it left the network entirely. (3) The app CANNOT
+      wake itself: in standby its exact ELAPSED_REALTIME_WAKEUP alarm shows as type 3 (non-wakeup) and fires only
+      when something else wakes the TV (TIME_TICK stalls too). So "on when we're home" needs an outside waker
+      (Google Home automation, phone cast, IR blaster); the app can do "off" and open the frame after a wake.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks

@@ -29,6 +29,11 @@ public class ArtKeyService extends AccessibilityService {
         return true;   // consume both down and up so T-Exhibition doesn't also start
     }
 
+    /** The running helper, if the owner has it switched on (used to put the TV to sleep). */
+    static volatile ArtKeyService running;
+    @Override protected void onServiceConnected() { running = this; }
+    @Override public boolean onUnbind(Intent i) { running = null; return super.onUnbind(i); }
+
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
 
     @Override public void onInterrupt() { }

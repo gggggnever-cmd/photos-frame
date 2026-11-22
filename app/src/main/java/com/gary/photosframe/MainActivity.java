@@ -52,6 +52,8 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        setShowWhenLocked(true);   // when something wakes the TV to show the frame, come up over standby
+        setTurnScreenOn(true);
         root = new FrameLayout(this);
         frame = new FrameView(this);
         root.addView(frame);
@@ -119,6 +121,13 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         // adb test: am start -n com.gary.photosframe/.MainActivity --ez test_art_reminder true
         boolean test = getIntent().getBooleanExtra("test_art_reminder", false);
         getIntent().removeExtra("test_art_reminder");
+        // adb experiments (see PowerTest): put the TV to sleep, or set a wake-up alarm.
+        int wakeIn = getIntent().getIntExtra("test_wake_in", 0);
+        String power = getIntent().getStringExtra("test_power");
+        getIntent().removeExtra("test_wake_in");
+        getIntent().removeExtra("test_power");
+        if (wakeIn > 0) PowerTest.wakeIn(this, wakeIn);
+        if ("sleep".equals(power)) ui.postDelayed(PowerTest::sleep, 1500);
         if (ArtKeyReminder.due(this, test)) {
             ArtKeyReminder.show(this, root);
             reminderUntil = android.os.SystemClock.uptimeMillis() + ArtKeyReminder.SHOW_MS;

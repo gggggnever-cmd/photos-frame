@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <application
@@ -18,6 +20,7 @@
         </activity>
         <activity android:name=".AddPhotosActivity" android:exported="false"
             android:screenOrientation="landscape" />
+        <receiver android:name=".PowerTest$Wake" android:exported="false" />
         <service android:name=".FrameDreamService" android:exported="true"
             android:label="Photos Frame"
             android:permission="android.permission.BIND_DREAM_SERVICE">
