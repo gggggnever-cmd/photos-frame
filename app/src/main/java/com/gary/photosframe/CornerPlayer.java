@@ -128,38 +128,61 @@ final class CornerPlayer {
     }
     void next() { run("corner.next()"); }
     void prev() { run("corner.prev()"); }
-    void volume(int delta) {
-        int v = Math.max(0, Math.min(100, prefs.getInt("volume", 60) + delta));
+    void volume(int delta) { setVolume(prefs.getInt("volume", 60) + delta); }
+
+    // The phone page's slider and segmented controls (2026-11-22) name the choice they want, so each
+    // "next one" step below has a setter beside it. A choice outside the list is ignored.
+
+    /** A volume from the phone's slider, 0-100. */
+    void setVolume(int level) {
+        int v = Math.max(0, Math.min(100, level));
         prefs.edit().putInt("volume", v).apply();
         run("corner.volume(" + v + ")");
     }
 
     /** Crops in a step (for videos whose picture has black bars of its own), then back to none. */
-    void zoom() {
-        int z = (prefs.getInt("zoom", 0) + 1) % ZOOM.length;
+    void zoom() { setZoom((prefs.getInt("zoom", 0) + 1) % ZOOM.length); }
+
+    void setZoom(int z) {
+        if (z < 0 || z >= ZOOM.length) return;
         prefs.edit().putInt("zoom", z).apply();
         run("corner.zoom(" + ZOOM[z] + ")");
     }
 
     /** The next see-through level, then back to solid. */
-    void blend() {
-        int b = (prefs.getInt("blend", 0) + 1) % BLEND.length;
+    void blend() { setBlend((prefs.getInt("blend", 0) + 1) % BLEND.length); }
+
+    void setBlend(int b) {
+        if (b < 0 || b >= BLEND.length) return;
         prefs.edit().putInt("blend", b).apply();
         run("corner.blend(" + BLEND[b] + ")");
     }
 
     /** Next corner, clockwise from bottom-right. */
-    void move() {
-        prefs.edit().putInt("corner", (prefs.getInt("corner", 0) + 1) % GRAVITY.length).apply();
+    void move() { setCorner((prefs.getInt("corner", 0) + 1) % GRAVITY.length); }
+
+    /** 0 bottom-right, 1 bottom-left, 2 top-left, 3 top-right. */
+    void setCorner(int c) {
+        if (c < 0 || c >= GRAVITY.length) return;
+        prefs.edit().putInt("corner", c).apply();
         place();
     }
 
     /** Next size: Small → Medium → Large → Full screen → Small. */
-    void nextSize() {
-        prefs.edit().putInt("size", (size() + 1) % WIDTH_DP.length).apply();
+    void nextSize() { setSize((size() + 1) % WIDTH_DP.length); }
+
+    /** Choosing a size also brings the window back from "off" or "music only". */
+    void setSize(int s) {
+        if (s < 0 || s >= WIDTH_DP.length) return;
+        prefs.edit().putInt("size", s).apply();
         place();
         if (hidden) unhide();
         else if (musicOnly) { musicOnly = false; place(); }
+    }
+
+    /** The number the phone sent with a command ("2"), or -1 if it sent none, which means "the next one". */
+    static int choice(String arg) {
+        try { return Integer.parseInt(arg.trim()); } catch (Exception e) { return -1; }
     }
     private int size() { int s = prefs.getInt("size", 0); return s >= 0 && s < WIDTH_DP.length ? s : 0; }
 
@@ -184,13 +207,19 @@ final class CornerPlayer {
 
     void destroy() { if (web != null) { web.destroy(); web = null; } }
 
-    /** What's playing, for the phone page: {title, author, state, index, count, volume, showing, corner, big}. */
+    /**
+     * What's playing, for the phone page: {id, title, author, state, index, count, mix} from the player's page,
+     * plus {showing, volume, size, corner, hidden, musicOnly, zoom, blend} from here.
+     */
     String state() {
         try {
             JSONObject j = new JSONObject(state);
             j.put("showing", showing);
             j.put("volume", prefs.getInt("volume", 60));
             j.put("size", size());
+            j.put("corner", prefs.getInt("corner", 0) % GRAVITY.length);
+            // The phone puts the id in the thumbnail's address, so only a real-looking one goes out.
+            if (!j.optString("id").matches("[A-Za-z0-9_-]{11}")) j.remove("id");
             j.put("hidden", hidden);
             j.put("musicOnly", musicOnly);
             j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);

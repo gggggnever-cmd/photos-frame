@@ -26,8 +26,6 @@ final class TripPanel extends LinearLayout {
         void closeTrips();
     }
 
-    private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, DIM = 0x66F1EDE4, ACCENT = 0xFFE8C9A0;
-
     private final Host host;
     private final LinearLayout list;
     private final ScrollView scroll;
@@ -41,27 +39,34 @@ final class TripPanel extends LinearLayout {
         super(ctx);
         this.host = host;
         setOrientation(VERTICAL);
-        setPadding(dp(28), dp(24), dp(28), dp(20));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF21E1C1A);
-        bg.setCornerRadius(dp(14));
-        bg.setStroke(Math.max(1, dp(1)), 0x40F1EDE4);
-        setBackground(bg);
-        addView(text("Trips to play", 26, INK, Typeface.SERIF));
-        View gap = new View(ctx);
-        addView(gap, new LayoutParams(1, dp(8)));
+        setPadding(dp(28), dp(22), dp(28), dp(20));
+        setBackground(Ui.card(ctx));
+        addView(Ui.title(ctx, "Trips to play", Ui.TITLE));
+        TextView sub = Ui.text(ctx, "Ticked trips play together.", Ui.HINT, Ui.SOFT);
+        sub.setPadding(0, dp(5), 0, 0);
+        addView(sub);
+        addView(Ui.gap(ctx, 10));
         scroll = new ScrollView(ctx);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setVerticalFadingEdgeEnabled(true);   // rows fade out at the top and bottom: there is more to scroll to
+        scroll.setFadingEdgeLength(dp(28));
         list = new LinearLayout(ctx);
         list.setOrientation(VERTICAL);
+        list.setPadding(dp(8), dp(4), dp(8), dp(4));   // room for the focused row to grow without being cut off
         scroll.addView(list);
-        addView(scroll, new LayoutParams(LayoutParams.MATCH_PARENT, dp(380)));
-        View gap2 = new View(ctx);
-        addView(gap2, new LayoutParams(1, dp(8)));
-        addView(text("▲▼ move   ·   OK ticks a trip (ticked trips play together)   ·   hold OK to rename   ·   Back when done",
-                13, SOFT, Typeface.SANS_SERIF));
+        addView(scroll, new LayoutParams(LayoutParams.MATCH_PARENT, dp(350)));
+        addView(Ui.gap(ctx, 12));
+        addView(Ui.keys(ctx, "▲▼", "Move", "OK", "Tick", "Hold OK", "Rename", "Back", "Done"));
     }
 
     int cardWidth() { return dp(620); }
+
+    /** Every way of showing the card (open, coming back from another card) fades it in. */
+    @Override public void setVisibility(int visibility) {
+        boolean was = getVisibility() == VISIBLE;
+        super.setVisibility(visibility);
+        if (visibility == VISIBLE && !was) Ui.fadeIn(this);
+    }
 
     boolean isOpen() { return getVisibility() == VISIBLE; }
 
@@ -140,11 +145,15 @@ final class TripPanel extends LinearLayout {
         LinearLayout row = new LinearLayout(getContext());
         row.setOrientation(HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(10), dp(8), dp(12), dp(8));
-        TextView tick = text("", 18, ACCENT, Typeface.SANS_SERIF);
-        row.addView(tick, new LayoutParams(dp(30), LayoutParams.WRAP_CONTENT));
-        row.addView(text(label, 18, gone ? DIM : INK, Typeface.SANS_SERIF), new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(text(info, 15, gone ? DIM : SOFT, Typeface.SANS_SERIF));
+        row.setPadding(dp(12), dp(9), dp(14), dp(9));
+        TextView tick = Ui.text(getContext(), "", 13, Ui.DARK);
+        tick.setGravity(Gravity.CENTER);
+        tick.setTypeface(Typeface.SANS_SERIF, Typeface.BOLD);
+        LayoutParams tp = new LayoutParams(dp(24), dp(24));
+        tp.rightMargin = dp(14);
+        row.addView(tick, tp);
+        row.addView(Ui.text(getContext(), label, Ui.ROW, gone ? Ui.FAINT : Ui.INK), new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(Ui.text(getContext(), info, 15, gone ? Ui.FAINT : Ui.SOFT));
         rows.add(row);
         ticks.add(tick);
         list.addView(row);
@@ -153,25 +162,19 @@ final class TripPanel extends LinearLayout {
     private void refresh() {
         boolean any = false;
         for (boolean c : chosen) any |= c;
-        ticks.get(0).setText(any ? "" : "✓");
-        for (int i = 0; i < trips.size(); i++) ticks.get(i + 1).setText(chosen.get(i) ? "✓" : "");
-        for (int i = 0; i < rows.size(); i++) {
-            GradientDrawable d = new GradientDrawable();
-            d.setCornerRadius(dp(8));
-            d.setColor(i == focus ? 0x33F1EDE4 : 0x00000000);
-            rows.get(i).setBackground(d);
-        }
+        tick(ticks.get(0), !any);
+        for (int i = 0; i < trips.size(); i++) tick(ticks.get(i + 1), chosen.get(i));
+        for (int i = 0; i < rows.size(); i++) Ui.focus(rows.get(i), i == focus);
         View f = rows.get(focus);
         scroll.post(() -> scroll.smoothScrollTo(0, Math.max(0, f.getTop() - dp(120))));
     }
 
-    private TextView text(String s, int sp, int color, Typeface face) {
-        TextView v = new TextView(getContext());
-        v.setText(s);
-        v.setTextSize(sp);
-        v.setTextColor(color);
-        v.setTypeface(face);
-        return v;
+    /** A round tick box: filled, with a tick, when on; an empty ring when off. */
+    private void tick(TextView box, boolean on) {
+        box.setText(on ? "✓" : "");
+        GradientDrawable d = Ui.shape(getContext(), on ? Ui.ACCENT : 0x00000000, 12);
+        if (!on) d.setStroke(Math.max(2, dp(1)), Ui.FAINT);
+        box.setBackground(d);
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }

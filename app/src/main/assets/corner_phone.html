@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d1a18">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="/manifest.json">
+<title>TV YouTube</title>
+<!--
+  The phone's remote for the YouTube corner. Served by CornerServer (port 8081), which swaps the private
+  key into the one placeholder in the script below. Everything is in this one file (styles, icons, script)
+  because the page must work on the home Wi-Fi with nothing fetched from outside. The only outside request
+  is the video's thumbnail from YouTube, and the page looks fine without it.
+-->
+<style>
+:root{
+  --bg:#1d1a18; --card:#292522; --well:#1a1715; --raise:#3d3732; --line:rgba(241,237,228,.09);
+  --ink:#f1ede4; --mute:#a69d90; --accent:#e6c08a; --good:#a9c49a; --bad:#eba898;
+  --ease:cubic-bezier(.3,.7,.3,1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{margin:0 auto;max-width:440px;min-height:100vh;color:var(--ink);background:var(--bg);
+  font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;
+  padding:calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:14px}
+button,textarea,input{font:inherit;color:inherit}
+button{border:0;background:none;padding:0;margin:0;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+button:focus-visible,summary:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{display:block;width:24px;height:24px;fill:currentColor}
+
+/* Header */
+header{display:flex;align-items:flex-end;justify-content:space-between;padding:0 4px 2px}
+.eyebrow{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+h1{margin:2px 0 0;font:400 26px/1.15 Georgia,"Times New Roman",serif;letter-spacing:.01em}
+.conn{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mute);padding-bottom:5px}
+.conn i{width:7px;height:7px;border-radius:50%;background:var(--mute);transition:background .3s}
+.conn.ok i{background:var(--good)} .conn.off i{background:var(--bad)}
+
+/* Error banner: stays in view while scrolling, so a failed tap lower down is still explained */
+.banner{position:sticky;top:calc(8px + env(safe-area-inset-top));z-index:5;display:flex;gap:10px;align-items:flex-start;
+  background:#40302b;border:1px solid rgba(235,168,152,.35);color:#f6d9d1;border-radius:14px;padding:11px 8px 11px 13px;
+  font-size:14.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:drop .25s var(--ease)}
+.banner svg{flex:none;width:20px;height:20px;margin-top:1px;color:var(--bad)}
+.banner p{margin:0;flex:1}
+.banner button{flex:none;width:32px;height:32px;margin:-5px 0;display:grid;place-items:center;border-radius:50%;color:#f6d9d1;opacity:.7}
+.banner button svg{width:16px;height:16px;color:inherit;margin:0}
+@keyframes drop{from{opacity:0;transform:translateY(-6px)}}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;transition:opacity .3s}
+.label{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+
+/* Now playing */
+.now{overflow:hidden}
+.art{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#3a322b,#26211d 60%,#2f2924);display:grid;place-items:center}
+.art svg{width:44px;height:44px;color:rgba(241,237,228,.16)}
+.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
+.art.has img{opacity:1}
+.art::after{content:"";position:absolute;inset:auto 0 0;height:45%;background:linear-gradient(transparent,rgba(41,37,34,.85));pointer-events:none}
+.dim .art img{filter:saturate(.5) brightness(.55)}
+.meta{padding:14px 18px 18px}
+.status{display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-bottom:8px}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.count{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+h2{margin:0;font-size:19px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.sub{margin:4px 0 0;color:var(--mute);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note{margin:10px 0 0;font-size:14px;color:var(--accent)}
+/* The little "playing" bars; still when paused */
+.eq{display:flex;align-items:flex-end;gap:2px;width:12px;height:12px}
+.eq i{flex:1;height:30%;background:currentColor;border-radius:1px}
+.playing .eq i{animation:eq 1s ease-in-out infinite}
+.playing .eq i:nth-child(2){animation-delay:-.35s} .playing .eq i:nth-child(3){animation-delay:-.7s}
+@keyframes eq{0%,100%{height:25%}50%{height:100%}}
+
+/* Transport */
+.transport{display:flex;align-items:center;justify-content:center;gap:26px;padding:6px 0 2px;transition:opacity .3s}
+.round{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;color:var(--ink);
+  transition:transform .12s var(--ease),background .15s}
+.round svg{width:30px;height:30px}
+.round:active{transform:scale(.9);background:rgba(241,237,228,.1)}
+.round.main{width:76px;height:76px;background:var(--ink);color:#1d1a18;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.round.main svg{width:34px;height:34px}
+.round.main:active{background:#d9d3c7;transform:scale(.94)}
+.flip{transform:scaleX(-1)}
+#pp .i-pause{display:none} .playing #pp .i-pause{display:block} .playing #pp .i-play{display:none}
+
+/* Volume */
+.volume{display:flex;align-items:center;gap:4px;padding:4px 6px}
+.icon{flex:none;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:var(--mute);transition:transform .12s,background .15s,color .15s}
+.icon:active{transform:scale(.9);background:rgba(241,237,228,.1);color:var(--ink)}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:44px;margin:0;background:transparent;--p:60%}
+input[type=range]:focus{outline:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;
+  background:linear-gradient(to right,var(--ink) var(--p),var(--raise) var(--p))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-8px;border-radius:50%;
+  background:var(--ink);box-shadow:0 1px 5px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--raise)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:3px;background:var(--ink)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:var(--ink)}
+
+/* Display */
+.display{padding:18px 16px 6px}
+.row{padding:14px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0;padding-top:12px}
+.row h3{margin:0 0 9px 2px;font-size:15px;font-weight:500}
+.row h3 small{font-size:13px;font-weight:400;color:var(--mute);margin-left:6px}
+/* Segmented control: --n choices, --i the chosen one; the thumb slides under the labels */
+.seg{position:relative;display:flex;padding:3px;border-radius:13px;background:var(--well)}
+.seg::before{content:"";position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/var(--n));border-radius:10px;
+  background:var(--raise);box-shadow:0 1px 3px rgba(0,0,0,.35);transform:translateX(calc(var(--i)*100%));transition:transform .24s var(--ease),opacity .2s}
+.seg.none::before{opacity:0}
+.seg button{position:relative;flex:1 1 0;min-width:0;min-height:44px;border-radius:10px;font-size:14.5px;color:var(--mute);transition:color .2s,transform .12s}
+.seg button.on{color:var(--ink);font-weight:600}
+.seg button:active{transform:scale(.95)}
+/* Position: a little picture of the TV; tap the corner you want */
+.place{display:flex;align-items:center;justify-content:space-between;gap:12px;transition:opacity .3s}
+.place h3{margin-bottom:2px}
+.place p{margin:0 0 0 2px;font-size:13px;color:var(--mute)}
+.tv{flex:none;display:grid;grid-template-columns:84px 84px;grid-template-rows:48px 48px;border-radius:12px;background:var(--well);
+  box-shadow:inset 0 0 0 1.5px rgba(241,237,228,.14)}
+.tv button{position:relative}
+.tv button::after{content:"";position:absolute;width:32px;height:18px;border-radius:5px;box-shadow:inset 0 0 0 1.5px rgba(241,237,228,.2);
+  transition:background .2s,box-shadow .2s,transform .12s}
+.tv button.on::after{background:var(--accent);box-shadow:none}
+.tv button:active::after{transform:scale(.88)}
+.tv .tl::after{left:9px;top:9px} .tv .tr::after{right:9px;top:9px}
+.tv .bl::after{left:9px;bottom:9px} .tv .br::after{right:9px;bottom:9px}
+.place.na{opacity:.4}
+
+/* Link */
+.link{padding:18px 16px 16px}
+.field{position:relative;margin-top:12px}
+textarea{display:block;width:100%;min-height:76px;resize:none;border:1px solid var(--line);border-radius:14px;background:var(--well);
+  padding:13px 14px;font-size:16px;line-height:1.4;transition:border-color .2s}
+textarea::placeholder{color:#7d756a}
+textarea:focus{outline:0;border-color:rgba(230,192,138,.6)}
+.paste{position:absolute;right:8px;bottom:8px;display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;
+  background:var(--raise);font-size:14px}
+.paste svg{width:16px;height:16px}
+.paste:active{transform:scale(.95)}
+.primary{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:52px;margin-top:12px;border-radius:14px;
+  background:var(--accent);color:#231c12;font-size:17px;font-weight:600;transition:transform .12s var(--ease),filter .15s,opacity .2s}
+.primary svg{width:20px;height:20px}
+.primary:active{transform:scale(.97);filter:brightness(.9)}
+.primary.busy{opacity:.6;pointer-events:none}
+
+/* Close + help */
+.close{align-self:center;display:flex;align-items:center;gap:8px;min-height:48px;padding:0 20px;border-radius:24px;color:var(--mute);
+  font-size:15px;transition:background .15s,color .15s,transform .12s}
+.close svg{width:16px;height:16px}
+.close:active{background:rgba(235,168,152,.12);color:var(--bad);transform:scale(.97)}
+details{padding:0 16px}
+summary{display:flex;align-items:center;justify-content:space-between;min-height:54px;list-style:none;font-size:15px;font-weight:500;cursor:pointer}
+summary::-webkit-details-marker{display:none}
+summary svg{width:18px;height:18px;color:var(--mute);transition:transform .25s var(--ease)}
+details[open] summary svg{transform:rotate(180deg)}
+ol{margin:0;padding:2px 2px 16px 22px;color:#cfc8bc;font-size:14.5px;line-height:1.5}
+li{margin-bottom:9px;padding-left:2px} li::marker{color:var(--mute)} li b{color:var(--ink);font-weight:600}
+
+/* Nothing playing: the link box moves up under the card, and the controls that need a video step back */
+.idle .link{order:-1} .idle header{order:-3} .idle .banner{order:-3} .idle .now{order:-2}
+.idle .art{aspect-ratio:auto;height:92px} .idle .art::after{display:none}
+.idle .status,.idle .close{display:none}
+.idle .transport,.idle .volume,.idle .display{opacity:.35;pointer-events:none}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body class="idle">
+
+<!-- Icons, drawn once and reused -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.1v13.8a1 1 0 0 0 1.5.9l11-6.9a1 1 0 0 0 0-1.7l-11-6.9A1 1 0 0 0 8 5.1z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.6" height="14" rx="1.3"/><rect x="13.4" y="5" width="4.6" height="14" rx="1.3"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 6.2v11.6a1 1 0 0 0 1.6.8l8.4-5.8a1 1 0 0 0 0-1.6L6.6 5.4A1 1 0 0 0 5 6.2z"/><rect x="16.6" y="5" width="2.6" height="14" rx="1.2"/></symbol>
+  <symbol id="i-vol-down" viewBox="0 0 24 24"><path d="M5 9.5v5a1 1 0 0 0 1 1h3l4.3 3.6a.6.6 0 0 0 1-.5V5.4a.6.6 0 0 0-1-.5L9 8.5H6a1 1 0 0 0-1 1z"/><path d="M17.3 9.6a3.6 3.6 0 0 1 0 4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-vol-up" viewBox="0 0 24 24"><path d="M3 9.5v5a1 1 0 0 0 1 1h3l4.3 3.6a.6.6 0 0 0 1-.5V5.4a.6.6 0 0 0-1-.5L7 8.5H4a1 1 0 0 0-1 1z"/><path d="M15.3 9.6a3.6 3.6 0 0 1 0 4.8M18 7a7.2 7.2 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zm0 4.2a1 1 0 0 1 1 1v3.8a1 1 0 0 1-2 0V8.7a1 1 0 0 1 1-1zm0 7.1a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3z"/></symbol>
+  <symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 4h6v3H9zM8 5.5H6.5v14h11v-14H16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20.5h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-frame" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 9.2v5.6l4.8-2.8z"/></symbol>
+</defs></svg>
+
+<header>
+  <div><p class="eyebrow">Photos Frame</p><h1>YouTube corner</h1></div>
+  <div class="conn" id="conn"><i></i><span id="connText">Connecting…</span></div>
+</header>
+
+<div class="banner" id="banner" role="alert" hidden>
+  <svg><use href="#i-alert"/></svg><p id="bannerText"></p>
+  <button id="bannerClose" aria-label="Dismiss"><svg><use href="#i-x"/></svg></button>
+</div>
+
+<section class="card now" id="now" aria-live="polite">
+  <div class="art" id="art"><svg><use href="#i-frame"/></svg><img id="thumb" alt=""></div>
+  <div class="meta">
+    <div class="status">
+      <span class="pill"><span class="eq"><i></i><i></i><i></i></span><span id="stateText"></span></span>
+      <span class="count" id="count"></span>
+    </div>
+    <h2 id="title">Nothing playing</h2>
+    <p class="sub" id="author">Paste a YouTube link to start.</p>
+    <p class="note" id="note" hidden></p>
+  </div>
+</section>
+
+<div class="transport">
+  <button class="round" data-c="prev" aria-label="Previous"><svg class="flip"><use href="#i-next"/></svg></button>
+  <button class="round main" data-c="toggle" id="pp" aria-label="Play or pause">
+    <svg class="i-play"><use href="#i-play"/></svg><svg class="i-pause"><use href="#i-pause"/></svg></button>
+  <button class="round" data-c="next" aria-label="Next"><svg><use href="#i-next"/></svg></button>
+</div>
+
+<div class="card volume">
+  <button class="icon" id="volDown" aria-label="Volume down"><svg><use href="#i-vol-down"/></svg></button>
+  <input type="range" id="vol" min="0" max="100" step="5" value="60" aria-label="Volume">
+  <button class="icon" id="volUp" aria-label="Volume up"><svg><use href="#i-vol-up"/></svg></button>
+</div>
+
+<section class="card display">
+  <p class="label">Display</p>
+  <div class="row">
+    <h3>Size</h3>
+    <div class="seg" data-c="size" style="--n:4;--i:0">
+      <button data-v="0">Small</button><button data-v="1">Medium</button><button data-v="2">Large</button><button data-v="3">Full</button>
+    </div>
+  </div>
+  <div class="row place" id="place">
+    <div><h3>Position</h3><p id="placeHint">Tap a corner</p></div>
+    <!-- The app counts corners clockwise from bottom-right: 0 bottom-right, 1 bottom-left, 2 top-left, 3 top-right -->
+    <div class="tv" data-c="move">
+      <button class="tl" data-v="2" aria-label="Top left"></button><button class="tr" data-v="3" aria-label="Top right"></button>
+      <button class="bl" data-v="1" aria-label="Bottom left"></button><button class="br" data-v="0" aria-label="Bottom right"></button>
+    </div>
+  </div>
+  <div class="row">
+    <h3>Trim black edges <small>for videos with bars</small></h3>
+    <div class="seg" data-c="zoom" style="--n:3;--i:0">
+      <button data-v="0">Off</button><button data-v="1">A little</button><button data-v="2">More</button>
+    </div>
+  </div>
+  <div class="row">
+    <h3>Blend <small>see the photo through it</small></h3>
+    <div class="seg" data-c="blend" style="--n:4;--i:0">
+      <button data-v="0">Off</button><button data-v="1">Light</button><button data-v="2">Medium</button><button data-v="3">Strong</button>
+    </div>
+  </div>
+</section>
+
+<section class="card link">
+  <p class="label">Play something</p>
+  <div class="field">
+    <textarea id="link" rows="2" placeholder="Paste a YouTube link here" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+    <button class="paste" id="paste" hidden><svg><use href="#i-paste"/></svg>Paste</button>
+  </div>
+  <button class="primary" id="go"><svg><use href="#i-tv"/></svg><span id="goText">Play on TV</span></button>
+</section>
+
+<button class="close" data-c="close"><svg><use href="#i-x"/></svg>Close the corner</button>
+
+<details class="card">
+  <summary>How to use<svg><use href="#i-chevron"/></svg></summary>
+  <ol>
+    <li>In the YouTube app, open a video or playlist and tap <b>Share → Copy link</b>.</li>
+    <li>Come back here, tap the box, choose <b>Paste</b>, then <b>Play on TV</b>.</li>
+    <li>Your own playlists play if they're <b>Public</b> or <b>Unlisted</b> (not Private).</li>
+    <li>A single song keeps going: similar songs (YouTube's mix) play after it.</li>
+    <li>Keep this page handy: browser menu → <b>Add to Home screen</b>.</li>
+    <li>If Chrome says the site can't be reached: phone Settings → Apps → Chrome → Permissions →
+      <b>Nearby devices → Allow</b>.</li>
+  </ol>
+</details>
+
+<script>
+// The private key from the QR code; the TV fills it in when it serves the page.
+var K = __KEY__;
+var OFFLINE = 'Can’t reach the TV. Is the frame on, and is this phone on the home Wi-Fi?';
+
+function $(id) { return document.getElementById(id); }
+
+// ---- Talking to the TV ------------------------------------------------------------------------------
+// A request that gives up after 6 s, so a TV that is off shows a message instead of hanging.
+function get(url) {
+  var opts = {cache: 'no-store'}, timer = 0;
+  if (window.AbortController) { var ac = new AbortController(); opts.signal = ac.signal; timer = setTimeout(function () { ac.abort(); }, 6000); }
+  return fetch(url, opts).then(function (r) { clearTimeout(timer); return r.json(); },
+                               function (e) { clearTimeout(timer); throw e; });
+}
+
+// Sends one command; a is optional (the link for play, or the choice for size / zoom / blend / move / vol).
+// Resolves true if the TV accepted it.
+function cmd(c, a) {
+  var url = '/cmd?k=' + encodeURIComponent(K) + '&c=' + c + (a === undefined ? '' : '&a=' + encodeURIComponent(a));
+  return get(url).then(function (j) {
+    if (!j.ok) { showError(j.error || 'That didn’t work. Please try again.'); return false; }
+    hideError();
+    setTimeout(poll, 600);
+    return true;
+  }, function () { showError(OFFLINE, true); return false; });
+}
+
+// ---- Error banner -----------------------------------------------------------------------------------
+var bannerTimer = 0, bannerOffline = false;
+function showError(text, offline) {
+  clearTimeout(bannerTimer);
+  bannerOffline = !!offline;
+  $('bannerText').textContent = text;
+  $('banner').hidden = false;
+  if (!offline) bannerTimer = setTimeout(hideError, 8000);   // "can't reach the TV" stays until it can
+}
+function hideError() { clearTimeout(bannerTimer); bannerOffline = false; $('banner').hidden = true; }
+$('bannerClose').onclick = hideError;
+
+// ---- Showing what the TV says -----------------------------------------------------------------------
+// After a tap the page shows the new choice at once; for a moment it then ignores the TV's older answer
+// so the control doesn't flick back.
+var holdDisplay = 0, holdVolume = 0, dragging = false, thumbId = '';
+
+function choose(box, i) {   // marks choice i in a segmented control or the corner picker (-1 = none)
+  box.style.setProperty('--i', Math.max(0, i));
+  box.classList.toggle('none', i < 0);
+  var b = box.querySelectorAll('button');
+  for (var n = 0; n < b.length; n++) {
+    var on = +b[n].dataset.v === i;
+    b[n].classList.toggle('on', on);
+    b[n].setAttribute('aria-pressed', on);
+  }
+}
+function box(c) { return document.querySelector('.seg[data-c=' + c + '], .tv[data-c=' + c + ']'); }
+
+function setVolume(v) { $('vol').value = v; $('vol').style.setProperty('--p', v + '%'); }
+
+function artwork(id) {
+  if (!/^[\w-]{11}$/.test(id || '')) id = '';
+  if (id === thumbId) return;
+  thumbId = id;
+  var img = $('thumb');
+  $('art').classList.remove('has');
+  if (!id) { img.removeAttribute('src'); return; }
+  img.onload = function () { if (thumbId === id) $('art').classList.add('has'); };
+  img.onerror = function () { $('art').classList.remove('has'); };   // no internet on the phone: keep the plain card
+  img.src = 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
+}
+
+function render(s) {
+  var on = !!s.showing, playing = on && !s.hidden && (s.state == 1 || s.state == 3);
+  var body = document.body.classList;
+  body.toggle('idle', !on);
+  body.toggle('playing', playing);
+  body.toggle('dim', on && (!!s.hidden || !!s.musicOnly));
+
+  var label = s.hidden ? 'Off' : s.musicOnly ? (s.state == 2 ? 'Music only · paused' : 'Music only')
+            : s.state == 1 ? 'Playing' : s.state == 2 ? 'Paused' : s.state == 0 ? 'Ended' : 'Loading…';
+  $('stateText').textContent = label;
+  $('count').textContent = !on ? '' : s.mix ? 'Mix' : s.count > 1 ? (s.index + 1) + ' of ' + s.count : '';
+  $('title').textContent = on ? (s.title || 'Loading…') : 'Nothing playing';
+  $('author').textContent = on ? (s.author || '') : 'Paste a YouTube link to start.';
+  var note = !on ? '' : s.hidden ? 'Hidden on the TV. Tap play to bring it back.'
+           : s.musicOnly ? 'Sound only. Pick a size to see the video again.' : '';
+  $('note').textContent = note; $('note').hidden = !note;
+  artwork(on ? s.id : '');
+
+  if (!dragging && Date.now() > holdVolume) setVolume(s.volume == null ? 60 : s.volume);
+  if (Date.now() > holdDisplay) {
+    choose(box('size'), s.size || 0);
+    choose(box('zoom'), s.zoom || 0);
+    choose(box('blend'), s.blend || 0);
+    choose(box('move'), s.corner || 0);
+    full(s.size == 3);
+  }
+}
+function full(yes) {   // full screen has no corner
+  $('place').classList.toggle('na', yes);
+  $('placeHint').textContent = yes ? 'Not used in full screen' : 'Tap a corner';
+}
+
+// ---- Asking the TV every 3 s ------------------------------------------------------------------------
+var misses = 0;
+function poll() {
+  if (document.hidden) return;
+  get('/state?k=' + encodeURIComponent(K)).then(function (s) {
+    misses = 0;
+    $('conn').className = 'conn ok'; $('connText').textContent = 'Connected';
+    if (bannerOffline) hideError();
+    render(s);
+  }, function () {
+    if (++misses < 2) return;   // one missed answer is normal on Wi-Fi
+    $('conn').className = 'conn off'; $('connText').textContent = 'Not connected';
+  });
+}
+poll();
+setInterval(poll, 3000);
+document.addEventListener('visibilitychange', poll);
+
+// ---- Buttons ----------------------------------------------------------------------------------------
+// Plain buttons (previous, play/pause, next, close) just send their command.
+[].forEach.call(document.querySelectorAll('button[data-c]'), function (b) {
+  b.onclick = function () { cmd(b.dataset.c); };
+});
+
+// Segmented controls and the corner picker send the choice itself, e.g. size 2.
+[].forEach.call(document.querySelectorAll('.seg, .tv'), function (group) {
+  group.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var v = +b.dataset.v;
+    holdDisplay = Date.now() + 1500;
+    choose(group, v);
+    if (group.dataset.c == 'size') full(v == 3);
+    cmd(group.dataset.c, v).then(function (ok) { if (!ok) { holdDisplay = 0; poll(); } });
+  });
+});
+
+// Volume: the slider sets a level when let go; the speaker buttons step by 10 like before.
+var vol = $('vol');
+vol.addEventListener('input', function () { dragging = true; vol.style.setProperty('--p', vol.value + '%'); });
+vol.addEventListener('change', function () { dragging = false; holdVolume = Date.now() + 1500; cmd('vol', vol.value); });
+function nudge(c, by) {
+  holdVolume = Date.now() + 1500;
+  setVolume(Math.max(0, Math.min(100, +vol.value + by)));
+  cmd(c);
+}
+$('volDown').onclick = function () { nudge('voldown', -10); };
+$('volUp').onclick = function () { nudge('volup', 10); };
+
+// Play on TV
+$('go').onclick = function () {
+  var t = $('link').value.trim();
+  if (!t) { showError('Paste a YouTube link first.'); $('link').focus(); return; }
+  var go = $('go');
+  go.classList.add('busy'); $('goText').textContent = 'Sending…';
+  cmd('play', t).then(function (ok) {
+    go.classList.remove('busy'); $('goText').textContent = 'Play on TV';
+    if (ok) { $('link').value = ''; $('link').blur(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+  });
+};
+
+// Paste button: browsers only allow reading the clipboard on secure (https) pages, and this page is plain
+// http on the home network, so it usually stays hidden and the long-press Paste is used instead.
+var paste = $('paste');
+if (window.isSecureContext && navigator.clipboard && navigator.clipboard.readText) {
+  paste.hidden = false;
+  paste.onclick = function () {
+    navigator.clipboard.readText().then(function (t) {
+      if (t && t.trim()) $('link').value = t.trim(); else $('link').focus();
+    }, function () { paste.hidden = true; $('link').focus(); });
+  };
+}
+</script>
+</body></html>

@@ -1,11 +1,8 @@
 package com.gary.photosframe;
 
 import android.content.Context;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.KeyEvent;
-import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -24,7 +21,6 @@ final class SettingsPanel extends LinearLayout {
         java.util.List<String[]> days();   // {yyyy:MM:dd, count}, oldest first
     }
 
-    private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
     private static final int ROW_TRIP = 0, ROW_INTERVAL = 1, ROW_ART = 2, ROW_SURFACE = 3, ROW_LOOK = 4,
             ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_HIGHLIGHTS = 8, ROW_SPACE = 9, ROW_HIDDEN = 10,
             ROW_ADD = 11, ROW_YOUTUBE = 12, ROW_AUTO_OFF = 13, ROWS = 14;
@@ -41,42 +37,48 @@ final class SettingsPanel extends LinearLayout {
         this.settings = settings;
         this.host = host;
         setOrientation(VERTICAL);
-        int pad = dp(32);
-        setPadding(pad, dp(18), pad, dp(14));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF21E1C1A);              // a shade darker than the wall so the card stands out
-        bg.setCornerRadius(dp(14));
-        bg.setStroke(Math.max(1, dp(1)), 0x40F1EDE4);
-        setBackground(bg);
+        setPadding(dp(30), dp(18), dp(30), dp(16));
+        setBackground(Ui.card(ctx));
 
-        TextView title = text("Settings", 24, INK, Typeface.SERIF);
-        addView(title);
-        addView(space(8));
+        // The title and the remote's keys share one line: up to 13 rows leave little height to spare.
+        LinearLayout head = new LinearLayout(ctx);
+        head.setOrientation(HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Ui.title(ctx, "Settings", 26), new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        head.addView(Ui.keys(ctx, "▲▼", "Move", "◀ ▶", "Change", "Back", "Close"));
+        addView(head);
+        addView(Ui.gap(ctx, 8));
         String[] names = {"Trips to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
                 "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner", "TV off if remote unused"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(14), dp(5), dp(14), dp(5));
-            labels[i] = text(names[i], 17, INK, Typeface.SANS_SERIF);
-            values[i] = text("", 17, ACCENT, Typeface.SANS_SERIF);
+            row.setPadding(dp(14), dp(6), dp(14), dp(6));
+            labels[i] = Ui.text(ctx, names[i], 17, Ui.INK);
+            values[i] = Ui.text(ctx, "", 17, Ui.SOFT);
             values[i].setGravity(Gravity.END);
             row.addView(labels[i], new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
             row.addView(values[i], new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
             rows[i] = row;
             addView(row);
         }
-        addView(space(8));
-        addView(text("▲▼ move   ·   ◀ ▶ change   ·   Back to close", 14, SOFT, Typeface.SANS_SERIF));
-        collageNote = text("Cut-out collage rebuilds the photo from flat colours, like layered paper. Some detail is lost.",
-                14, SOFT, Typeface.SANS_SERIF);
+        collageNote = Ui.text(ctx, "Cut-out collage rebuilds the photo from flat colours, like layered paper. Some detail is lost.",
+                Ui.HINT, Ui.SOFT);
+        collageNote.setPadding(dp(14), dp(8), dp(14), 0);
         addView(collageNote);
         refresh();
     }
 
     /** The card's fixed width; the frame stays visible around it. */
-    int cardWidth() { return dp(560); }
+    int cardWidth() { return dp(600); }
+
+    /** Every way of showing the card (open, coming back from another card) fades it in. */
+    @Override public void setVisibility(int visibility) {
+        boolean was = getVisibility() == VISIBLE;
+        super.setVisibility(visibility);
+        if (visibility == VISIBLE && !was) Ui.fadeIn(this);
+    }
 
     void open() { focus = ROW_TRIP; refresh(); setVisibility(VISIBLE); }
 
@@ -148,21 +150,21 @@ final class SettingsPanel extends LinearLayout {
     }
 
     private void refresh() {
-        values[ROW_INTERVAL].setText(arrows(Settings.intervalName(settings.interval()),
+        values[ROW_INTERVAL].setText(arrows(ROW_INTERVAL, Settings.intervalName(settings.interval()),
                 settings.interval(), Settings.INTERVAL_SECONDS.length));
-        values[ROW_ART].setText(arrows(settings.artName(), settings.artLevel(), Settings.ART_STRENGTHS.length));
+        values[ROW_ART].setText(arrows(ROW_ART, settings.artName(), settings.artLevel(), Settings.ART_STRENGTHS.length));
         String style = settings.artLevel() == 0 ? "Off (Print look is off)" : Settings.SURFACE_NAMES[settings.surface()];
-        values[ROW_SURFACE].setText(arrows(style, settings.surface(), Settings.SURFACE_NAMES.length));
+        values[ROW_SURFACE].setText(arrows(ROW_SURFACE, style, settings.surface(), Settings.SURFACE_NAMES.length));
         if (collageNote != null) collageNote.setVisibility(settings.artLevel() > 0 && settings.surface() == Settings.SURFACE_CUT ? VISIBLE : GONE);
-        values[ROW_LOOK].setText(arrows(Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
+        values[ROW_LOOK].setText(arrows(ROW_LOOK, Settings.LOOK_NAMES[settings.look()], settings.look(), Settings.LOOK_NAMES.length));
         values[ROW_TRIP].setText(tripSummary() + (focus == ROW_TRIP ? "  ·  OK to choose" : ""));
-        values[ROW_SPACE].setText(arrows(Settings.SPACE_GB[settings.space()] + " GB", settings.space(), Settings.SPACE_GB.length));
-        values[ROW_ORDER].setText(arrows(Settings.ORDER_NAMES[settings.order()], settings.order(), Settings.ORDER_NAMES.length));
+        values[ROW_SPACE].setText(arrows(ROW_SPACE, Settings.SPACE_GB[settings.space()] + " GB", settings.space(), Settings.SPACE_GB.length));
+        values[ROW_ORDER].setText(arrows(ROW_ORDER, Settings.ORDER_NAMES[settings.order()], settings.order(), Settings.ORDER_NAMES.length));
         rows[ROW_DAY].setVisibility(shown(ROW_DAY) ? VISIBLE : GONE);
         if (shown(ROW_DAY)) {
             java.util.List<String[]> days = host.days();
             int i = dayIndex(days);
-            values[ROW_DAY].setText(arrows(i == 0 ? "Any day" : dayLabel(days.get(i - 1)), i, days.size() + 1));
+            values[ROW_DAY].setText(arrows(ROW_DAY, i == 0 ? "Any day" : dayLabel(days.get(i - 1)), i, days.size() + 1));
         }
         int p = settings.play();
         String play = Settings.PLAY_NAMES[p];
@@ -172,19 +174,18 @@ final class SettingsPanel extends LinearLayout {
             if (c[1] > 0 && c[0] < c[1]) play += " (sorting " + (100 * c[0] / c[1]) + "%)";
             else if (p == Settings.PLAY_PLACES) play += " (" + host.placeCount() + ")";
         }
-        values[ROW_PLAY].setText(arrows(play, p, Settings.PLAY_NAMES.length));
+        values[ROW_PLAY].setText(arrows(ROW_PLAY, play, p, Settings.PLAY_NAMES.length));
         for (int r : new int[]{ROW_ORDER, ROW_DAY, ROW_HIGHLIGHTS}) rows[r].setVisibility(shown(r) ? VISIBLE : GONE);
-        values[ROW_HIGHLIGHTS].setText(arrows(String.valueOf(settings.highlightCount()), settings.highlightsIndex(), Highlights.COUNTS.length));
+        values[ROW_HIGHLIGHTS].setText(arrows(ROW_HIGHLIGHTS, String.valueOf(settings.highlightCount()), settings.highlightsIndex(), Highlights.COUNTS.length));
         int hidden = host.hiddenCount();
         values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK brings them back" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
-        values[ROW_AUTO_OFF].setText(arrows(Settings.autoOffName(settings.autoOff()), settings.autoOff(), Settings.AUTO_OFF_MINUTES.length));
+        values[ROW_AUTO_OFF].setText(arrows(ROW_AUTO_OFF, Settings.autoOffName(settings.autoOff()), settings.autoOff(), Settings.AUTO_OFF_MINUTES.length));
         values[ROW_YOUTUBE].setText(focus == ROW_YOUTUBE ? "OK for the phone code" : "");
+        // The row the remote is on: a soft pill, a touch larger, and its value lit in the accent colour.
         for (int i = 0; i < ROWS; i++) {
-            GradientDrawable d = new GradientDrawable();
-            d.setCornerRadius(dp(8));
-            d.setColor(i == focus ? 0x33F1EDE4 : 0x00000000);
-            rows[i].setBackground(d);
+            Ui.focus(rows[i], i == focus);
+            values[i].setTextColor(i == focus ? Ui.ACCENT : Ui.SOFT);
         }
     }
 
@@ -227,23 +228,9 @@ final class SettingsPanel extends LinearLayout {
         return label + "  ·  " + day[1] + " photos";
     }
 
-    private static String arrows(String v, int i, int n) {
-        return (i > 0 ? "◀  " : "    ") + v + (i < n - 1 ? "  ▶" : "    ");
-    }
-
-    private TextView text(String s, int sp, int color, Typeface face) {
-        TextView v = new TextView(getContext());
-        v.setText(s);
-        v.setTextSize(sp);
-        v.setTextColor(color);
-        v.setTypeface(face);
-        return v;
-    }
-
-    private View space(int h) {
-        View v = new View(getContext());
-        v.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, dp(h)));
-        return v;
+    /** The value; on the row the remote is on it also gets the ◀ ▶ that say which ways it can still go. */
+    private CharSequence arrows(int row, String v, int i, int n) {
+        return row == focus ? Ui.arrows(v, i > 0, i < n - 1) : v;
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }

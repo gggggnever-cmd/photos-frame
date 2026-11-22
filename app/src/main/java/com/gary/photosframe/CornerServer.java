@@ -132,7 +132,7 @@ final class CornerServer {
         Log.i("CornerServer", "request " + path + (c.isEmpty() ? "" : " " + c) + (key.equals(k) ? "" : " (no or wrong key)"));
         if (path.equals("/manifest.json")) {
             send(out, "200 OK", "application/manifest+json", "{\"name\":\"TV YouTube corner\",\"short_name\":\"TV YouTube\","
-                    + "\"display\":\"standalone\",\"background_color\":\"#2e2b28\",\"theme_color\":\"#2e2b28\"}");
+                    + "\"display\":\"standalone\",\"background_color\":\"#1d1a18\",\"theme_color\":\"#1d1a18\"}");
             return;
         }
         if (!key.equals(k)) {
@@ -141,7 +141,7 @@ final class CornerServer {
         }
         switch (path) {
             case "/":
-                send(out, "200 OK", "text/html; charset=utf-8", PhonePage.html(key));
+                send(out, "200 OK", "text/html; charset=utf-8", PhonePage.html(app, key));
                 break;
             case "/cmd": {
                 Commands commands = active;
@@ -172,63 +172,52 @@ final class CornerServer {
         out.flush();
     }
 
-    /** The phone page (plain HTML + a little JavaScript, no outside files). */
+    /**
+     * The phone page. It lives in assets/corner_phone.html (one file: styles, icons and script, nothing
+     * fetched from outside) so it can be edited as a web page instead of as Java strings.
+     */
     static final class PhonePage {
+        private static String template;   // read once: assets can't change while the app runs
+
+        /** The remote, with this TV's key written into its script. Only sent to a phone that already has the key. */
+        static String html(Context ctx, String key) {
+            String t = template;
+            if (t == null) {
+                t = asset(ctx, "corner_phone.html");
+                if (t == null) return message("The remote's page is missing from this build of Photos Frame.");
+                template = t;
+            }
+            // JSON-quoted, so whatever the key holds it stays one JavaScript string.
+            return t.replace("__KEY__", org.json.JSONObject.quote(key));
+        }
+
+        /** No key or the wrong key: says how to get the code, and nothing else. */
         static String locked() {
-            return shell("<h1>YouTube corner</h1><p>Scan the code on the TV first: on the frame press ▲, then "
-                    + "<b>YouTube corner</b>.</p>", "");
+            return message("Scan the code on the TV first: on the frame press \u25b2, then <b>YouTube corner</b>.");
         }
 
-        static String html(String key) {
-            String body = "<h1>YouTube corner</h1>"
-                    + "<div id=now class=now>Nothing playing</div>"
-                    + "<textarea id=link rows=2 placeholder=\"Paste a YouTube link here\"></textarea>"
-                    + "<button class=big id=go>Play on TV</button>"
-                    + "<p id=err class=err></p>"
-                    + "<div class=row><button data-c=prev>⏮</button><button data-c=toggle id=pp>⏯</button><button data-c=next>⏭</button></div>"
-                    + "<div class=row><button data-c=voldown>Vol −</button><button data-c=volup>Vol +</button></div>"
-                    + "<div class=row><button data-c=move>Move corner</button><button data-c=size id=size>Size: Small</button></div>"
-                    + "<div class=row><button data-c=zoom id=zoom>Trim black edges</button><button data-c=blend id=blend>Blend: Off</button></div>"
-                    + "<div class=row><button data-c=close class=quiet>Close the corner</button></div>"
-                    + "<details><summary>How to use</summary><ol>"
-                    + "<li>In the YouTube app, open a video or playlist and tap <b>Share → Copy link</b>.</li>"
-                    + "<li>Come back here, tap the box, choose <b>Paste</b>, then <b>Play on TV</b>.</li>"
-                    + "<li>Your own playlists play if they're <b>Public</b> or <b>Unlisted</b> (not Private).</li>"
-                    + "<li>A single song keeps going: similar songs (YouTube's mix) play after it.</li>"
-                    + "<li>Keep this page: browser menu → <b>Add to Home screen</b>.</li>"
-                    + "<li>If Chrome says the site can't be reached: phone Settings → Apps → Chrome → Permissions → "
-                    + "<b>Nearby devices → Allow</b>.</li></ol></details>";
-            String js = "var K=" + org.json.JSONObject.quote(key) + ";"
-                    + "function q(id){return document.getElementById(id)}"
-                    + "function cmd(c,a){q('err').textContent='';return fetch('/cmd?k='+K+'&c='+c+(a?'&a='+encodeURIComponent(a):''))"
-                    + ".then(function(r){return r.json()}).then(function(j){if(!j.ok)q('err').textContent=j.error;setTimeout(poll,600)})"
-                    + ".catch(function(){q('err').textContent='Can\\u2019t reach the TV. Is the frame on, and is this phone on the home Wi-Fi?'})}"
-                    + "q('go').onclick=function(){var t=q('link').value.trim();if(!t){q('err').textContent='Paste a YouTube link first.';return}"
-                    + "cmd('play',t).then(function(){q('link').value=''})};"
-                    + "document.querySelectorAll('[data-c]').forEach(function(b){b.onclick=function(){cmd(b.dataset.c)}});"
-                    + "function poll(){fetch('/state?k='+K).then(function(r){return r.json()}).then(function(s){"
-                    + "var t=s.showing?(s.title?s.title+(s.author?' \\u00b7 '+s.author:''):'Loading\\u2026'):'Nothing playing';"
-                    + "if(s.showing&&s.count>1)t+='  ('+(s.index+1)+' of '+s.count+')';"
-                    + "if(s.showing&&s.state==2)t='Paused: '+t;if(s.hidden)t='Off (press ▼ on the remote): '+t;if(s.musicOnly)t='Music only: '+t;"
-                    + "q('now').textContent=t;q('size').textContent='Size: '+['Small','Medium','Large','Full screen'][s.size||0];q('zoom').textContent=['Trim black edges','Trim more','No trim'][s.zoom||0];q('blend').textContent='Blend: '+['Off','Light','Medium','Strong'][s.blend||0]}).catch(function(){})}"
-                    + "poll();setInterval(poll,3000);";
-            return shell(body, js);
-        }
-
-        private static String shell(String body, String js) {
-            return "<!doctype html><html><head><meta charset=utf-8>"
+        private static String message(String html) {
+            return "<!doctype html><html lang=en><head><meta charset=utf-8>"
                     + "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
-                    + "<link rel=manifest href=/manifest.json><meta name=theme-color content=#2e2b28>"
-                    + "<title>TV YouTube</title><style>"
-                    + "body{font:17px/1.45 system-ui,sans-serif;background:#2e2b28;color:#f1ede4;margin:0;padding:18px 16px;max-width:520px}"
-                    + "h1{font:400 24px Georgia,serif;margin:0 0 10px}"
-                    + ".now{background:#1e1c1a;border-radius:10px;padding:12px;margin-bottom:12px;color:#e8c9a0;min-height:22px}"
-                    + "textarea{width:100%;box-sizing:border-box;font:16px system-ui;padding:10px;border-radius:8px;border:0}"
-                    + "button{background:#f1ede4;color:#2e2b28;border:0;border-radius:10px;padding:14px 0;font-size:18px;flex:1}"
-                    + "button.big{width:100%;margin:10px 0 4px;font-size:19px}button.quiet{background:#4a4540;color:#f1ede4}"
-                    + ".row{display:flex;gap:10px;margin:10px 0}.err{color:#f0b3a8;min-height:1em;margin:4px 0}"
-                    + "details{margin-top:18px;color:#cfc8bc}li{margin-bottom:8px}"
-                    + "</style></head><body>" + body + "<script>" + js + "</script></body></html>";
+                    + "<meta name=theme-color content=#1d1a18><title>TV YouTube</title><style>"
+                    + "body{font:17px/1.5 system-ui,sans-serif;background:#1d1a18;color:#f1ede4;margin:0 auto;max-width:440px;padding:22px 20px}"
+                    + "p.e{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a69d90}"
+                    + "h1{font:400 26px/1.15 Georgia,serif;margin:2px 0 16px}"
+                    + "div{background:#292522;border:1px solid rgba(241,237,228,.09);border-radius:20px;padding:18px;color:#cfc8bc}"
+                    + "b{color:#f1ede4}</style></head><body><p class=e>Photos Frame</p><h1>YouTube corner</h1><div>"
+                    + html + "</div></body></html>";
+        }
+
+        private static String asset(Context ctx, String name) {
+            try (java.io.InputStream in = ctx.getAssets().open(name)) {
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] b = new byte[8192];
+                for (int n; (n = in.read(b)) > 0; ) out.write(b, 0, n);
+                return out.toString(StandardCharsets.UTF_8.name());
+            } catch (IOException e) {
+                Log.w("CornerServer", "can't read " + name + ": " + e);
+                return null;
+            }
         }
     }
 }

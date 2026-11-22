@@ -77,7 +77,8 @@ function report() {
   var d = player.getVideoData ? player.getVideoData() : {};
   if (d && d.video_id) shape(d.video_id);
   var list = player.getPlaylist ? player.getPlaylist() : null;
-  TV.state(JSON.stringify({title: (d && d.title) || '', author: (d && d.author) || '', state: player.getPlayerState(),
+  // id: the phone page shows the video's thumbnail as artwork
+  TV.state(JSON.stringify({id: (d && d.video_id) || '', title: (d && d.title) || '', author: (d && d.author) || '', state: player.getPlayerState(),
     index: player.getPlaylistIndex ? player.getPlaylistIndex() : -1, count: list ? list.length : 0, volume: volume, mix: mix}));
 }
 window.corner = {

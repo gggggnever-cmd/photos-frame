@@ -331,6 +331,12 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
 - [x] v0.35 (2026-11-22): ▼ gains a **music only** step after Small: the WebView shrinks to 1x1 px and keeps playing;
       next ▼ is off (paused, hidden). Don't use setAlpha(0) for this: the video stalled in buffering (state 3)
       when the view wasn't drawn. Tested 40 s steady playback at 1 px and a clean screencap.
+- [~] v0.36 (2026-11-22): **design pass** by a Fable design agent. Phone page moved to assets/corner_phone.html
+      (key swapped into __KEY__; now-playing card with thumbnail, transport, volume slider, segmented Display
+      controls). size/zoom/blend/move take optional &a=<n>; new `vol` &a=0..100; /state adds id and corner. TV QR
+      screens and every overlay restyled through a shared Ui.java (colours, type scale, glass cards, focus pill).
+      Behaviour unchanged. Built and tests pass; phone page checked at 375 px against a mock. NOT yet installed:
+      the owner's photos were downloading. Check on the TV: Settings height (~534 of 540 dp with the collage note).
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

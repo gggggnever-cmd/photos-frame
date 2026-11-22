@@ -1,8 +1,6 @@
 package com.gary.photosframe;
 
 import android.content.Context;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -29,14 +27,13 @@ final class PhotoMenu extends LinearLayout {
         void closeMenu();
     }
 
-    private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
     private static final int ROW_PHOTO = 0, ROW_FAV = 1, ROW_HIDE = 2, ROW_PLACE = 3, ROW_TRIP = 4, ROW_CANCEL = 5, ROWS = 6;
     private static final String[] POSITIONS_2 = {"Left", "Right"}, POSITIONS_3 = {"Left", "Middle", "Right"};
 
     private final Host host;
     private final LinearLayout[] rows = new LinearLayout[ROWS];
     private final TextView[] values = new TextView[ROWS];
-    private final TextView hint;
+    private final View keysOne, keysMany;   // the remote's hints: for one photo, and for 2-3 side by side
     private List<String> photos;
     private int chosen, focus;
 
@@ -44,35 +41,38 @@ final class PhotoMenu extends LinearLayout {
         super(ctx);
         this.host = host;
         setOrientation(VERTICAL);
-        setPadding(dp(28), dp(24), dp(28), dp(20));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF21E1C1A);
-        bg.setCornerRadius(dp(14));
-        bg.setStroke(Math.max(1, dp(1)), 0x40F1EDE4);
-        setBackground(bg);
-        addView(text("This photo", 24, INK, Typeface.SERIF));
-        View gap = new View(ctx);
-        addView(gap, new LayoutParams(1, dp(10)));
+        setPadding(dp(28), dp(24), dp(28), dp(22));
+        setBackground(Ui.card(ctx));
+        addView(Ui.title(ctx, "This photo", Ui.TITLE));
+        addView(Ui.gap(ctx, 12));
         String[] names = {"Which photo", "Favourite", "Hide this photo", "In \"Places only\"", "Name this trip", "Close"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(12), dp(9), dp(12), dp(9));
-            TextView label = text(names[i], 18, INK, Typeface.SANS_SERIF);
-            values[i] = text("", 18, ACCENT, Typeface.SANS_SERIF);
+            row.setPadding(dp(14), dp(10), dp(14), dp(10));
+            TextView label = Ui.text(ctx, names[i], Ui.ROW, Ui.INK);
+            values[i] = Ui.text(ctx, "", Ui.ROW, Ui.SOFT);
             row.addView(label, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
             row.addView(values[i], new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
             rows[i] = row;
             addView(row);
         }
-        View gap2 = new View(ctx);
-        addView(gap2, new LayoutParams(1, dp(10)));
-        hint = text("", 13, SOFT, Typeface.SANS_SERIF);
-        addView(hint);
+        addView(Ui.gap(ctx, 14));
+        keysOne = Ui.keys(ctx, "▲▼", "Move", "OK", "Choose", "Back", "Close");
+        keysMany = Ui.keys(ctx, "◀ ▶", "Photo", "▲▼", "Move", "OK", "Choose", "Back", "Close");
+        addView(keysOne);
+        addView(keysMany);
     }
 
-    int cardWidth() { return dp(420); }
+    int cardWidth() { return dp(520); }
+
+    /** Every way of showing the card (open, coming back from another card) fades it in. */
+    @Override public void setVisibility(int visibility) {
+        boolean was = getVisibility() == VISIBLE;
+        super.setVisibility(visibility);
+        if (visibility == VISIBLE && !was) Ui.fadeIn(this);
+    }
 
     boolean isOpen() { return getVisibility() == VISIBLE; }
 
@@ -83,7 +83,8 @@ final class PhotoMenu extends LinearLayout {
         chosen = 0;
         focus = ROW_FAV;
         rows[ROW_PHOTO].setVisibility(photos.size() > 1 ? VISIBLE : GONE);
-        hint.setText(photos.size() > 1 ? "◀ ▶ pick photo  ·  ▲▼ move  ·  OK to choose  ·  Back to close" : "▲▼ move   ·   OK to choose   ·   Back to close");
+        keysMany.setVisibility(photos.size() > 1 ? VISIBLE : GONE);
+        keysOne.setVisibility(photos.size() > 1 ? GONE : VISIBLE);
         setVisibility(VISIBLE);
         refresh();
     }
@@ -118,29 +119,19 @@ final class PhotoMenu extends LinearLayout {
 
     private void refresh() {
         String[] pos = photos.size() == 2 ? POSITIONS_2 : POSITIONS_3;
-        values[ROW_PHOTO].setText(photos.size() > 1 ? "◀  " + pos[Math.min(chosen, pos.length - 1)] + "  ▶" : "");
+        values[ROW_PHOTO].setText(photos.size() > 1
+                ? Ui.arrows(pos[Math.min(chosen, pos.length - 1)], chosen > 0, chosen < photos.size() - 1) : "");
         boolean fav = host.isFavourite(photos.get(chosen));
-        values[ROW_FAV].setText(fav ? "♥ Yes  ·  OK to remove" : "♡ No  ·  OK to add");
+        values[ROW_FAV].setText(fav ? "Yes  ·  OK to remove" : "No  ·  OK to add");
         Boolean place = host.isPlace(photos.get(chosen));
-        values[ROW_PLACE].setText(place == null ? "not sorted yet" : place ? "✓ Yes" : "✗ No");
+        values[ROW_PLACE].setText(place == null ? "not sorted yet" : place ? "Yes" : "No");
         String trip = host.tripLabel(photos.get(chosen));
         values[ROW_TRIP].setText(trip == null ? "" : trip.replace("  ·  ", " · "));
         for (int i = 0; i < ROWS; i++) {
-            GradientDrawable d = new GradientDrawable();
-            d.setCornerRadius(dp(8));
-            d.setColor(i == focus ? 0x33F1EDE4 : 0x00000000);
-            rows[i].setBackground(d);
+            Ui.focus(rows[i], i == focus);
+            values[i].setTextColor(i == focus ? Ui.ACCENT : Ui.SOFT);
         }
         host.highlight(photos.size() > 1 ? chosen : -1);
-    }
-
-    private TextView text(String s, int sp, int color, Typeface face) {
-        TextView v = new TextView(getContext());
-        v.setText(s);
-        v.setTextSize(sp);
-        v.setTextColor(color);
-        v.setTypeface(face);
-        return v;
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }

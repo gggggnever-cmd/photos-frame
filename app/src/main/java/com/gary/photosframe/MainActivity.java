@@ -60,38 +60,32 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         root.addView(frame);
         if (!frame.hasOwnPhotos()) {
             // Quiet one-time hint while only the placeholder samples are showing.
-            TextView hint = new TextView(this);
-            hint.setText("Press ▼ on the remote to add your photos  ·  ▲ for settings");
-            hint.setTextColor(0x99F1EDE4);
-            hint.setTextSize(16);
+            TextView hint = Ui.text(this, "Press ▼ on the remote to add your photos  ·  ▲ for settings", 16, Ui.SOFT);
+            Ui.pill(hint);
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-            lp.bottomMargin = 24;
+            lp.bottomMargin = Ui.dp(this, 28);
             root.addView(hint, lp);
             hint.animate().alpha(0f).setStartDelay(10000).setDuration(2000);
         }
-        storageNote = new TextView(this);
-        storageNote.setTextColor(0xCCE8C9A0);
-        storageNote.setTextSize(15);
+        // The short messages over the photos are small glass pills (see Ui), so they read on any picture.
+        storageNote = Ui.text(this, "", 15, Ui.ACCENT);
+        Ui.pill(storageNote);
         FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        sp.topMargin = 20;
+        sp.topMargin = Ui.dp(this, 24);
         root.addView(storageNote, sp);
         showStorageWarning();
-        levelNote = new TextView(this);
-        levelNote.setTextColor(0xFFF1EDE4);
-        levelNote.setTextSize(20);
-        levelNote.setShadowLayer(8, 0, 0, 0xFF000000);
+        levelNote = Ui.text(this, "", 20, Ui.INK);
+        Ui.pill(levelNote);
         levelNote.setAlpha(0f);
         FrameLayout.LayoutParams lv = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        lv.bottomMargin = 60;
+        lv.bottomMargin = Ui.dp(this, 84);   // above the first-run hint and the art-button reminder
         root.addView(levelNote, lv);
-        queueNote = new TextView(this);
-        queueNote.setTextColor(0x99F1EDE4);
-        queueNote.setTextSize(13);
-        queueNote.setShadowLayer(6, 0, 0, 0xFF000000);
+        queueNote = Ui.text(this, "", 14, Ui.SOFT);
+        Ui.pill(queueNote);
         queueNote.setVisibility(View.GONE);
         FrameLayout.LayoutParams qn = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
-        qn.bottomMargin = 16;
-        qn.rightMargin = 24;
+        qn.bottomMargin = Ui.dp(this, 20);
+        qn.rightMargin = Ui.dp(this, 24);
         root.addView(queueNote, qn);
         DownloadQueue.resume(this);   // carries on with picks still waiting from before a restart
         seenAdded = DownloadQueue.addedCount();
@@ -250,7 +244,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     // PhotoMenu.Host
     @Override public boolean isFavourite(String id) { return frame.isFavourite(id); }
     @Override public void favourite(String id) {
-        frame.toggleFavourite(id, now -> note(now ? "♥ Added to favourites" : "Removed from favourites"));
+        frame.toggleFavourite(id, now -> note(now ? "Added to favourites" : "Removed from favourites"));
     }
     @Override public void hide(String id) {
         frame.hide(id, () -> note("Photo hidden. To bring it back: Settings → Hidden photos"));
@@ -292,31 +286,23 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private void buildRenameBox(FrameLayout root) {
         renameBox = new android.widget.LinearLayout(this);
         renameBox.setOrientation(android.widget.LinearLayout.VERTICAL);
-        int pad = Math.round(28 * getResources().getDisplayMetrics().density);
+        int pad = Ui.dp(this, 30);
         renameBox.setPadding(pad, pad, pad, pad);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xF21E1C1A);
-        bg.setCornerRadius(pad / 2f);
-        renameBox.setBackground(bg);
-        renameTitle = new TextView(this);
-        renameTitle.setTextColor(0xFFF1EDE4);
-        renameTitle.setTextSize(22);
-        renameTitle.setTypeface(android.graphics.Typeface.SERIF);
+        renameBox.setBackground(Ui.card(this));
+        renameTitle = Ui.title(this, "", 24);
         renameBox.addView(renameTitle);
+        renameBox.addView(Ui.gap(this, 16));
         renameField = new android.widget.EditText(this);
         renameField.setSingleLine(true);
-        renameField.setTextSize(22);
-        renameField.setTextColor(0xFF2E2B28);       // the TV draws the text box light
-        renameField.setHintTextColor(0x992E2B28);
+        Ui.field(renameField);                       // a light box with dark text
         renameField.setHint("Say or type a name, e.g. Egypt");
         renameField.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
         renameField.setOnEditorActionListener((v, a, ev) -> { saveRename(); return true; });
         renameBox.addView(renameField);
-        TextView hint = new TextView(this);
-        hint.setTextColor(0xB3F1EDE4);
-        hint.setTextSize(14);
-        hint.setText("OK to save  ·  leave empty to use the dates instead  ·  Back to cancel");
-        renameBox.addView(hint);
+        renameBox.addView(Ui.gap(this, 12));
+        renameBox.addView(Ui.text(this, "Leave it empty to use the dates instead.", Ui.HINT, Ui.SOFT));
+        renameBox.addView(Ui.gap(this, 16));
+        renameBox.addView(Ui.keys(this, "OK", "Save", "Back", "Cancel"));
         renameBox.setVisibility(View.GONE);
         root.addView(renameBox, new FrameLayout.LayoutParams(Math.round(560 * getResources().getDisplayMetrics().density), -2, Gravity.CENTER));
     }
@@ -328,6 +314,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         renameTitle.setText("Name this trip: " + label.replace("  ·  ", " · "));
         renameField.setText("");
         renameBox.setVisibility(View.VISIBLE);
+        Ui.fadeIn(renameBox);
         renameField.requestFocus();
         renameField.postDelayed(() -> {
             android.view.inputmethod.InputMethodManager imm =
@@ -367,31 +354,38 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         android.widget.LinearLayout card = new android.widget.LinearLayout(this);
         card.setOrientation(android.widget.LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
-        int pad = Math.round(28 * getResources().getDisplayMetrics().density);
+        int pad = Ui.dp(this, 36);
         card.setPadding(pad, pad, pad, pad);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xF21E1C1A);
-        bg.setCornerRadius(pad / 2f);
-        card.setBackground(bg);
+        card.setBackground(Ui.card(this));
         if (url != null) {
             android.widget.ImageView qr = new android.widget.ImageView(this);
-            qr.setImageBitmap(Qr.make(url, 360, 0xFF2E2B28, 0xFFF1EDE4));
-            int q = Math.round(200 * getResources().getDisplayMetrics().density);
-            android.widget.LinearLayout.LayoutParams qp = new android.widget.LinearLayout.LayoutParams(q, q);
+            // Made at the size it is shown, so every square of the code stays sharp for the phone's camera.
+            qr.setImageBitmap(Qr.make(url, Ui.dp(this, 220), Ui.DARK, Ui.PAPER));
+            android.widget.LinearLayout.LayoutParams qp = new android.widget.LinearLayout.LayoutParams(-2, -2);
             qp.rightMargin = pad;
-            card.addView(qr, qp);
+            card.addView(Ui.qrTile(this, qr, 220), qp);
         }
-        TextView t = new TextView(this);
-        t.setTextColor(0xFFF1EDE4);
-        t.setTextSize(17);
-        t.setLineSpacing(0, 1.3f);
-        t.setText(url == null ? "YouTube corner\n\nThe TV isn't connected to your Wi-Fi."
-                : "YouTube corner\n\nScan with your phone (on the home Wi-Fi). On that page, paste a YouTube link "
-                + "and tap Play on TV: it plays in a corner while the photos carry on.\n"
-                + "Tip: in Chrome, ⋮ → Add to Home screen, so you don't need this code again.\n\n"
-                + "Not signed in to YouTube: public and unlisted videos and playlists play, with ads.\n\nOK or Back to close");
-        card.addView(t, new android.widget.LinearLayout.LayoutParams(Math.round(380 * getResources().getDisplayMetrics().density), -2));
+        android.widget.LinearLayout col = new android.widget.LinearLayout(this);
+        col.setOrientation(android.widget.LinearLayout.VERTICAL);
+        col.addView(Ui.eyebrow(this, "Phone remote"));
+        col.addView(Ui.gap(this, 6));
+        col.addView(Ui.title(this, "YouTube corner", Ui.TITLE));
+        col.addView(Ui.gap(this, 18));
+        if (url == null) {
+            col.addView(Ui.text(this, "The TV isn't connected to your Wi-Fi.", 19, Ui.INK));
+        } else {
+            col.addView(Ui.step(this, 1, "Scan the code with your phone, on the home Wi-Fi."));
+            col.addView(Ui.step(this, 2, "Paste a YouTube link and tap Play on TV. It plays in a corner while the photos carry on."));
+            TextView more = Ui.text(this, "Tip: in Chrome, menu → Add to Home screen, so you don't need this code again.\n"
+                    + "Not signed in to YouTube: public and unlisted videos and playlists play, with ads.", 15, Ui.SOFT);
+            more.setLineSpacing(0, 1.3f);
+            col.addView(more);
+        }
+        col.addView(Ui.gap(this, 20));
+        col.addView(Ui.keys(this, "OK or Back", "Close"));
+        card.addView(col, new android.widget.LinearLayout.LayoutParams(Ui.dp(this, 400), -2));
         root.addView(card, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        Ui.fadeIn(card);
         cornerCard = card;
     }
 
@@ -411,6 +405,9 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
             return null;
         }
         if (!corner.showing() && !c.equals("close")) return "Nothing is playing. Paste a link and tap Play on TV.";
+        // The phone's slider and segmented controls send the choice they want ("size" with 2); with no
+        // number (n < 0) these commands step to the next choice, as they always did.
+        final int n = CornerPlayer.choice(arg);
         runOnUiThread(() -> {
             switch (c) {
                 case "toggle": corner.toggle(); break;
@@ -418,10 +415,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 case "prev": corner.prev(); break;
                 case "volup": corner.volume(+10); break;
                 case "voldown": corner.volume(-10); break;
-                case "move": corner.move(); break;
-                case "zoom": corner.zoom(); break;
-                case "blend": corner.blend(); break;
-                case "size": corner.nextSize(); break;
+                case "vol": if (n >= 0) corner.setVolume(n); break;
+                case "move": if (n >= 0) corner.setCorner(n); else corner.move(); break;
+                case "zoom": if (n >= 0) corner.setZoom(n); else corner.zoom(); break;
+                case "blend": if (n >= 0) corner.setBlend(n); else corner.blend(); break;
+                case "size": if (n >= 0) corner.setSize(n); else corner.nextSize(); break;
                 case "close": corner.close(); break;
             }
         });

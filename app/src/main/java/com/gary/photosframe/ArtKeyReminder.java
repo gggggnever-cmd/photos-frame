@@ -51,18 +51,16 @@ final class ArtKeyReminder {
 
     /** Adds the reminder line to the bottom of root and fades it out after SHOW_MS. */
     static TextView show(Context ctx, FrameLayout root) {
-        TextView t = new TextView(ctx);
-        t.setText("The art button opens T-Exhibition again  ·  press OK to fix it");
-        t.setTextColor(0xFFF1EDE4);
-        t.setTextSize(18);
-        t.setShadowLayer(8, 0, 0, 0xFF000000);
-        t.setBackgroundColor(0x99000000);
-        t.setPadding(28, 12, 28, 12);
+        TextView t = Ui.text(ctx, "The art button opens T-Exhibition again  ·  press OK to fix it", 18, Ui.INK);
+        Ui.pill(t);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        lp.bottomMargin = 28;
+        lp.bottomMargin = Ui.dp(ctx, 28);
         root.addView(t, lp);
-        t.animate().alpha(0f).setStartDelay(SHOW_MS).setDuration(800)
-                .withEndAction(() -> root.removeView(t));
+        // Fades in, stays, fades out; gone from the screen SHOW_MS after it appeared, as before.
+        t.setAlpha(0f);
+        t.animate().alpha(1f).setDuration(300).withEndAction(() ->
+                t.animate().alpha(0f).setStartDelay(SHOW_MS - 300).setDuration(800)
+                        .withEndAction(() -> root.removeView(t)));
         return t;
     }
 

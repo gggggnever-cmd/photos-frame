@@ -13,6 +13,7 @@ import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -29,12 +30,13 @@ import java.util.List;
  */
 public class AddPhotosActivity extends Activity {
     static final String EXTRA_ADDED = "added";
-    private static final int INK = 0xFFF1EDE4, SOFT = 0xFFB9B2A6, DARK = 0xFF2E2B28;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile boolean stopped;
     private Auth auth;
     private ImageView qr;
+    private View qrTile, footer;   // the light tile round the code; the "Back" hint
+    private LinearLayout steps;    // the numbered steps beside the code
     private TextView title, body, code;
     private boolean canRetry;
 
@@ -74,11 +76,11 @@ public class AddPhotosActivity extends Activity {
     private void start() {
         canRetry = false;
         if (!auth.isConfigured()) {
-            show(null, "Not set up yet", "Google sign-in isn't set up on this TV yet. Ask whoever set up the app.", null);
+            show(null, "Not set up yet", null, "Google sign-in isn't set up on this TV yet. Ask whoever set up the app.", null);
             return;
         }
         if (Storage.isFull(this)) {
-            show(null, "No room for more photos", Storage.warning(this)
+            show(null, "No room for more photos", null, Storage.warning(this)
                     + "\n\nPress Back to return to the frame.", null);
             return;
         }
@@ -100,7 +102,7 @@ public class AddPhotosActivity extends Activity {
             String msg = e.getMessage();
             if (e instanceof Http.HttpError && ((Http.HttpError) e).code == 401) auth.signOut();
             canRetry = true;
-            show(null, "Something went wrong", msg + "\n\nPress OK to try again, or Back to return to the frame.", null);
+            show(null, "Something went wrong", null, msg + "\n\nPress OK to try again, or Back to return to the frame.", null);
         }
     }
 
@@ -120,10 +122,11 @@ public class AddPhotosActivity extends Activity {
         String url = server.start();
         if (url == null) throw new IOException("The TV isn't connected to your Wi-Fi.");
         try {
-            show(url, "Sign in to Google Photos (only needed once)",
-                    "With your phone on the same Wi-Fi as the TV, scan this code.\n"
-                            + "A page opens with three short steps. If the phone can't reach it, type this address\n"
-                            + "in a computer's browser instead (also on this Wi-Fi):", url.replace("http://", ""));
+            show(url, "Sign in to Google Photos (only needed once)", new String[] {
+                            "With your phone on the same Wi-Fi as the TV, scan this code.",
+                            "A page opens with three short steps."},
+                    "If the phone can't reach it, type this address in a computer's browser instead (also on this Wi-Fi):",
+                    url.replace("http://", ""));
             synchronized (lock) {
                 while (!ok[0] && !stopped) lock.wait(1000);
             }
@@ -147,16 +150,18 @@ public class AddPhotosActivity extends Activity {
             try {
                 String warn = Storage.warning(this);
                 if (lastPick == 0) {
-                    show(s.pickerUri, "Choose photos for the frame",
-                            "Scan with your phone to open Google Photos.\n"
-                                    + "Tip: type the trip's album name in the search box, then tap the circle next to each day.\n"
-                                    + "Up to 2,000 photos at a time. After you tap Done, a new code appears here for the\n"
-                                    + "next lot while these download in the background."
+                    show(s.pickerUri, "Choose photos for the frame", new String[] {
+                                    "Scan with your phone to open Google Photos.",
+                                    "Pick your photos, up to 2,000 at a time.",
+                                    "Tap Done. A new code appears here for the next lot."},
+                            "These download in the background. Tip: type the trip's album name in the search box, "
+                                    + "then tap the circle next to each day."
                                     + (warn == null ? "" : "\n\n" + warn), null);
                 } else {
-                    show(s.pickerUri, String.format("%,d", lastPick) + " photos added to the queue. More?",
-                            "Scan this new code to pick the next lot (up to 2,000), or press Back:\n"
-                                    + "the photos keep downloading while the frame plays, and join the same trip."
+                    show(s.pickerUri, String.format("%,d", lastPick) + " photos added to the queue. More?", new String[] {
+                                    "Scan this new code to pick the next lot, up to 2,000.",
+                                    "Or press Back when you have finished."},
+                            "The photos keep downloading while the frame plays, and join the same trip."
                                     + (warn == null ? "" : "\n\n" + warn), null);
                 }
                 boolean picked = false;
@@ -166,7 +171,7 @@ public class AddPhotosActivity extends Activity {
                     Thread.sleep(s.pollMs);
                 }
                 if (stopped || !picked) continue;
-                show(null, "Reading your pick…", "", null);
+                show(null, "Reading your pick…", null, "", null);
                 List<Picker.Item> items = picker.photos(s);
 
                 // Work out the trips in this pick from the photos' dates.
@@ -236,14 +241,16 @@ public class AddPhotosActivity extends Activity {
             naming = -1;
             nameBox.setVisibility(View.GONE);
             hideKeyboard();
-            show(null, "Getting a new code…", "", null);
+            show(null, "Getting a new code…", null, "", null);
             namingOpen = false;
             return;
         }
         NewTrip t = toName.get(naming);
-        qr.setVisibility(View.GONE);
+        qrTile.setVisibility(View.GONE);
+        steps.removeAllViews();
+        footer.setVisibility(View.GONE);   // Back means "skip" here; the lines under the name box say so
         title.setText(toName.size() == 1 ? "A new trip" : "New trip " + (naming + 1) + " of " + toName.size());
-        body.setText("");
+        body.setVisibility(View.GONE);
         code.setVisibility(View.GONE);
         nameTitle.setText(Trips.label(t.start, t.end, "", t.items.size()));
         nameInfo.setText(t.items.size() + " photos.  Say or type a name (e.g. Egypt) and press OK.\n"
@@ -253,6 +260,8 @@ public class AddPhotosActivity extends Activity {
             ImageView iv = new ImageView(this);
             iv.setImageBitmap(bmp);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            iv.setBackground(Ui.shape(this, 0x14F1EDE4, 10));   // rounded corners: the picture is clipped to this shape
+            iv.setClipToOutline(true);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(128), dp(96));
             lp.rightMargin = dp(8);
             coverRow.addView(iv, lp);
@@ -288,85 +297,110 @@ public class AddPhotosActivity extends Activity {
         super.onBackPressed();
     }
 
-    private void show(String qrText, String t, String b, String c) {
+    /** One screen: an optional QR code, a title, optional numbered steps, a paragraph, and an optional address. */
+    private void show(String qrText, String t, String[] stepList, String b, String c) {
         ui.post(() -> {
-            Bitmap bmp = qrText == null ? null : Qr.make(qrText, 420, DARK, INK);
+            // Made at the size it is shown, so every square of the code stays sharp for the phone's camera.
+            Bitmap bmp = qrText == null ? null : Qr.make(qrText, dp(260), Ui.DARK, Ui.PAPER);
             qr.setImageBitmap(bmp);
-            qr.setVisibility(bmp == null ? View.GONE : View.VISIBLE);
+            qrTile.setVisibility(bmp == null ? View.GONE : View.VISIBLE);
             title.setText(t);
+            steps.removeAllViews();
+            if (stepList != null) for (int i = 0; i < stepList.length; i++) steps.addView(Ui.step(this, i + 1, stepList[i]));
             body.setText(b);
+            body.setVisibility(b == null || b.isEmpty() ? View.GONE : View.VISIBLE);
             code.setText(c == null ? "" : c);
             code.setVisibility(c == null ? View.GONE : View.VISIBLE);
+            footer.setVisibility(View.VISIBLE);
         });
     }
 
     private void buildUi() {
-        LinearLayout root = new LinearLayout(this);
-        root.setBackgroundColor(DARK);
-        root.setGravity(Gravity.CENTER);
-        root.setOrientation(LinearLayout.HORIZONTAL);
-        int pad = dp(48);
-        root.setPadding(pad, pad, pad, pad);
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Ui.BG);
+
+        // The code on its light tile to the left, the words to the right, centred together.
+        LinearLayout content = new LinearLayout(this);
+        content.setGravity(Gravity.CENTER);
+        content.setOrientation(LinearLayout.HORIZONTAL);
+        int pad = dp(56);
+        content.setPadding(pad, dp(36), pad, dp(64));
 
         qr = new ImageView(this);
-        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(dp(260), dp(260));
-        qp.rightMargin = dp(48);
-        root.addView(qr, qp);
+        qrTile = Ui.qrTile(this, qr, 260);
+        LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(-2, -2);
+        qp.rightMargin = dp(52);
+        content.addView(qrTile, qp);
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        title = text(30, INK, Typeface.SERIF);
-        body = text(18, SOFT, Typeface.SANS_SERIF);
-        body.setLineSpacing(0, 1.3f);
-        code = text(26, INK, Typeface.MONOSPACE);
+        col.addView(Ui.eyebrow(this, "Photos Frame  ·  Add photos"));
+        col.addView(Ui.gap(this, 8));
+        title = Ui.title(this, "", 32);
+        title.setLineSpacing(0, 1.1f);
         col.addView(title);
-        // A bare View with WRAP_CONTENT takes all the space it is offered, so give spacers a fixed height.
-        col.addView(spacer(16), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(16)));
+        col.addView(Ui.gap(this, 20));
+        steps = new LinearLayout(this);
+        steps.setOrientation(LinearLayout.VERTICAL);
+        col.addView(steps);
+        body = Ui.text(this, "", Ui.BODY, Ui.SOFT);
+        body.setLineSpacing(0, 1.35f);
         col.addView(body);
-        col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(12)));
-        col.addView(code);
-        queueLine = text(16, INK, Typeface.SANS_SERIF);
-        queueLine.setVisibility(View.GONE);
-        col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(12)));
-        col.addView(queueLine);
+        code = Ui.text(this, "", 24, Ui.INK);        // the address to type on a computer, set apart in its own box
+        code.setTypeface(Typeface.MONOSPACE);
+        code.setBackground(Ui.shape(this, 0x14F1EDE4, 12));
+        code.setPadding(dp(16), dp(10), dp(16), dp(10));
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-2, -2);
+        cp.topMargin = dp(14);
+        col.addView(code, cp);
 
+        // Naming a new trip: previews, its dates, a box for the name.
         nameBox = new LinearLayout(this);
         nameBox.setOrientation(LinearLayout.VERTICAL);
         nameBox.setVisibility(View.GONE);
         coverRow = new LinearLayout(this);
         coverRow.setOrientation(LinearLayout.HORIZONTAL);
         nameBox.addView(coverRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(96)));
-        nameTitle = text(24, INK, Typeface.SERIF);
+        nameBox.addView(Ui.gap(this, 16));
+        nameTitle = Ui.title(this, "", 24);
         nameBox.addView(nameTitle, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        nameBox.addView(Ui.gap(this, 12));
         nameField = new EditText(this);
         nameField.setSingleLine(true);
         nameField.setHint("Name (optional), e.g. Egypt");
-        nameField.setTextColor(DARK);               // the TV draws the text box light
-        nameField.setHintTextColor(0x992E2B28);
-        nameField.setTextSize(22);
+        Ui.field(nameField);                         // a light box with dark text
         nameField.setImeOptions(EditorInfo.IME_ACTION_DONE);
         nameField.setOnEditorActionListener((v, actionId, ev) -> { saveName(false); return true; });
         nameBox.addView(nameField, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        nameInfo = text(15, SOFT, Typeface.SANS_SERIF);
-        nameInfo.setLineSpacing(0, 1.2f);
+        nameBox.addView(Ui.gap(this, 12));
+        nameInfo = Ui.text(this, "", 15, Ui.SOFT);
+        nameInfo.setLineSpacing(0, 1.3f);
         nameBox.addView(nameInfo);
-        col.addView(spacer(12), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(16)));
         col.addView(nameBox, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         // Fill whatever width is left after the QR: a fixed width overflowed the 960dp TV screen,
         // which squeezed the QR (cutting off its left edge) and pushed the text off the right edge.
-        root.addView(col, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        content.addView(col, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        root.addView(content, new FrameLayout.LayoutParams(-1, -1));
+
+        // Along the bottom: what Back does (left) and how the downloads are going (right).
+        footer = Ui.keys(this, "Back", "Return to the frame");
+        FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.START);
+        fp.leftMargin = pad;
+        fp.bottomMargin = dp(28);
+        root.addView(footer, fp);
+        queueLine = Ui.text(this, "", 15, Ui.SOFT);
+        queueLine.setLineSpacing(0, 1.25f);
+        queueLine.setBackground(Ui.shape(this, 0x14F1EDE4, 14));
+        queueLine.setPadding(dp(16), dp(9), dp(16), dp(10));
+        queueLine.setVisibility(View.GONE);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        lp.rightMargin = pad;
+        lp.bottomMargin = dp(22);
+        root.addView(queueLine, lp);
+
         setContentView(root);
+        Ui.fadeIn(content);
     }
 
-    private TextView text(int sp, int color, Typeface face) {
-        TextView v = new TextView(this);
-        v.setTextSize(sp);
-        v.setTextColor(color);
-        v.setTypeface(face);
-        return v;
-    }
-
-    private View spacer(int h) { View v = new View(this); v.setMinimumHeight(dp(h)); return v; }
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 }
