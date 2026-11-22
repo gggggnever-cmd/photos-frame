@@ -35,7 +35,10 @@ final class CornerPlayer {
     private static final int[] GRAVITY = {
             Gravity.BOTTOM | Gravity.END, Gravity.BOTTOM | Gravity.START, Gravity.TOP | Gravity.START, Gravity.TOP | Gravity.END};
     private static final int[] WIDTH_DP = {352, 512};
-    private static final double[] ZOOM = {1, 1.2, 1.4};   // "Trim black edges": off, some, more   // 16:9 small / large on the 960 dp wide TV screen
+    private static final double[] ZOOM = {1, 1.2, 1.4};   // "Trim black edges": off, some, more
+    // "Blend" (2026-11-22): how see-through the whole video is, so it merges with the photo behind it.
+    static final double[] BLEND = {1, 0.8, 0.6, 0.45};
+    static final String[] BLEND_NAMES = {"Off", "Light", "Medium", "Strong"};   // 16:9 small / large on the 960 dp wide TV screen
 
     private final Context ctx;
     private final FrameLayout root;
@@ -84,6 +87,13 @@ final class CornerPlayer {
         run("corner.zoom(" + ZOOM[z] + ")");
     }
 
+    /** The next see-through level, then back to solid. */
+    void blend() {
+        int b = (prefs.getInt("blend", 0) + 1) % BLEND.length;
+        prefs.edit().putInt("blend", b).apply();
+        run("corner.blend(" + BLEND[b] + ")");
+    }
+
     /** Next corner, clockwise from bottom-right. */
     void move() {
         prefs.edit().putInt("corner", (prefs.getInt("corner", 0) + 1) % GRAVITY.length).apply();
@@ -118,6 +128,7 @@ final class CornerPlayer {
             j.put("volume", prefs.getInt("volume", 60));
             j.put("big", prefs.getInt("size", 0) == 1);
             j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);
+            j.put("blend", prefs.getInt("blend", 0) % BLEND.length);
             return j.toString();
         } catch (Exception e) {
             return "{\"showing\":" + showing + "}";
@@ -141,6 +152,7 @@ final class CornerPlayer {
                 pageReady = true;
                 run("corner.volume(" + prefs.getInt("volume", 60) + ")");
                 run("corner.zoom(" + ZOOM[prefs.getInt("zoom", 0) % ZOOM.length] + ")");
+                run("corner.blend(" + BLEND[prefs.getInt("blend", 0) % BLEND.length] + ")");
                 if (pendingJs != null) { String js = pendingJs; pendingJs = null; run(js); }
             }
         });

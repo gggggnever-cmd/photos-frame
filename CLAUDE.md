@@ -318,6 +318,8 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       allowing it fixed Chrome. The phone page's help now says so (v0.29, installed with v0.30).
 - [x] v0.30 (2026-11-22): YouTube corner has **soft edges**: rounded corners and a ~9% edge fade (CSS mask on #box,
       WebView background transparent) so the video melts into the photo. Seen on the TV (screencap), works.
+- [x] v0.31 (2026-11-22): phone button **Blend: Off / Light / Medium / Strong** makes the whole corner video see-through
+      (opacity 1 / 0.8 / 0.6 / 0.45 on #box, kept in "corner" prefs). Seen on the TV at Medium; left at Medium.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs
