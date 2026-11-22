@@ -41,7 +41,9 @@ public class ArtKeyService extends AccessibilityService {
     static volatile ArtKeyService running;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private volatile long lastKeyAt = -1;
+    private static volatile long lastKeyAt = -1;
+    /** When a remote button was last pressed (uptime ms), or -1. Only when, never which. */
+    static long lastKeyAt() { return lastKeyAt; }
     private long wokeAt;
 
     private final BroadcastReceiver screen = new BroadcastReceiver() {
@@ -87,7 +89,8 @@ public class ArtKeyService extends AccessibilityService {
     @Override protected void onServiceConnected() {
         running = this;
         registerReceiver(screen, new IntentFilter(Intent.ACTION_SCREEN_ON));
-        CornerServer.ensureRunning(this);   // phones can report charging even when only the screensaver is up
+        CornerServer.ensureRunning(this);
+        AutoOff.start(this);   // phones can report charging even when only the screensaver is up
     }
 
     @Override public boolean onUnbind(Intent i) {

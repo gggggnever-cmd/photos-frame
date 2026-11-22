@@ -89,5 +89,18 @@ final class Settings {
     void setHighlightsIndex(int i) { prefs.edit().putInt("highlights", i).apply(); }
     int highlightCount() { return Highlights.COUNTS[highlightsIndex()]; }
 
+    // Turn the TV off after this many minutes with no remote while the photos or screensaver show (0 = never).
+    // Asked 2026-11-22; see AutoOff.
+    static final int[] AUTO_OFF_MINUTES = {0, 10, 30, 60, 120, 180, 240};
+    int autoOff() { return clamp(prefs.getInt("auto_off", 0), AUTO_OFF_MINUTES.length, 0); }
+    void setAutoOff(int i) { prefs.edit().putInt("auto_off", i).apply(); }
+    long autoOffMs() { return AUTO_OFF_MINUTES[autoOff()] * 60_000L; }
+    static String autoOffName(int i) {
+        int m = AUTO_OFF_MINUTES[i];
+        if (m == 0) return "Never";
+        if (m < 60) return m + " minutes";
+        return m == 60 ? "1 hour" : (m / 60) + " hours";
+    }
+
     private static int clamp(int v, int n, int dflt) { return v >= 0 && v < n ? v : dflt; }
 }

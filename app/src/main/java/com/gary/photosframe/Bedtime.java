@@ -25,6 +25,13 @@ final class Bedtime {
 
     /** True while the frame screen is in front or the screensaver runs (set by them). */
     static volatile boolean frameShowing, screensaverShowing;
+    /** When the photos or screensaver last came on (uptime ms): counts as activity for AutoOff. */
+    static volatile long showingSince;
+    static void showing(boolean frame, boolean on) {
+        boolean before = frameShowing || screensaverShowing;
+        if (frame) frameShowing = on; else screensaverShowing = on;
+        if (!before && (frameShowing || screensaverShowing)) showingSince = android.os.SystemClock.uptimeMillis();
+    }
 
     private static final Handler ui = new Handler(Looper.getMainLooper());
     private static boolean checking;

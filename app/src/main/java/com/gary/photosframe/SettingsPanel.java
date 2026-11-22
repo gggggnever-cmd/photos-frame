@@ -27,7 +27,7 @@ final class SettingsPanel extends LinearLayout {
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
     private static final int ROW_TRIP = 0, ROW_INTERVAL = 1, ROW_ART = 2, ROW_SURFACE = 3, ROW_LOOK = 4,
             ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_HIGHLIGHTS = 8, ROW_SPACE = 9, ROW_HIDDEN = 10,
-            ROW_ADD = 11, ROW_YOUTUBE = 12, ROWS = 13;
+            ROW_ADD = 11, ROW_YOUTUBE = 12, ROW_AUTO_OFF = 13, ROWS = 14;
 
     private final Settings settings;
     private final Host host;
@@ -53,7 +53,7 @@ final class SettingsPanel extends LinearLayout {
         addView(title);
         addView(space(8));
         String[] names = {"Trips to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
-                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner"};
+                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner", "TV off if remote unused"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -134,6 +134,10 @@ final class SettingsPanel extends LinearLayout {
         } else if (focus == ROW_HIGHLIGHTS) {
             int n = Highlights.COUNTS.length;
             settings.setHighlightsIndex(Math.max(0, Math.min(n - 1, settings.highlightsIndex() + dir)));
+        } else if (focus == ROW_AUTO_OFF) {
+            int n = Settings.AUTO_OFF_MINUTES.length;
+            settings.setAutoOff(Math.max(0, Math.min(n - 1, settings.autoOff() + dir)));
+            return;   // nothing on screen changes
         } else if (focus == ROW_LOOK) {
             int n = Settings.LOOK_NAMES.length;
             settings.setLook(Math.max(0, Math.min(n - 1, settings.look() + dir)));
@@ -174,6 +178,7 @@ final class SettingsPanel extends LinearLayout {
         int hidden = host.hiddenCount();
         values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK brings them back" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
+        values[ROW_AUTO_OFF].setText(arrows(Settings.autoOffName(settings.autoOff()), settings.autoOff(), Settings.AUTO_OFF_MINUTES.length));
         values[ROW_YOUTUBE].setText(focus == ROW_YOUTUBE ? "OK for the phone code" : "");
         for (int i = 0; i < ROWS; i++) {
             GradientDrawable d = new GradientDrawable();

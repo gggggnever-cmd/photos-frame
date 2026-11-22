@@ -25,8 +25,8 @@ public class FrameDreamService extends DreamService {
         }
     }
 
-    @Override public void onDreamingStarted() { super.onDreamingStarted(); Bedtime.screensaverShowing = true; }
-    @Override public void onDreamingStopped() { Bedtime.screensaverShowing = false; super.onDreamingStopped(); }
+    @Override public void onDreamingStarted() { super.onDreamingStarted(); Bedtime.showing(false, true); }
+    @Override public void onDreamingStopped() { Bedtime.showing(false, false); super.onDreamingStopped(); }
 
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
         if (!isInteractive()) return super.dispatchKeyEvent(e);

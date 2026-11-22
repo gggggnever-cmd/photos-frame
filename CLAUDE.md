@@ -299,6 +299,14 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       phones heard from this week all charging + 9 pm-5 am + 60 s grace → ArtKeyService.sleepTv(), but only
       while MainActivity or the screensaver shows (a film is never cut off). The helper starts the server too.
       Tested from the PC with two pretend phones (then forgotten). Phones' automations not set up yet.
+      Later findings: Samsung Modes and Routines can detect charging but has no documented open-URL/HTTP
+      action, so the phones would need our own companion app (not built; owner avoids outside apps). The
+      owner reports Google Home can turn this TV ON but not OFF; Alexa can turn it off. TCL logs "Change
+      Wakeup Alarm type to non Wakeup type" for every app, Google's too.
+- [ ] v0.25 (2026-11-22): **"TV off if remote unused"** (Settings, last row): Never / 10 / 30 min / 1-4 h.
+      AutoOff (30 s check, in the helper's process): photos or screensaver showing, no remote press, no sound
+      (Spotify, YouTube corner) for that long since the later of last key / photos came on → sleepTv().
+      Default Never. Installed quietly while the TV slept; NOT yet tried on screen.
 - Installing an update restarts the app on the TV (the screen briefly shows something else): tell the owner first.
 - [x] Consent screen published by the owner's assistant (2026-11-18); verified in Cloud console Audience: "In production", External,
       2 users / 100 cap. The TV's current sign-in dates from Testing, so it may still lapse once: if Add photos asks
