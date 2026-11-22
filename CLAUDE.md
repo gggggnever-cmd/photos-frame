@@ -315,8 +315,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       Chrome on the owner's phone can't reach the TV's port 8081 (ERR_TOO_MANY_RETRIES, request never arrives);
       Samsung Internet works, so the phone page now says to use it.
       Cause found the same day: Chrome lacked Android's **Nearby devices** permission (local network access);
-      allowing it fixed Chrome. The phone page's help now says so (v0.29, built and pushed; NOT installed yet:
-      the owner was playing music in the corner. Install when the corner is idle).
+      allowing it fixed Chrome. The phone page's help now says so (v0.29, installed with v0.30).
+- [x] v0.30 (2026-11-22): YouTube corner has **soft edges**: rounded corners and a ~9% edge fade (CSS mask on #box,
+      WebView background transparent) so the video melts into the photo. Seen on the TV (screencap), works.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

@@ -1,11 +1,17 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
-#box{position:absolute;inset:0;overflow:hidden}
+<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}
+/* Soft edges (2026-11-22): the picture fades into the photo behind it instead of a hard frame. Two edge
+   fades are intersected, and the page is transparent, so the photo shows through the faded rim. */
+#box{position:absolute;inset:0;overflow:hidden;background:#000;border-radius:18px;
+  --f:9%;
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 var(--f),#000 calc(100% - var(--f)),transparent 100%),
+    linear-gradient(to bottom,transparent 0,#000 calc(var(--f) * 1.6),#000 calc(100% - var(--f) * 1.6),transparent 100%);
+  -webkit-mask-composite:source-in;mask-composite:intersect}
 #box iframe,#p{position:absolute;left:0;top:0;width:100%;height:100%;border:0}
 #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f1ede4;
-font:16px sans-serif;text-align:center;padding:12px;box-sizing:border-box;z-index:2}</style></head>
+font:16px sans-serif;text-align:center;padding:12px;box-sizing:border-box;z-index:2;text-shadow:0 1px 4px #000}</style></head>
 <body><div id="msg">Loading YouTube…</div><div id="box"><div id="p"></div></div>
 <script>
 // YouTube's official embedded player (IFrame API), shown in a corner of the frame. Driven from Java

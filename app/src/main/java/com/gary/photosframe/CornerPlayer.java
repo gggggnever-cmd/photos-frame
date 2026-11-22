@@ -130,7 +130,7 @@ final class CornerPlayer {
         web = new WebView(ctx);
         web.setFocusable(false);
         web.setFocusableInTouchMode(false);
-        web.setBackgroundColor(Color.BLACK);
+        web.setBackgroundColor(Color.TRANSPARENT);   // the page fades its edges into the photo
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
