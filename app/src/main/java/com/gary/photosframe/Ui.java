@@ -98,7 +98,10 @@ final class Ui {
     static void focus(View row, boolean on) {
         row.setBackground(on ? shape(row.getContext(), FOCUS, 12) : null);
         float s = on ? 1.025f : 1f;
-        if (row.getScaleX() != s) row.animate().scaleX(s).scaleY(s).setDuration(140);
+        // Always aim at the target: comparing getScaleX() missed a grow that hadn't started yet when the
+        // remote moved on quickly, so passed rows stayed enlarged (seen on the TV, 2026-11-22).
+        row.animate().cancel();
+        row.animate().scaleX(s).scaleY(s).setDuration(140);
     }
 
     /** A card or screen arriving: fades in and rises a little. */
