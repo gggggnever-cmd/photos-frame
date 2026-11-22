@@ -49,6 +49,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private String renaming;                   // key of the trip or album being renamed ("start~end" or "album:<id>"), or null
     private boolean renameFromTrips;
     private boolean longPressed;   // OK was held: the menu opened, so its release must not skip
+    private Voice voice;           // voice and media keys (see Voice)
     private boolean sideHeld;      // ◀ or ▶ was held: the YouTube song changed, so its release must not change the photo
     private boolean downHeld;      // ▼ was held: Add photos opened, so its release must not step the YouTube corner
 
@@ -102,6 +103,26 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         root.addView(tripPanel, new FrameLayout.LayoutParams(tripPanel.cardWidth(), -2, Gravity.CENTER));
         buildRenameBox(root);
         corner = new CornerPlayer(this, root);
+        voice = new Voice(this, new Voice.Target() {
+            @Override public boolean songMode() { return corner.songMode(); }
+            @Override public boolean slideshowPaused() { return frame.isPaused(); }
+            @Override public void song(String c) {
+                switch (c) {
+                    case "next": corner.next(); note("Next song"); break;
+                    case "previous": note(corner.back()); break;
+                    case "pause": corner.pause(); note("Music paused"); break;
+                    default: corner.resumePlaying(); note("Music playing"); break;
+                }
+            }
+            @Override public void photos(String c) {
+                switch (c) {
+                    case "next": frame.setPaused(false); frame.next(); note("Next photo"); break;
+                    case "previous": frame.setPaused(false); frame.back(() -> note("This is the first photo")); note("Previous photo"); break;
+                    case "pause": frame.setPaused(true); note("Slideshow paused"); break;
+                    default: frame.setPaused(false); note("Slideshow playing"); break;
+                }
+            }
+        });
         cornerCommands = new CornerServer.Commands() {
             @Override public String command(String c, String arg) { return cornerCommand(c, arg); }
             @Override public String state() { return corner.state(); }
@@ -114,6 +135,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
 
     @Override protected void onResume() {
         super.onResume();
+        voice.setActive(true);
         // adb test: am start -n com.gary.photosframe/.MainActivity --ez test_art_reminder true
         boolean test = getIntent().getBooleanExtra("test_art_reminder", false);
         getIntent().removeExtra("test_art_reminder");
@@ -137,12 +159,14 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     }
 
     @Override protected void onDestroy() {
+        voice.release();
         CornerServer.detach(cornerCommands);
         corner.destroy();
         super.onDestroy();
     }
 
     @Override protected void onPause() {
+        voice.setActive(false);
         ui.removeCallbacks(queueTick);
         corner.onPause();
         Bedtime.showing(true, false);

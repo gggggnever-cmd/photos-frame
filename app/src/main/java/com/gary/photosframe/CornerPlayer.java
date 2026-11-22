@@ -161,6 +161,10 @@ final class CornerPlayer {
     }
     void next() { run("corner.next()"); }
     void prev() { run("corner.prev()"); }
+    void pause() { run("corner.pause()"); }
+    void resumePlaying() { run("corner.play()"); }
+    /** YouTube is on screen at some size, or playing as music only (not off, not closed). */
+    boolean songMode() { return showing && !hidden; }
 
     /** The remote's hold ◀: start of this song if more than 5 s in, else the previous song. Returns a note. */
     String back() {

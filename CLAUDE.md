@@ -354,6 +354,11 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
 - [x] v0.39 (2026-11-22): **hold ▶ = next YouTube song, hold ◀ = start of the song (if >5 s in) or the previous
       song**, like a music player. Short ◀ ▶ still change the photo, now on release. With no YouTube showing, the
       hold shows a note. Tested with adb long presses on the owner's 101-song playlist.
+- [x] v0.40 (2026-11-22): **voice and media keys** (Voice.java, a MediaSession active while the frame is in front).
+      Rule agreed with the owner: YouTube showing (any size or music only) → next/previous/pause/play act on the
+      song; YouTube off or closed → on the photos (pause freezes the slideshow: FrameView.setPaused). A note shows
+      what happened. Tested with `input keyevent KEYCODE_MEDIA_*` (`cmd media_session dispatch` is broken on this
+      TV). NOT yet tried with the real Assistant mic.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

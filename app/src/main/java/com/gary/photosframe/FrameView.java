@@ -72,8 +72,11 @@ public class FrameView extends View {
     // Slides thread state.
     private Scene prepared;                         // the next slide, finished ahead of time
 
+    private boolean paused;   // voice "pause" with no music: the slideshow holds this photo
+
     private final Runnable advance = new Runnable() {
         @Override public void run() {
+            if (paused) return;
             // Short intervals (5-20 s) get a quicker fade, so each photo is still fully seen for a while.
             requestNext(Math.min(FADE_MS, settings.showMs() / 4));
             ui.postDelayed(this, settings.showMs());
@@ -189,6 +192,14 @@ public class FrameView extends View {
         });
     }
     public boolean isFavourite(String id) { PhotoSource s = source; return s != null && s.library().isFavourite(id); }
+
+    /** Voice "pause" / "play" when no music is on: holds the current photo, or carries on. */
+    public void setPaused(boolean p) {
+        paused = p;
+        ui.removeCallbacks(advance);
+        if (!p) ui.postDelayed(advance, settings.showMs());
+    }
+    public boolean isPaused() { return paused; }
 
     /** Shows the next slide now and restarts the timer. */
     public void skip() {
