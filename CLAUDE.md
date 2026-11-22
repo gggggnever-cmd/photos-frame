@@ -354,6 +354,10 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
 - [x] v0.39 (2026-11-22): **hold ▶ = next YouTube song, hold ◀ = start of the song (if >5 s in) or the previous
       song**, like a music player. Short ◀ ▶ still change the photo, now on release. With no YouTube showing, the
       hold shows a note. Tested with adb long presses on the owner's 101-song playlist.
+- [x] v0.41 (2026-11-22): **v0.40 (voice/MediaSession) reverted at the owner's request** (git revert of bb7b0dd);
+      code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
+      resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
+      MediaSession; don't re-add voice without asking.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs
