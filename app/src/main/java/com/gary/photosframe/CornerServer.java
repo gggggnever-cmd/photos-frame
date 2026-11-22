@@ -28,12 +28,26 @@ final class CornerServer {
         String state();
     }
 
-    private final Commands commands;
+    // One server for the whole app (2026-11-21 fix): it used to belong to the frame screen, and when that
+    // screen was re-created the new one couldn't open port 8081 while the old one still held it, so the
+    // phone got no answer. Now it starts once, retries if the port is busy, and the frame screen that is
+    // currently open receives the commands.
+    private static CornerServer instance;
+    private static volatile Commands active;
+
+    /** The open frame screen takes the phone's commands (starts the server the first time). */
+    static synchronized void attach(Context ctx, Commands c) {
+        active = c;
+        if (instance == null) { instance = new CornerServer(ctx.getApplicationContext()); instance.start(); }
+    }
+
+    /** The frame screen is closing: stop sending it commands (the server keeps listening). */
+    static synchronized void detach(Commands c) { if (active == c) active = null; }
+
     private final String key;
     private ServerSocket server;
 
-    CornerServer(Context ctx, Commands commands) {
-        this.commands = commands;
+    private CornerServer(Context ctx) {
         SharedPreferences p = ctx.getSharedPreferences("corner", Context.MODE_PRIVATE);
         String k = p.getString("key", "");
         if (k.isEmpty()) {
@@ -55,19 +69,27 @@ final class CornerServer {
         return "http://" + ip + ":" + PORT + "/?k=" + k;
     }
 
-    void start() {
-        if (server != null) return;
-        try {
-            server = new ServerSocket(PORT);
-        } catch (IOException e) {
-            Log.w("CornerServer", "can't listen on " + PORT + ": " + e);
-            return;
-        }
-        ServerSocket ss = server;
+    private void start() {
         Thread t = new Thread(() -> {
+            ServerSocket ss = null;
+            while (ss == null) {
+                try {
+                    ss = new ServerSocket();
+                    ss.setReuseAddress(true);
+                    ss.bind(new java.net.InetSocketAddress(PORT));
+                } catch (IOException e) {
+                    Log.w("CornerServer", "can't listen on " + PORT + " yet: " + e);
+                    try { if (ss != null) ss.close(); } catch (IOException ignored) { }
+                    ss = null;
+                    try { Thread.sleep(5000); } catch (InterruptedException ie) { return; }
+                }
+            }
+            server = ss;
+            Log.i("CornerServer", "listening on " + PORT);
             while (!ss.isClosed()) {
                 final Socket s;
                 try { s = ss.accept(); } catch (IOException e) { continue; }
+                Log.i("CornerServer", "connection from " + s.getInetAddress().getHostAddress());
                 Thread h = new Thread(() -> {
                     try (Socket c = s) { handle(c); } catch (IOException e) { /* phone went away */ }
                 }, "corner-conn");
@@ -77,11 +99,6 @@ final class CornerServer {
         }, "corner-server");
         t.setDaemon(true);
         t.start();
-    }
-
-    void stop() {
-        try { if (server != null) server.close(); } catch (IOException ignored) { }
-        server = null;
     }
 
     private void handle(Socket s) throws IOException {
@@ -104,6 +121,7 @@ final class CornerServer {
             if (name.equals("k")) k = value; else if (name.equals("c")) c = value; else if (name.equals("a")) a = value;
         }
         OutputStream out = s.getOutputStream();
+        Log.i("CornerServer", "request " + path + (c.isEmpty() ? "" : " " + c) + (key.equals(k) ? "" : " (no or wrong key)"));
         if (path.equals("/manifest.json")) {
             send(out, "200 OK", "application/manifest+json", "{\"name\":\"TV YouTube corner\",\"short_name\":\"TV YouTube\","
                     + "\"display\":\"standalone\",\"background_color\":\"#2e2b28\",\"theme_color\":\"#2e2b28\"}");
@@ -118,13 +136,16 @@ final class CornerServer {
                 send(out, "200 OK", "text/html; charset=utf-8", PhonePage.html(key));
                 break;
             case "/cmd": {
-                String err = commands.command(c, a);
+                Commands commands = active;
+                String err = commands == null ? "Photos Frame isn't open on the TV. Press the art button, then try again."
+                        : commands.command(c, a);
                 send(out, "200 OK", "application/json", err == null ? "{\"ok\":true}"
                         : "{\"ok\":false,\"error\":" + org.json.JSONObject.quote(err) + "}");
                 break;
             }
             case "/state":
-                send(out, "200 OK", "application/json", commands.state());
+                Commands now = active;
+                send(out, "200 OK", "application/json", now == null ? "{\"showing\":false}" : now.state());
                 break;
             default:
                 send(out, "404 Not Found", "text/plain", "Not found");

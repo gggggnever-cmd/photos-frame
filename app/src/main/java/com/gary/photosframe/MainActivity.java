@@ -19,7 +19,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private TextView queueNote;
     // YouTube corner: the little player, the phone's remote page, and the card with its QR code.
     private CornerPlayer corner;
-    private CornerServer cornerServer;
+    private CornerServer.Commands cornerCommands;
     private android.widget.LinearLayout cornerCard;
     private int seenAdded;
     private long lastRescan;
@@ -106,11 +106,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         root.addView(tripPanel, new FrameLayout.LayoutParams(tripPanel.cardWidth(), -2, Gravity.CENTER));
         buildRenameBox(root);
         corner = new CornerPlayer(this, root);
-        cornerServer = new CornerServer(this, new CornerServer.Commands() {
+        cornerCommands = new CornerServer.Commands() {
             @Override public String command(String c, String arg) { return cornerCommand(c, arg); }
             @Override public String state() { return corner.state(); }
-        });
-        cornerServer.start();
+        };
+        CornerServer.attach(this, cornerCommands);
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
@@ -135,10 +135,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         ui.removeCallbacks(queueTick);
         ui.post(queueTick);
         corner.onResume();
+        CornerServer.attach(this, cornerCommands);   // the screen in front takes the phone's commands
     }
 
     @Override protected void onDestroy() {
-        cornerServer.stop();
+        CornerServer.detach(cornerCommands);
         corner.destroy();
         super.onDestroy();
     }
