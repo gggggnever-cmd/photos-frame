@@ -19,6 +19,7 @@ final class SettingsPanel extends LinearLayout {
         int hiddenCount(); int favouriteCount(); void unhideAll();
         int placeCount(); int[] checkProgress();   // Places only: how many; {checked, total} photos
         void openTrips();
+        void youtubeCorner();   // shows the phone code for the YouTube corner
         java.util.List<String[]> tripRows();   // {start, end, label, count, "gone"|""}
         java.util.List<String[]> days();   // {yyyy:MM:dd, count}, oldest first
     }
@@ -26,7 +27,7 @@ final class SettingsPanel extends LinearLayout {
     private static final int INK = 0xFFF1EDE4, SOFT = 0xB3F1EDE4, ACCENT = 0xFFE8C9A0;
     private static final int ROW_TRIP = 0, ROW_INTERVAL = 1, ROW_ART = 2, ROW_SURFACE = 3, ROW_LOOK = 4,
             ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_HIGHLIGHTS = 8, ROW_SPACE = 9, ROW_HIDDEN = 10,
-            ROW_ADD = 11, ROWS = 12;
+            ROW_ADD = 11, ROW_YOUTUBE = 12, ROWS = 13;
 
     private final Settings settings;
     private final Host host;
@@ -52,7 +53,7 @@ final class SettingsPanel extends LinearLayout {
         addView(title);
         addView(space(8));
         String[] names = {"Trips to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
-                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos"};
+                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
@@ -92,6 +93,7 @@ final class SettingsPanel extends LinearLayout {
             case KeyEvent.KEYCODE_DPAD_RIGHT: change(+1); break;
             case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
                 if (focus == ROW_ADD) host.addPhotos();
+                else if (focus == ROW_YOUTUBE) host.youtubeCorner();
                 else if (focus == ROW_TRIP) host.openTrips();
                 else if (focus == ROW_HIDDEN) { if (host.hiddenCount() > 0) host.unhideAll(); }
                 else change(+1);
@@ -172,6 +174,7 @@ final class SettingsPanel extends LinearLayout {
         int hidden = host.hiddenCount();
         values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK brings them back" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
+        values[ROW_YOUTUBE].setText(focus == ROW_YOUTUBE ? "OK for the phone code" : "");
         for (int i = 0; i < ROWS; i++) {
             GradientDrawable d = new GradientDrawable();
             d.setCornerRadius(dp(8));

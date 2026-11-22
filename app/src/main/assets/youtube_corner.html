@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#p{width:100%;height:100%}
+#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f1ede4;
+font:16px sans-serif;text-align:center;padding:12px;box-sizing:border-box}</style></head>
+<body><div id="msg">Loading YouTube…</div><div id="p"></div>
+<script>
+// YouTube's official embedded player (IFrame API), shown in a corner of the frame. Driven from Java
+// through window.corner.*; reports back through the Android bridge "TV".
+var player = null, apiReady = false, pending = null, volume = 60, wanted = null;
+function onYouTubeIframeAPIReady() { apiReady = true; if (pending) { var p = pending; pending = null; load(p.v, p.l); } }
+function msg(t) { var m = document.getElementById('msg'); m.textContent = t || ''; m.style.display = t ? 'flex' : 'none'; }
+function load(v, l) {
+  wanted = {v: v, l: l};
+  if (!apiReady) { pending = wanted; return; }
+  if (player) { try { player.destroy(); } catch (e) {} player = null; }
+  var old = document.getElementById('p');
+  var div = document.createElement('div'); div.id = 'p';
+  if (old) old.parentNode.replaceChild(div, old); else document.body.appendChild(div);
+  msg('Loading…');
+  var vars = {autoplay: 1, controls: 0, playsinline: 1, rel: 0, iv_load_policy: 3, fs: 0, disablekb: 1,
+              origin: location.origin};
+  if (l) { vars.list = l; vars.listType = 'playlist'; }
+  player = new YT.Player('p', {width: '100%', height: '100%', videoId: v || undefined, playerVars: vars,
+    events: {
+      onReady: function (e) { e.target.setVolume(volume); e.target.playVideo(); msg(''); report(); },
+      onStateChange: function () { report(); },
+      onError: function (e) {
+        TV.error(e.data);
+        var list = player && player.getPlaylist && player.getPlaylist();
+        if (list && list.length > 1 && player.getPlaylistIndex() < list.length - 1) player.nextVideo();
+        else msg(e.data == 101 || e.data == 150 ? 'This video can’t play outside YouTube.' : 'This video can’t play here.');
+        report();
+      }
+    }});
+}
+function report() {
+  if (!player || !player.getPlayerState) return;
+  var d = player.getVideoData ? player.getVideoData() : {};
+  var list = player.getPlaylist ? player.getPlaylist() : null;
+  TV.state(JSON.stringify({title: (d && d.title) || '', author: (d && d.author) || '', state: player.getPlayerState(),
+    index: player.getPlaylistIndex ? player.getPlaylistIndex() : -1, count: list ? list.length : 0, volume: volume}));
+}
+window.corner = {
+  load: load,
+  pause: function () { if (player && player.pauseVideo) player.pauseVideo(); },
+  play: function () { if (player && player.playVideo) player.playVideo(); },
+  toggle: function () { if (!player || !player.getPlayerState) return; if (player.getPlayerState() == 1) player.pauseVideo(); else player.playVideo(); },
+  next: function () { if (player && player.nextVideo) player.nextVideo(); },
+  prev: function () { if (player && player.previousVideo) player.previousVideo(); },
+  volume: function (v) { volume = Math.max(0, Math.min(100, v)); if (player && player.setVolume) { player.setVolume(volume); player.unMute(); } report(); },
+  stop: function () { if (player) { try { player.destroy(); } catch (e) {} player = null; } wanted = null; msg(''); }
+};
+setInterval(report, 3000);
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body></html>

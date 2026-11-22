@@ -17,6 +17,10 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private long reminderUntil;   // while the art-button reminder shows, a short OK opens the setting
     // Photos still downloading in the background: a small corner line, and the frame takes in new photos.
     private TextView queueNote;
+    // YouTube corner: the little player, the phone's remote page, and the card with its QR code.
+    private CornerPlayer corner;
+    private CornerServer cornerServer;
+    private android.widget.LinearLayout cornerCard;
     private int seenAdded;
     private long lastRescan;
     private final android.os.Handler ui = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -99,6 +103,12 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         tripPanel.setVisibility(View.GONE);
         root.addView(tripPanel, new FrameLayout.LayoutParams(tripPanel.cardWidth(), -2, Gravity.CENTER));
         buildRenameBox(root);
+        corner = new CornerPlayer(this, root);
+        cornerServer = new CornerServer(this, new CornerServer.Commands() {
+            @Override public String command(String c, String arg) { return cornerCommand(c, arg); }
+            @Override public String state() { return corner.state(); }
+        });
+        cornerServer.start();
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
@@ -115,10 +125,18 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         }
         ui.removeCallbacks(queueTick);
         ui.post(queueTick);
+        corner.onResume();
+    }
+
+    @Override protected void onDestroy() {
+        cornerServer.stop();
+        corner.destroy();
+        super.onDestroy();
     }
 
     @Override protected void onPause() {
         ui.removeCallbacks(queueTick);
+        corner.onPause();
         super.onPause();
     }
 
@@ -130,6 +148,10 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     @Override public boolean onKeyDown(int code, KeyEvent e) {
         boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER;
         if (renaming != null) return super.onKeyDown(code, e);                   // the text box handles keys
+        if (cornerCard != null) {   // the YouTube corner code: OK or Back closes it
+            if (ok || code == KeyEvent.KEYCODE_BACK) { closeCornerCard(); return true; }
+            return true;
+        }
         if (tripPanel.isOpen()) {
             if (ok) { if (e.getRepeatCount() == 0) { e.startTracking(); longPressed = false; } return true; }
             return tripPanel.onKey(code, false);
@@ -176,6 +198,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
                 return true;
             }
             if (renaming != null) return super.onKeyUp(code, e);
+            if (cornerCard != null) return true;
             if (!longPressed && !menu.isOpen() && !panel.isOpen() && e.isTracking() && !e.isCanceled()) {
                 if (android.os.SystemClock.uptimeMillis() < reminderUntil) { reminderUntil = 0; ArtKeyReminder.openSettings(this); }
                 else frame.next();
@@ -188,6 +211,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
 
     @Override public void onBackPressed() {
         if (renaming != null) { closeRename(); return; }
+        if (cornerCard != null) { closeCornerCard(); return; }
         if (tripPanel.isOpen()) { tripPanel.onKey(KeyEvent.KEYCODE_BACK, false); return; }
         if (menu.isOpen()) closeMenu();
         else if (panel.isOpen()) close();
@@ -306,6 +330,74 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         frame.requestFocus();
     }
     @Override public void unhideAll() { frame.unhideAll(); note("Hidden photos will show again"); }
+
+    // YouTube corner
+    @Override public void youtubeCorner() {
+        close();
+        String url = CornerServer.address(this);
+        android.widget.LinearLayout card = new android.widget.LinearLayout(this);
+        card.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        int pad = Math.round(28 * getResources().getDisplayMetrics().density);
+        card.setPadding(pad, pad, pad, pad);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(0xF21E1C1A);
+        bg.setCornerRadius(pad / 2f);
+        card.setBackground(bg);
+        if (url != null) {
+            android.widget.ImageView qr = new android.widget.ImageView(this);
+            qr.setImageBitmap(Qr.make(url, 360, 0xFF2E2B28, 0xFFF1EDE4));
+            int q = Math.round(200 * getResources().getDisplayMetrics().density);
+            android.widget.LinearLayout.LayoutParams qp = new android.widget.LinearLayout.LayoutParams(q, q);
+            qp.rightMargin = pad;
+            card.addView(qr, qp);
+        }
+        TextView t = new TextView(this);
+        t.setTextColor(0xFFF1EDE4);
+        t.setTextSize(17);
+        t.setLineSpacing(0, 1.3f);
+        t.setText(url == null ? "YouTube corner\n\nThe TV isn't connected to your Wi-Fi."
+                : "YouTube corner\n\nScan with your phone (on the home Wi-Fi). On that page, paste a YouTube link "
+                + "and tap Play on TV: it plays in a corner while the photos carry on.\n"
+                + "Tip: in Chrome, ⋮ → Add to Home screen, so you don't need this code again.\n\n"
+                + "Not signed in to YouTube: public and unlisted videos and playlists play, with ads.\n\nOK or Back to close");
+        card.addView(t, new android.widget.LinearLayout.LayoutParams(Math.round(380 * getResources().getDisplayMetrics().density), -2));
+        root.addView(card, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        cornerCard = card;
+    }
+
+    private void closeCornerCard() {
+        if (cornerCard == null) return;
+        root.removeView(cornerCard);
+        cornerCard = null;
+    }
+
+    /** A command from the phone page (on the server's thread). Returns null if fine, else a message. */
+    private String cornerCommand(String c, String arg) {
+        if (c.equals("play")) {
+            YouTubeLink link = YouTubeLink.parse(arg);
+            if (link == null) return "That doesn't look like a YouTube link. In YouTube tap Share → Copy link, then paste it here.";
+            corner.markShowing();
+            runOnUiThread(() -> { closeCornerCard(); corner.play(link); });
+            return null;
+        }
+        if (!corner.showing() && !c.equals("close")) return "Nothing is playing. Paste a link and tap Play on TV.";
+        runOnUiThread(() -> {
+            switch (c) {
+                case "toggle": corner.toggle(); break;
+                case "next": corner.next(); break;
+                case "prev": corner.prev(); break;
+                case "volup": corner.volume(+10); break;
+                case "voldown": corner.volume(-10); break;
+                case "move": corner.move(); break;
+                case "size": corner.bigger(!isBig()); break;
+                case "close": corner.close(); break;
+            }
+        });
+        return null;
+    }
+
+    private boolean isBig() { return getSharedPreferences("corner", MODE_PRIVATE).getInt("size", 0) == 1; }
 
     // SettingsPanel.Host
     @Override public void settingsChanged() { frame.applySettings(); }
