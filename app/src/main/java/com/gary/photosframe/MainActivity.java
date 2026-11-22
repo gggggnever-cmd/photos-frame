@@ -49,6 +49,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     private String renaming;                   // key of the trip or album being renamed ("start~end" or "album:<id>"), or null
     private boolean renameFromTrips;
     private boolean longPressed;   // OK was held: the menu opened, so its release must not skip
+    private boolean sideHeld;      // ◀ or ▶ was held: the YouTube song changed, so its release must not change the photo
     private boolean downHeld;      // ▼ was held: Add photos opened, so its release must not step the YouTube corner
 
     @Override protected void onCreate(Bundle b) {
@@ -172,11 +173,9 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
             return true;
         }
         switch (code) {
-            case KeyEvent.KEYCODE_DPAD_RIGHT:
-                frame.next();
-                return true;
-            case KeyEvent.KEYCODE_DPAD_LEFT:
-                frame.back(() -> note("This is the first photo"));
+            case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_DPAD_LEFT:
+                // A short press changes the photo (on release); holding it skips the YouTube song (2026-11-22).
+                if (e.getRepeatCount() == 0) { e.startTracking(); sideHeld = false; }
                 return true;
             case KeyEvent.KEYCODE_DPAD_UP:
                 panel.open();
@@ -190,6 +189,13 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     }
 
     @Override public boolean onKeyLongPress(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_LEFT) {
+            sideHeld = true;
+            if (!corner.showing()) { note("No YouTube playing. Press ▼ to bring it back."); return true; }
+            if (code == KeyEvent.KEYCODE_DPAD_RIGHT) { corner.next(); note("Next song"); }
+            else note(corner.back());
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_MENU) {
             downHeld = true;
             addPhotos();
@@ -205,6 +211,15 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     }
 
     @Override public boolean onKeyUp(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_LEFT) {
+            if (!e.isTracking()) return super.onKeyUp(code, e);   // a panel or menu had this key
+            if (!sideHeld && !e.isCanceled()) {
+                if (code == KeyEvent.KEYCODE_DPAD_RIGHT) frame.next();
+                else frame.back(() -> note("This is the first photo"));
+            }
+            sideHeld = false;
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_MENU) {
             if (!downHeld && e.isTracking() && !e.isCanceled()) {
                 String n = corner.step();

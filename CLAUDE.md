@@ -351,6 +351,9 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       or paused; a short ▼ with nothing showing reloads it (playerVars list+index+start, videoId = the song).
       Only with nothing ever saved does ▼ open Add photos. Tested: song 3 of 17 at 36 s → reinstall → ▼ → same
       song at ~40 s, ⏭ went to 4 of 17.
+- [x] v0.39 (2026-11-22): **hold ▶ = next YouTube song, hold ◀ = start of the song (if >5 s in) or the previous
+      song**, like a music player. Short ◀ ▶ still change the photo, now on release. With no YouTube showing, the
+      hold shows a note. Tested with adb long presses on the owner's 101-song playlist.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

@@ -161,6 +161,14 @@ final class CornerPlayer {
     }
     void next() { run("corner.next()"); }
     void prev() { run("corner.prev()"); }
+
+    /** The remote's hold ◀: start of this song if more than 5 s in, else the previous song. Returns a note. */
+    String back() {
+        int t = 0;
+        try { t = new JSONObject(state).optInt("time", 0); } catch (Exception ignored) { }
+        run("corner.back()");
+        return t > 5 ? "Start of the song" : "Previous song";
+    }
     void volume(int delta) { setVolume(prefs.getInt("volume", 60) + delta); }
 
     // The phone page's slider and segmented controls (2026-11-22) name the choice they want, so each

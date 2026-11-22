@@ -93,6 +93,9 @@ window.corner = {
   toggle: function () { if (!player || !player.getPlayerState) return; if (player.getPlayerState() == 1) player.pauseVideo(); else player.playVideo(); },
   next: function () { if (player && player.nextVideo) player.nextVideo(); },
   prev: function () { if (player && player.previousVideo) player.previousVideo(); },
+  // The remote's hold ◀: like a music player, back to the start of the song unless it only just began.
+  back: function () { if (!player || !player.getCurrentTime) return;
+    if (player.getCurrentTime() > 5) player.seekTo(0, true); else player.previousVideo(); },
   volume: function (v) { volume = Math.max(0, Math.min(100, v)); if (player && player.setVolume) { player.setVolume(volume); player.unMute(); } report(); },
   blend: function (o) { document.getElementById('box').style.opacity = o > 0 && o <= 1 ? o : 1; },
   zoom: function (z) { zoom = z > 0 ? z : 1; fit(); },
