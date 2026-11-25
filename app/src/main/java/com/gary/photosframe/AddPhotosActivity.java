@@ -189,7 +189,7 @@ public class AddPhotosActivity extends Activity {
                 if (stopped || !picked) continue;
                 show(null, "Reading your pick…", null, "", null);
                 List<Picker.Item> items = picker.photos(s);
-                String phoneName = PhonePick.picked(items.size());
+                PhonePick.Choice phone = PhonePick.picked(items.size());
                 if (items.isEmpty()) {   // Done with nothing chosen: no album, no name kept, a fresh code
                     show(null, "No photos were picked", null, "Nothing was added. A new code is coming.", null);
                     Thread.sleep(2500);
@@ -208,12 +208,12 @@ public class AddPhotosActivity extends Activity {
                 handedOver = true;
                 lastPick = items.size();
 
-                // Named on the phone before picking: straight into that album (an existing one with the same name).
-                if (!phoneName.isEmpty()) {
-                    String where = apply(optionNamed(phoneName, target), phoneName, target, s.id, items, clusters);
+                // Chosen on the phone before picking (a new album's name, or an album to add to): straight there.
+                if (!phone.isEmpty()) {
+                    String where = apply(optionFor(phone, target), phone.name, target, s.id, items, clusters);
                     PhonePick.done(where);
                     show(null, String.format("%,d", items.size()) + " photos go into " + where, null,
-                            "Named on your phone. A new code is coming.", null);
+                            "Chosen on your phone. A new code is coming.", null);
                     Thread.sleep(2500);
                     continue;
                 }
@@ -232,11 +232,11 @@ public class AddPhotosActivity extends Activity {
                 choosing = true;
                 ui.post(() -> openChoice(heading, covers, opts));
                 while (choosing && !stopped) {
-                    // A name sent from the phone while this screen asks counts as the answer.
-                    String late = PhonePick.takeLateName();
+                    // A choice sent from the phone while this screen asks counts as the answer.
+                    PhonePick.Choice late = PhonePick.takeLate();
                     if (!late.isEmpty()) {
-                        chosenOption = optionNamed(late, target);
-                        chosenName = late;
+                        chosenOption = optionFor(late, target);
+                        chosenName = late.name;
                         ui.post(() -> { choice.dismiss(); show(null, "Getting a new code…", null, "", null); });
                         choosing = false;
                         break;
@@ -297,23 +297,41 @@ public class AddPhotosActivity extends Activity {
         if (t.albumId.isEmpty() && !t.named && !t.start.isEmpty())
             out.add(new BatchChoice.Option(BatchChoice.NAME, "Name this album", "e.g. Egypt", "", ""));
         out.add(new BatchChoice.Option(BatchChoice.NEW, "New album…", "type a name", "", ""));
-        for (String[] a : library.albumChoices())   // {id, name, count}
-            if (!a[0].equals(t.albumId))
-                out.add(new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + a[1], String.format("%,d", Integer.parseInt(a[2])) + " photos", a[0], a[1]));
+        // Albums and named trips (a trip joins as an album when picked, see apply), except the default itself.
+        String defaultKey = t.albumId.isEmpty() ? t.start + "~" + t.end : AlbumStore.token(t.albumId);
+        for (String[] a : library.namedChoices())   // {key, name, count, label}
+            if (!a[0].equals(defaultKey))
+                out.add(new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + a[1], String.format("%,d", Integer.parseInt(a[2])) + " photos",
+                        albumRef(a[0]), a[1]));
         return out;
     }
 
     /**
-     * A name typed on the phone: the album already called that (ignoring case), else a new album. A named trip by
-     * date (like "Osaka 2016", renamed from "Nov 2016 · 5 days") isn't a membership album: when the pick's dates
-     * fall in it, the default already adds to it, so the name means "the default" rather than a second album.
+     * A new album's name typed on the phone: if an album or named trip is already called that (ignoring case), the
+     * photos join it (no second album of the same name, e.g. "Osaka 2016"); otherwise a new album.
      */
     private BatchChoice.Option optionNamed(String name, Target t) {
-        if (t.albumId.isEmpty() && t.named && t.label.toLowerCase(java.util.Locale.ROOT).startsWith(name.toLowerCase(java.util.Locale.ROOT) + " · "))
-            return new BatchChoice.Option(BatchChoice.DEFAULT, "Add to " + t.label, "", "", t.label);
-        for (String[] a : library.albumChoices())   // {id, name, count}
-            if (a[1].equalsIgnoreCase(name)) return new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + a[1], "", a[0], a[1]);
+        for (String[] a : library.namedChoices())   // {key, name, count, label}
+            if (a[1].equalsIgnoreCase(name)) return optionFor(new PhonePick.Choice("", a[0]), t);
         return new BatchChoice.Option(BatchChoice.NEW, "New album", "", "", "");
+    }
+
+    /** An Option's albumId for a list key: the album's id, or "trip:start~end" for a named date trip. */
+    private static String albumRef(String key) {
+        String id = AlbumStore.albumId(key);
+        return id != null ? id : "trip:" + key;
+    }
+
+    /** The phone's choice as a choice-screen option: an album/trip from the list, or a new album's name. */
+    private BatchChoice.Option optionFor(PhonePick.Choice c, Target t) {
+        if (!c.key.isEmpty()) {
+            String name = c.key;
+            for (String[] a : library.namedChoices()) if (a[0].equals(c.key)) name = a[1];
+            boolean isDefault = t.albumId.isEmpty() ? c.key.equals(t.start + "~" + t.end) : c.key.equals(AlbumStore.token(t.albumId));
+            if (isDefault) return new BatchChoice.Option(BatchChoice.DEFAULT, "Add to " + t.label, "", t.albumId, t.label);
+            return new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + name, "", albumRef(c.key), name);
+        }
+        return optionNamed(c.name, t);
     }
 
     /** Carries out the owner's choice (on the add-photos thread) and remembers it for the next lots. Returns where they went. */
@@ -326,7 +344,9 @@ public class AddPhotosActivity extends Activity {
             named = true;
             DownloadQueue.setAlbum(this, session, albumId, items);
         } else if (o.kind == BatchChoice.ALBUM) {
-            albumId = o.albumId;
+            // A named date trip from other dates: it becomes an album of the same name first, so these can join it.
+            albumId = o.albumId.startsWith("trip:") ? library.albumFromTrip(o.albumId.substring(5)) : o.albumId;
+            if (albumId == null) albumId = library.createAlbum(o.name);
             label = o.name;
             named = true;
             DownloadQueue.setAlbum(this, session, albumId, items);

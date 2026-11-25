@@ -8,12 +8,19 @@
 body{font:17px/1.45 system-ui,sans-serif;background:#1d1a18;color:#f1ede4;margin:0 auto;max-width:460px;padding:22px 20px 40px}
 p.e{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a69d90}
 h1{font:400 27px/1.15 Georgia,serif;margin:3px 0 18px}
-.card{background:#292522;border:1px solid rgba(241,237,228,.09);border-radius:20px;padding:18px;margin-bottom:14px}
-label{display:block;font-size:14px;color:#cfc8bc;margin-bottom:8px}
-input{box-sizing:border-box;width:100%;font:18px system-ui,sans-serif;padding:13px 14px;border-radius:12px;border:0;background:#faf7f1;color:#1d1a18}
-.note{font-size:13px;color:#a69d90;margin-top:8px;min-height:18px}
+h2{font:600 13px system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#a69d90;margin:0 0 10px}
+.card{background:#292522;border:1px solid rgba(241,237,228,.09);border-radius:20px;padding:16px;margin-bottom:14px}
+.seg{display:flex;gap:6px;background:rgba(241,237,228,.06);border-radius:14px;padding:4px}
+.seg button{flex:1;margin:0;padding:11px 6px;font:500 15px system-ui,sans-serif;background:transparent;color:#cfc8bc;border-radius:11px}
+.seg button.on{background:#e6c08a;color:#1d1a18;font-weight:600}
+input{box-sizing:border-box;width:100%;font:18px system-ui,sans-serif;padding:13px 14px;border-radius:12px;border:0;background:#faf7f1;color:#1d1a18;margin-top:12px}
+.list{margin-top:12px;max-height:46vh;overflow:auto}
+.album{display:flex;justify-content:space-between;align-items:center;padding:13px 12px;border-radius:12px;cursor:pointer;gap:10px}
+.album+.album{margin-top:2px}
+.album .n{font-size:17px}.album .c{font-size:13px;color:#a69d90;white-space:nowrap}
+.album.on{background:rgba(230,192,138,.18);outline:1.5px solid #e6c08a}
+.note{font-size:13px;color:#a69d90;margin-top:10px;min-height:18px}
 button,a.btn{display:block;box-sizing:border-box;width:100%;text-align:center;font:600 17px system-ui,sans-serif;padding:15px;border-radius:14px;border:0;background:#e6c08a;color:#1d1a18;text-decoration:none;margin-top:14px}
-button.quiet{background:rgba(241,237,228,.1);color:#f1ede4;font-weight:500}
 .big{font:400 22px/1.3 Georgia,serif;margin:0 0 6px}
 .soft{color:#cfc8bc;font-size:15px}
 .hide{display:none}
@@ -21,81 +28,118 @@ button.quiet{background:rgba(241,237,228,.1);color:#f1ede4;font-weight:500}
 <p class="e">Photos Frame</p>
 <h1>Add photos</h1>
 
-<!-- Before the pick: an optional name, then off to Google Photos. -->
-<div id="before">
+<!-- Where the photos go: before the pick, or after it if nothing was chosen. One form, two moments. -->
+<div id="where">
+  <p class="big hide" id="picked-n"></p>
   <div class="card">
-    <label for="name">Album name <span style="color:#a69d90">(optional)</span></label>
-    <input id="name" list="albums" autocomplete="off" maxlength="60" placeholder="e.g. Egypt 2025">
-    <datalist id="albums"></datalist>
-    <div class="note" id="saved">Leave it empty to choose on the TV afterwards. Same name as an album = add to it.</div>
+    <h2>Where should they go?</h2>
+    <div class="seg">
+      <button id="m-tv" class="on">Decide on TV</button>
+      <button id="m-new">New album</button>
+      <button id="m-add">Add to album</button>
+    </div>
+    <input id="name" class="hide" autocomplete="off" maxlength="60" placeholder="New album's name, e.g. Egypt 2025">
+    <div id="list" class="list hide"></div>
+    <div class="note" id="note">The TV asks after you pick.</div>
   </div>
   <a class="btn" id="go" href="#">Choose photos in Google Photos</a>
-  <p class="soft" style="margin-top:14px">Pick your photos, tap <b>Done</b>, then come back to this page.
-    If you pick nothing, the name is forgotten and nothing changes.</p>
+  <button id="save" class="hide">Send to the TV</button>
+  <p class="soft" id="how" style="margin-top:14px">Pick your photos, tap <b>Done</b>, then come back to this page.
+    If you pick nothing, your choice is forgotten and nothing changes.</p>
 </div>
 
-<!-- After the pick, no name yet: name it here or on the TV. -->
-<div id="name-after" class="hide">
-  <div class="card">
-    <p class="big" id="picked-n">✔ Photos picked</p>
-    <p class="soft">Name this album here, or choose on the TV.</p>
-    <input id="name2" list="albums" autocomplete="off" maxlength="60" placeholder="e.g. Egypt 2025">
-    <div class="note" id="saved2"></div>
-    <button id="save2">Save name</button>
-  </div>
-</div>
-
-<!-- Messages: picked with a name, done, nothing picked, code used up. -->
+<!-- Messages: done, nothing picked, code used up, Add photos closed. -->
 <div id="msg" class="card hide"><p class="big" id="msg-big"></p><p class="soft" id="msg-soft"></p></div>
 
 <script>
 var K = __KEY__, T = __TOKEN__, PICKER = __PICKER__, ALBUMS = __ALBUMS__;
 var $ = function (id) { return document.getElementById(id); };
-ALBUMS.forEach(function (a) { var o = document.createElement('option'); o.value = a; $('albums').appendChild(o); });
-function q(path, extra) { return path + '?k=' + encodeURIComponent(K) + '&s=' + encodeURIComponent(T) + (extra || ''); }
-function send(name) {
-  return fetch(q('/pickname', '&name=' + encodeURIComponent(name)), {cache: 'no-store'}).then(function (r) { return r.json(); });
-}
+var mode = 'tv', album = '', after = false;
 
-// Before the pick: the name is sent as it's typed (and again on the way out), so changing it is always safe.
-var timer = null;
-$('name').addEventListener('input', function () {
-  clearTimeout(timer);
-  $('saved').textContent = 'Saving…';
-  timer = setTimeout(function () {
-    var n = $('name').value.trim();
-    send(n).then(function (r) {
-      $('saved').textContent = r.ok ? (n ? 'Saved: these photos go into "' + n + '".' : 'No name: you choose on the TV afterwards.') : r.error;
-    }).catch(function () { $('saved').textContent = 'Can’t reach the TV. Check the phone is on the home Wi-Fi.'; });
-  }, 400);
+// The albums, newest first: tap one to choose it.
+ALBUMS.forEach(function (a) {
+  var row = document.createElement('div');
+  row.className = 'album';
+  row.innerHTML = '<span class="n"></span><span class="c"></span>';
+  row.querySelector('.n').textContent = a.name;
+  row.querySelector('.c').textContent = a.count.toLocaleString() + ' photos';
+  row.addEventListener('click', function () { album = a.key; marks(); changed(); });
+  row.dataset.key = a.key;
+  $('list').appendChild(row);
 });
+if (!ALBUMS.length) $('list').innerHTML = '<p class="soft" style="margin:8px 4px">No albums yet.</p>';
+function marks() { Array.prototype.forEach.call($('list').children, function (r) { r.classList.toggle('on', r.dataset.key === album); }); }
+
+function setMode(m) {
+  mode = m;
+  ['tv', 'new', 'add'].forEach(function (x) { $('m-' + x).classList.toggle('on', x === m); });
+  $('name').classList.toggle('hide', m !== 'new');
+  $('list').classList.toggle('hide', m !== 'add');
+  if (m === 'new') $('name').focus();
+  changed();
+}
+$('m-tv').onclick = function () { setMode('tv'); };
+$('m-new').onclick = function () { setMode('new'); };
+$('m-add').onclick = function () { setMode('add'); };
+
+function q(path, extra) { return path + '?k=' + encodeURIComponent(K) + '&s=' + encodeURIComponent(T) + (extra || ''); }
+function current() {   // what to send: '' (decide on the TV), a new name, or an album key
+  if (mode === 'new') return '&name=' + encodeURIComponent($('name').value.trim());
+  if (mode === 'add' && album) return '&album=' + encodeURIComponent(album);
+  return '&name=';
+}
+function summary() {
+  if (mode === 'new') { var n = $('name').value.trim(); return n ? 'New album “' + n + '”.' : 'Type the new album’s name.'; }
+  if (mode === 'add') { var a = ALBUMS.filter(function (x) { return x.key === album; })[0]; return a ? 'Adding to “' + a.name + '”.' : 'Tap an album.'; }
+  return 'The TV asks after you pick.';
+}
+function send() { return fetch(q('/pickname', current()), {cache: 'no-store'}).then(function (r) { return r.json(); }); }
+
+// Before the pick, every change is sent at once, so changing your mind is always safe.
+var timer = null;
+function changed() {
+  if (after) { $('note').textContent = summary(); return; }   // after the pick: sent with the button
+  clearTimeout(timer);
+  timer = setTimeout(function () {
+    send().then(function (r) { $('note').textContent = r.ok ? summary() : r.error; },
+                function () { $('note').textContent = 'Can’t reach the TV. Check the phone is on the home Wi-Fi.'; });
+  }, 350);
+}
+$('name').addEventListener('input', changed);
 $('go').addEventListener('click', function (e) {
   e.preventDefault();
   clearTimeout(timer);
   var go = function () { location.href = PICKER; };
-  send($('name').value.trim()).then(go, go);
+  send().then(go, go);
+});
+$('save').addEventListener('click', function () {
+  if ((mode === 'new' && !$('name').value.trim()) || (mode === 'add' && !album) || mode === 'tv') { $('note').textContent = summary(); return; }
+  $('note').textContent = 'Sending…';
+  send().then(function (r) { $('note').textContent = r.ok ? 'Sent to the TV.' : r.error; },
+              function () { $('note').textContent = 'Can’t reach the TV.'; });
 });
 
-// After the pick, without a name.
-$('save2').addEventListener('click', function () {
-  var n = $('name2').value.trim();
-  if (!n) { $('saved2').textContent = 'Type a name first.'; return; }
-  $('saved2').textContent = 'Saving…';
-  send(n).then(function (r) { $('saved2').textContent = r.ok ? 'Sent to the TV.' : r.error; },
-               function () { $('saved2').textContent = 'Can’t reach the TV.'; });
-});
-
-function show(which) { ['before', 'name-after', 'msg'].forEach(function (id) { $(id).classList.toggle('hide', id !== which); }); }
-function msg(big, soft) { $('msg-big').textContent = big; $('msg-soft').textContent = soft; show('msg'); }
+function msg(big, soft) { $('msg-big').textContent = big; $('msg-soft').textContent = soft; $('where').classList.add('hide'); $('msg').classList.remove('hide'); }
 function n(c) { return c.toLocaleString() + (c === 1 ? ' photo' : ' photos'); }
+function afterPick(count) {   // picked with no choice yet: the same form, sent with a button, while the TV asks too
+  if (after) return;
+  after = true;
+  $('picked-n').textContent = '✔ ' + n(count) + ' picked';
+  $('picked-n').classList.remove('hide');
+  $('m-tv').classList.add('hide');
+  $('go').classList.add('hide'); $('how').classList.add('hide');
+  $('save').classList.remove('hide');
+  if (mode === 'tv') setMode('new');
+  $('note').textContent = 'Choose here, or on the TV.';
+}
 
 function poll() {
   fetch(q('/pickstate'), {cache: 'no-store'}).then(function (r) { return r.json(); }).then(function (s) {
-    if (s.state === 'waiting') { if (!PICKER) msg('This code has been used', 'Scan the new code on the TV.'); else show('before'); }
+    if (s.state === 'waiting') { if (!PICKER) msg('This code has been used', 'Scan the new code on the TV.'); }
     else if (s.state === 'picked' && s.name) msg('✔ ' + n(s.count) + ' picked', 'They go into “' + s.name + '”.');
-    else if (s.state === 'picked') { $('picked-n').textContent = '✔ ' + n(s.count) + ' picked'; if ($('name-after').classList.contains('hide')) show('name-after'); }
+    else if (s.state === 'picked') afterPick(s.count);
     else if (s.state === 'done') msg('✔ ' + n(s.count) + ' added', 'Going into “' + s.result + '”. They download in the background. For more, scan the new code on the TV.');
-    else if (s.state === 'empty') msg('No photos were picked', 'Nothing was added and the name was forgotten. Scan the new code on the TV to try again.');
+    else if (s.state === 'empty') msg('No photos were picked', 'Nothing was added and your choice was forgotten. Scan the new code on the TV to try again.');
     else if (s.state === 'closed') msg('Add photos was closed on the TV', 'Nothing more to do here. Hold ▼ on the remote to add photos again.');
     else msg('This code has been used', 'Scan the new code on the TV.');
   }).catch(function () { /* TV busy or phone off Wi-Fi: try again */ });

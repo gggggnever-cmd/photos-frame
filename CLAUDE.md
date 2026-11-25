@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.50** (versionCode 50). Everything is on GitHub `main`.
+Current version: **v0.51** (versionCode 51). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,12 @@ Current version: **v0.50** (versionCode 50). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.51 (2026-11-25): phone page asks **"Where should they go?"**: Decide on TV / New album (name) / Add to album
+      (tap from the list: membership albums AND named date trips, PhotoLibrary.namedChoices). /pickname takes &name= or
+      &album=<key>. Adding to a named date trip with photos from OTHER dates turns that trip into a membership album of
+      the same name first (PhotoLibrary.albumFromTrip), so they can join; same dates = the default (joins by date). The
+      TV's choice screen lists named trips too. A typed new name equal to an existing album/trip joins it. Page logic
+      checked in a mobile-size browser with a stubbed server; installed; NOT yet tried with a real pick.
 - [x] v0.50 (2026-11-25): phone name matching a **named date trip** (e.g. "Osaka 2016", a renamed "Nov 2016 · 5 days",
       not a membership album) now means "the default" when the pick's dates fall in it, instead of creating a second
       album of the same name. Names matching nothing still make a new album. Built + installed; logic not exercised.

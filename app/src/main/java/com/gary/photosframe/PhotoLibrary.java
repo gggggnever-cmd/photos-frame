@@ -324,6 +324,37 @@ final class PhotoLibrary {
         return out;
     }
 
+    /**
+     * What the phone's "Add to an album" lists (2026-11-25): membership albums and NAMED date trips (an unnamed
+     * "Nov 2016 · 5 days" isn't something the owner would pick by name). {key, name, photo count, label}, newest first.
+     */
+    synchronized List<String[]> namedChoices() {
+        List<Trips.Trip> all = new ArrayList<>(albumGroups);
+        for (Trips.Trip t : trips) if (!t.name().isEmpty()) all.add(t);
+        all.sort((a, b) -> b.start.compareTo(a.start));
+        List<String[]> out = new ArrayList<>();
+        for (Trips.Trip t : all) out.add(new String[]{t.key(), t.name(), String.valueOf(t.ids.size()), t.label()});
+        return out;
+    }
+
+    /**
+     * Turns a named date trip into a membership album of the same name holding its photos, so photos from OTHER
+     * dates can join it (a date trip is only a date range). Returns the album id, or null if no such trip.
+     */
+    synchronized String albumFromTrip(String key) {
+        for (Trips.Trip t : trips) {
+            if (!t.key().equals(key)) continue;
+            String name = t.name().isEmpty() ? Trips.label(t.start, t.end, "", t.ids.size()) : t.name();
+            String id = createAlbum(name);
+            List<String> files = new ArrayList<>();
+            for (String p : t.ids) files.add(name(p));
+            addToAlbum(id, files, true);
+            Log.i("PhotoLibrary", "trip " + key + " is now album " + id + " (" + files.size() + " photos)");
+            return id;
+        }
+        return null;
+    }
+
     /** A new album with this name (or the existing one of that name). Returns its id. */
     synchronized String createAlbum(String name) {
         AlbumStore.Album a = albums.named(name);

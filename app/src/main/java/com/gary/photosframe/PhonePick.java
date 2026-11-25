@@ -8,13 +8,14 @@ import java.util.List;
 
 /**
  * The phone's side of Add photos (asked 2026-11-25): the QR code opens a small page on the TV's phone server
- * (CornerServer) where the owner may type the album's name BEFORE picking, then taps through to Google's picker.
+ * (CornerServer) where the owner says where the photos go BEFORE picking — "New album" with a name, or "Add to an
+ * album" from the list — then taps through to Google's picker.
  *
  * Guard rails (the owner: "error guard if I add a name and end up not selecting any photo or change my mind"):
- * - A name is only a note on this one pick. Nothing is created until photos actually arrive.
+ * - The choice is only a note on this one pick. Nothing is created until photos actually arrive.
  * - No pick (cancelled, code expired, Add photos closed) → the next code gets a new token and the note is dropped.
- * - The name can be changed or cleared on the phone until Done; an empty name means "ask on the TV as usual".
- * - After a pick without a name, the phone can still name it while the TV's choice screen is open.
+ * - It can be changed or cleared on the phone until Done; no choice means "ask on the TV as usual".
+ * - After a pick without a choice the phone can still choose while the TV's choice screen is open.
  * One pick at a time; every method is synchronized (the server's threads and the add-photos thread share it).
  */
 final class PhonePick {
@@ -22,10 +23,19 @@ final class PhonePick {
 
     static final int MAX_NAME = 60;
 
-    private static String token = "", pickerUri = "", state = "closed", name = "", lateName = "", result = "";
+    /** Where the phone said the photos go: a new album's name, or an existing album/trip key. Empty = ask the TV. */
+    static final class Choice {
+        final String name, key;   // name set → new album; key set ("album:<id>" or "start~end") → add to it
+        Choice(String name, String key) { this.name = name; this.key = key; }
+        boolean isEmpty() { return name.isEmpty() && key.isEmpty(); }
+        static final Choice NONE = new Choice("", "");
+    }
+
+    private static String token = "", pickerUri = "", state = "closed", result = "", label = "";
+    private static Choice choice = Choice.NONE, late = Choice.NONE;
     private static int count;
 
-    /** A new code is on the TV: a fresh token, no name yet. Returns the token for the QR's address. */
+    /** A new code is on the TV: a fresh token, no choice yet. Returns the token for the QR's address. */
     static synchronized String begin(String uri) {
         StringBuilder b = new StringBuilder();
         SecureRandom r = new SecureRandom();
@@ -33,35 +43,39 @@ final class PhonePick {
         token = b.toString();
         pickerUri = uri;
         state = "waiting";
-        name = ""; lateName = ""; result = ""; count = 0;
+        choice = Choice.NONE; late = Choice.NONE; result = ""; label = ""; count = 0;
         return token;
     }
 
-    /** Add photos closed (or the code expired and a new one replaces it): the old page says so. */
-    static synchronized void end() { state = "closed"; name = ""; lateName = ""; }
+    /** Add photos closed: the old page says so. */
+    static synchronized void end() { state = "closed"; choice = Choice.NONE; late = Choice.NONE; }
 
-    /** The TV got the pick. Returns the name typed beforehand ("" if none). */
-    static synchronized String picked(int n) { count = n; state = n == 0 ? "empty" : "picked"; return name; }
+    /** The TV got the pick. Returns what the phone chose beforehand (NONE if nothing). */
+    static synchronized Choice picked(int n) { count = n; state = n == 0 ? "empty" : "picked"; return choice; }
 
-    /** The batch went somewhere (album name or trip label shown on the phone). */
+    /** The batch went somewhere (shown on the phone). */
     static synchronized void done(String where) { result = where; state = "done"; }
 
-    /** A name sent from the phone after the pick, while the TV asks; taken once. */
-    static synchronized String takeLateName() { String n = lateName; lateName = ""; return n; }
+    /** A choice sent from the phone after the pick, while the TV asks; taken once. */
+    static synchronized Choice takeLate() { Choice c = late; late = Choice.NONE; return c; }
 
     static synchronized boolean matches(String t) { return !t.isEmpty() && t.equals(token); }
 
-    /** The phone sets (or clears) the name. Returns an error for the page, or null. */
-    static synchronized String setName(String t, String raw) {
+    /**
+     * The phone sets (or clears) the choice: a new album's name, or the key of an existing one (with its name for
+     * the page). Returns an error for the page, or null.
+     */
+    static synchronized String set(String t, String rawName, String key, String keyLabel) {
         if (!matches(t)) return "This code has been used. Scan the new code on the TV.";
-        String n = clean(raw);
-        if (state.equals("waiting")) { name = n; return null; }
+        String n = clean(rawName), k = key == null ? "" : key.trim();
+        Choice c = !k.isEmpty() ? new Choice("", k) : new Choice(n, "");
+        if (state.equals("waiting")) { choice = c; label = k.isEmpty() ? n : clean(keyLabel); return null; }
         if (state.equals("picked")) {
-            if (n.isEmpty()) return "Type a name first.";
-            lateName = n;
+            if (c.isEmpty()) return "Type a name or choose an album first.";
+            late = c;
             return null;
         }
-        return "Too late to name this lot: it has been added already.";
+        return "Too late for this lot: it has been added already.";
     }
 
     /** What the page shows. */
@@ -69,7 +83,7 @@ final class PhonePick {
         try {
             JSONObject o = new JSONObject();
             o.put("state", matches(t) ? state : "old");
-            o.put("name", name);
+            o.put("name", label);
             o.put("count", count);
             o.put("result", result);
             return o.toString();
@@ -87,10 +101,13 @@ final class PhonePick {
         return n.length() > MAX_NAME ? n.substring(0, MAX_NAME).trim() : n;
     }
 
-    /** The albums for the page's suggestions, as a JSON array of names. */
+    /** The albums for the page's list: [{key, name, count, label}]. */
     static String albumsJson(List<String[]> choices) {
         JSONArray a = new JSONArray();
-        for (String[] c : choices) a.put(c[1]);
+        try {
+            for (String[] c : choices)
+                a.put(new JSONObject().put("key", c[0]).put("name", c[1]).put("count", Integer.parseInt(c[2])).put("label", c[3]));
+        } catch (Exception ignored) { }
         return a.toString();
     }
 }

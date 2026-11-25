@@ -120,7 +120,7 @@ final class CornerServer {
         String path = target, query = "";
         int q = target.indexOf('?');
         if (q >= 0) { path = target.substring(0, q); query = target.substring(q + 1); }
-        String k = "", c = "", a = "", who = "", charging = "", tok = "", pname = "";
+        String k = "", c = "", a = "", who = "", charging = "", tok = "", pname = "", palbum = "";
         for (String kv : query.split("&")) {
             int eq = kv.indexOf('=');
             if (eq < 0) continue;
@@ -128,6 +128,7 @@ final class CornerServer {
             if (name.equals("k")) k = value; else if (name.equals("c")) c = value; else if (name.equals("a")) a = value;
             else if (name.equals("who")) who = value; else if (name.equals("charging")) charging = value;
             else if (name.equals("s")) tok = value; else if (name.equals("name")) pname = value;
+            else if (name.equals("album")) palbum = value;
         }
         OutputStream out = s.getOutputStream();
         Log.i("CornerServer", "request " + path + (c.isEmpty() ? "" : " " + c) + (key.equals(k) ? "" : " (no or wrong key)"));
@@ -156,12 +157,16 @@ final class CornerServer {
                 send(out, "200 OK", "text/plain; charset=utf-8", charging.equals("forget") ? Bedtime.forget(app, who)
                         : Bedtime.report(app, who, charging.equals("1") || charging.equalsIgnoreCase("true")));
                 break;
-            // Add photos from the phone (PhonePick): the page, the name typed before or after the pick, the state.
+            // Add photos from the phone (PhonePick): the page, where the photos go (before or after the pick), the state.
             case "/pick":
                 send(out, "200 OK", "text/html; charset=utf-8", PhonePage.pick(app, key, tok));
                 break;
             case "/pickname": {
-                String err = PhonePick.setName(tok, pname);
+                String label = "";   // the chosen album's name, for the page
+                if (!palbum.isEmpty())
+                    for (String[] r : PhotoLibrary.get(app).namedChoices()) if (r[0].equals(palbum)) label = r[1];
+                String err = !palbum.isEmpty() && label.isEmpty() ? "That album isn't on the TV any more."
+                        : PhonePick.set(tok, pname, palbum, label);
                 send(out, "200 OK", "application/json", err == null ? "{\"ok\":true}"
                         : "{\"ok\":false,\"error\":" + org.json.JSONObject.quote(err) + "}");
                 break;
@@ -210,7 +215,7 @@ final class CornerServer {
             String t = asset(ctx, "pick_phone.html");
             if (t == null) return message("The Add photos page is missing from this build of Photos Frame.");
             String albums;
-            try { albums = PhonePick.albumsJson(PhotoLibrary.get(ctx).albumChoices()); } catch (RuntimeException e) { albums = "[]"; }
+            try { albums = PhonePick.albumsJson(PhotoLibrary.get(ctx).namedChoices()); } catch (RuntimeException e) { albums = "[]"; }
             return t.replace("__KEY__", org.json.JSONObject.quote(key))
                     .replace("__TOKEN__", org.json.JSONObject.quote(tok))
                     .replace("__PICKER__", org.json.JSONObject.quote(PhonePick.pickerUri(tok)))
