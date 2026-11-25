@@ -106,6 +106,56 @@ final class FrameRenderer {
 
     private static float clamp(float v, float lo, float hi) { return Math.max(lo, Math.min(hi, v)); }
 
+    // The mat look (2026-11-24): one photo in a plain warm-white mat filling the screen, like Samsung The Frame's
+    // "Modern" mats (thin / modern / wide; Samsung publishes no widths, so these follow the art guides' 8-10%).
+    static final float[] MAT_WIDTH = {0.06f, 0.09f, 0.13f};   // of the screen height, each side
+    static final int MAT = 0xFFEFE9DE;                        // warm white, near Samsung's "Warm"
+
+    /**
+     * Mat look. width: one of MAT_WIDTH. jitter: -1..1 numbers chosen per slide so the opening's edge and the
+     * mat's shade never sit still for long (kind to the LCD panel: no fixed bright/dark line), too small to notice:
+     * jx/jy move the opening up to 0.8% of the height, jw changes the mat width by up to 0.4%, js the shade by 2%.
+     * A photo near the opening's shape fills it (the mat covers its edges, like a real mat); a portrait or a
+     * panorama is shown whole in a smaller opening, with more mat at its sides.
+     */
+    void drawMat(Canvas c, Bitmap photo, int w, int h, float width, float jx, float jy, float jw, float js, List<RectF> rects) {
+        int mat = shade(MAT, 1f + 0.02f * js);
+        c.drawColor(mat);
+        if (photo == null) return;
+        float m = (width + 0.004f * jw) * h;
+        float cx = w / 2f + jx * 0.008f * h, cy = h / 2f + jy * 0.008f * h;
+        float ow = w - 2 * m, oh = h - 2 * m;
+        float photoRatio = (float) photo.getWidth() / photo.getHeight(), openRatio = ow / oh;
+        RectF open;
+        if (photoRatio / openRatio > 0.8f && photoRatio / openRatio < 1.25f) {
+            open = new RectF(cx - ow / 2, cy - oh / 2, cx + ow / 2, cy + oh / 2);
+            drawCover(c, photo, open, 0, 0, rects);
+        } else {
+            float s = Math.min(ow / photo.getWidth(), oh / photo.getHeight());
+            float pw = photo.getWidth() * s, ph = photo.getHeight() * s;
+            open = new RectF(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2);
+            c.drawBitmap(photo, null, open, p);
+            rects.add(open);
+        }
+        // The photo sits a little behind the mat: a soft shadow from the mat's top and left edges falls on it.
+        float sh = 0.012f * h;
+        p.setShader(new android.graphics.LinearGradient(0, open.top, 0, open.top + sh, 0x38000000, 0x00000000,
+                android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(open.left, open.top, open.right, open.top + sh, p);
+        p.setShader(new android.graphics.LinearGradient(open.left, 0, open.left + sh * 0.7f, 0, 0x26000000, 0x00000000,
+                android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(open.left, open.top, open.left + sh * 0.7f, open.bottom, p);
+        p.setShader(null);
+        // The cut edge of the mat: a fine lighter line on the top and left (lit from above), darker bottom and right.
+        float cut = Math.max(1.5f, 0.0025f * h);
+        p.setColor(shade(mat, 1.04f));
+        c.drawRect(open.left - cut, open.top - cut, open.right, open.top, p);
+        c.drawRect(open.left - cut, open.top, open.left, open.bottom, p);
+        p.setColor(shade(mat, 0.90f));
+        c.drawRect(open.left - cut, open.bottom, open.right + cut, open.bottom + cut, p);
+        c.drawRect(open.right, open.top - cut, open.right + cut, open.bottom, p);
+    }
+
     /** Framed look. offsetX/offsetY: a few pixels of drift between photos, to be kind to the panel. */
     void draw(Canvas c, Bitmap photo, int w, int h, float offsetX, float offsetY, List<RectF> rects) {
         c.drawColor(WALL);

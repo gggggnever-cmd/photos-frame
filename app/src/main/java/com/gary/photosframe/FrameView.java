@@ -293,7 +293,7 @@ public class FrameView extends View {
             photos.add(toned);
             drawn.add(id);
         }
-        if (look == Settings.LOOK_FRAMED && drawn.size() > 1) drawn = drawn.subList(0, 1);
+        if (look != Settings.LOOK_FULL && drawn.size() > 1) drawn = drawn.subList(0, 1);
         long t1 = SystemClock.uptimeMillis();
         float drift = 0.004f * h;
         float dx = (random.nextFloat() * 2 - 1) * drift, dy = (random.nextFloat() * 2 - 1) * drift;
@@ -302,6 +302,9 @@ public class FrameView extends View {
         List<RectF> rects = new ArrayList<>();
         if (look == Settings.LOOK_FRAMED) {
             renderer.draw(c, photos.isEmpty() ? null : photos.get(0), w, h, dx, dy, rects);
+        } else if (Settings.matWidth(look) > 0) {
+            renderer.drawMat(c, photos.isEmpty() ? null : photos.get(0), w, h, Settings.matWidth(look),
+                    rnd(), rnd(), rnd(), rnd(), rects);
         } else {
             renderer.drawFull(c, photos, FrameRenderer.paperTone(photos), w, h, dx, dy, rects);
         }
@@ -310,6 +313,8 @@ public class FrameView extends View {
                 + (SystemClock.uptimeMillis() - t1) + "ms");
         return new Scene(ids, Collections.unmodifiableList(drawn), image, Collections.unmodifiableList(rects));
     }
+
+    private float rnd() { return random.nextFloat() * 2 - 1; }
 
     /** UI thread: start the cross-fade to a finished scene. */
     private void show(Scene s, long fadeMs) {

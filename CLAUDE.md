@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.42** (versionCode 42). Everything is on GitHub `main`.
+Current version: **v0.43** (versionCode 43). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,15 @@ Current version: **v0.42** (versionCode 42). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.43 (2026-11-24): **Mat look** (FrameRenderer.drawMat). Picture size now: Full screen / Wood frame (was "With a
+      border") / Mat · thin / medium / wide = 6 / 9 / 13% of screen height per side (Samsung publishes no mat widths;
+      art guides say 8-10%; Samsung's API names thin/modern/wide). Warm white 0xEFE9DE (near Samsung "Warm"), one photo
+      per slide; photos near the opening's shape fill it (mat covers edges), portraits/panoramas whole in a smaller
+      opening; soft shadow inside top/left, fine cut edge. Burn-in hedge (owner asked): per slide the opening moves up
+      to 0.8% of height, width varies 0.4%, mat shade 2% (VA LCD: burn-in risk low, RTINGS found none on LCDs).
+      Seen on the TV with a portrait at Mat · medium (left set to that). NOT seen: a landscape in the mat.
+      LESSON: check `dumpsys activity activities` before testing — the owner was watching Bell Fibe and the test
+      opened the frame over it for ~30 s.
 - [x] v0.42 (2026-11-24): **TV picture switches with the photos** (TvPicture). Owner asked: calm print-like picture while
       the frame/screensaver shows, his normal Vivid when he leaves. Uses TCL's public shared library com.tcl.tv.display
       (TvPqManager/TvBacklightManager via reflection, `uses-library required=false`); SELinux on this TV allows

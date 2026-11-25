@@ -44,8 +44,11 @@ final class Settings {
         return m + (m == 1 ? " minute" : " minutes");
     }
 
-    static final String[] LOOK_NAMES = {"Full screen", "With a border"};
-    static final int LOOK_FULL = 0, LOOK_FRAMED = 1;
+    // Mats added 2026-11-24 (FrameRenderer.drawMat); "With a border" renamed "Wood frame" so the two don't mix up.
+    static final String[] LOOK_NAMES = {"Full screen", "Wood frame", "Mat · thin", "Mat · medium", "Mat · wide"};
+    static final int LOOK_FULL = 0, LOOK_FRAMED = 1, LOOK_MAT_THIN = 2;
+    /** The mat width (of the screen height) for a mat look, else 0. */
+    static float matWidth(int look) { return look >= LOOK_MAT_THIN ? FrameRenderer.MAT_WIDTH[look - LOOK_MAT_THIN] : 0f; }
     int look() { return clamp(prefs.getInt("look", LOOK_FULL), LOOK_NAMES.length, LOOK_FULL); }
     void setLook(int l) { prefs.edit().putInt("look", l).apply(); }
 
