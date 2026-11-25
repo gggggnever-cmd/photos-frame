@@ -134,6 +134,14 @@ final class BatchChoice extends LinearLayout {
         return true;
     }
 
+    /** Answered elsewhere (a name from the phone): close without choosing. */
+    void dismiss() {
+        hideKeyboard();
+        typing = null;
+        field.clearFocus();
+        setVisibility(GONE);
+    }
+
     /** Back: while typing, return to the choices; otherwise take the default. */
     void back() {
         if (typing != null) choosing();

@@ -75,7 +75,7 @@ public class AddPhotosActivity extends Activity {
         start();
     }
 
-    @Override protected void onDestroy() { stopped = true; super.onDestroy(); }
+    @Override protected void onDestroy() { stopped = true; PhonePick.end(); super.onDestroy(); }
 
     @Override public boolean onKeyDown(int k, KeyEvent e) {
         if (canRetry && (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER)) { start(); return true; }
@@ -153,22 +153,28 @@ public class AddPhotosActivity extends Activity {
         DownloadQueue.resetReport();
         library = PhotoLibrary.get(this);
         int lastPick = 0;
+        CornerServer.ensureRunning(this);   // the phone page for naming the album lives on the phone server
         while (!stopped) {
             Picker picker = new Picker(auth);
             Picker.Session s = picker.create();
             boolean handedOver = false;
             try {
                 String warn = Storage.warning(this);
+                // The code opens our phone page (album name first, then Google Photos); straight to Google if the
+                // TV has no network address for the page.
+                String token = PhonePick.begin(s.pickerUri);
+                String page = CornerServer.address(this);
+                String qrText = page == null ? s.pickerUri : page.replace("/?k=", "/pick?k=") + "&s=" + token;
                 if (lastPick == 0) {
-                    show(s.pickerUri, "Choose photos for the frame", new String[] {
-                                    "Scan with your phone to open Google Photos.",
-                                    "Pick your photos, up to 2,000 at a time.",
-                                    "Tap Done. A new code appears here for the next lot."},
+                    show(qrText, "Choose photos for the frame", new String[] {
+                                    "Scan with your phone. Type the album's name if you like.",
+                                    "Tap Choose photos, pick up to 2,000, then tap Done.",
+                                    "A new code appears here for the next lot."},
                             "These download in the background. Tip: type the trip's album name in the search box, "
                                     + "then tap the circle next to each day."
                                     + (warn == null ? "" : "\n\n" + warn), null);
                 } else {
-                    show(s.pickerUri, String.format("%,d", lastPick) + " photos added to the queue. More?", new String[] {
+                    show(qrText, String.format("%,d", lastPick) + " photos added to the queue. More?", new String[] {
                                     "Scan this new code to pick the next lot, up to 2,000.",
                                     "Or press Back when you have finished."},
                             "The photos keep downloading while the frame plays, and go into the album you chose."
@@ -183,6 +189,12 @@ public class AddPhotosActivity extends Activity {
                 if (stopped || !picked) continue;
                 show(null, "Reading your pick…", null, "", null);
                 List<Picker.Item> items = picker.photos(s);
+                String phoneName = PhonePick.picked(items.size());
+                if (items.isEmpty()) {   // Done with nothing chosen: no album, no name kept, a fresh code
+                    show(null, "No photos were picked", null, "Nothing was added. A new code is coming.", null);
+                    Thread.sleep(2500);
+                    continue;
+                }
 
                 // The pick's dates, grouped the way trips are, and where the batch goes unless the owner says otherwise.
                 List<String> days = new ArrayList<>();
@@ -195,6 +207,16 @@ public class AddPhotosActivity extends Activity {
                 DownloadQueue.add(this, s.id, pickStart, pickEnd, target.albumId, items);
                 handedOver = true;
                 lastPick = items.size();
+
+                // Named on the phone before picking: straight into that album (an existing one with the same name).
+                if (!phoneName.isEmpty()) {
+                    String where = apply(optionNamed(phoneName), phoneName, target, s.id, items, clusters);
+                    PhonePick.done(where);
+                    show(null, String.format("%,d", items.size()) + " photos go into " + where, null,
+                            "Named on your phone. A new code is coming.", null);
+                    Thread.sleep(2500);
+                    continue;
+                }
 
                 // Four small previews spread across the pick, so the owner recognises it.
                 List<Bitmap> covers = new ArrayList<>();
@@ -209,8 +231,19 @@ public class AddPhotosActivity extends Activity {
                 chosenName = null;
                 choosing = true;
                 ui.post(() -> openChoice(heading, covers, opts));
-                while (choosing && !stopped) Thread.sleep(300);
-                apply(chosenOption, chosenName, target, s.id, items, clusters);
+                while (choosing && !stopped) {
+                    // A name sent from the phone while this screen asks counts as the answer.
+                    String late = PhonePick.takeLateName();
+                    if (!late.isEmpty()) {
+                        chosenOption = optionNamed(late);
+                        chosenName = late;
+                        ui.post(() -> { choice.dismiss(); show(null, "Getting a new code…", null, "", null); });
+                        choosing = false;
+                        break;
+                    }
+                    Thread.sleep(300);
+                }
+                PhonePick.done(apply(chosenOption, chosenName, target, s.id, items, clusters));
             } finally {
                 if (!handedOver) picker.delete(s);
             }
@@ -270,8 +303,15 @@ public class AddPhotosActivity extends Activity {
         return out;
     }
 
-    /** Carries out the owner's choice (on the add-photos thread) and remembers it for the next lots. */
-    private void apply(BatchChoice.Option o, String name, Target t, String session, List<Picker.Item> items, List<String[]> clusters) {
+    /** A name typed on the phone: the album already called that (ignoring case), else a new album. */
+    private BatchChoice.Option optionNamed(String name) {
+        for (String[] a : library.albumChoices())   // {id, name, count}
+            if (a[1].equalsIgnoreCase(name)) return new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + a[1], "", a[0], a[1]);
+        return new BatchChoice.Option(BatchChoice.NEW, "New album", "", "", "");
+    }
+
+    /** Carries out the owner's choice (on the add-photos thread) and remembers it for the next lots. Returns where they went. */
+    private String apply(BatchChoice.Option o, String name, Target t, String session, List<Picker.Item> items, List<String[]> clusters) {
         String albumId = t.albumId, label = t.label;
         boolean named = t.named;
         if (o.kind == BatchChoice.NEW && name != null) {
@@ -291,6 +331,7 @@ public class AddPhotosActivity extends Activity {
         }
         Log.i("AddPhotos", items.size() + " photos go to " + (albumId.isEmpty() ? "date trip " : "album " + albumId + " ") + label);
         for (String[] r : clusters) lots.add(new Lot(r[0], r[1], albumId, label, named));
+        return label;
     }
 
     /** The queue line under the text, refreshed every two seconds while this screen is open. */

@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.48** (versionCode 48). Everything is on GitHub `main`.
+Current version: **v0.49** (versionCode 49). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,15 @@ Current version: **v0.48** (versionCode 48). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [~] v0.49 (2026-11-25): **album name on the phone** (PhonePick, assets/pick_phone.html, CornerServer /pick,
+      /pickname, /pickstate; token per code). The Add-photos QR now opens our page on port 8081 (falls back to Google's
+      pickerUri if the TV has no LAN address): optional album name (existing albums suggested), then "Choose photos" →
+      Google. Guards (owner asked): the name is only a note on that one pick; nothing is created until photos arrive;
+      no pick / expired code / Add photos closed → name dropped, page says so; empty name = ask on the TV as before;
+      after a pick without a name the phone can still name it (counts as the TV choice). A name matching an album
+      (ignoring case) adds to it. Done with 0 photos → "No photos were picked", fresh code. Google's own "done ✔" page
+      can't be changed. Tested from the PC: wrong token → "used", bad key → 403, page renders with album list.
+      NOT yet: a real pick from the owner's phone (whether Chrome returns to our page after Google's Done).
 - [x] v0.48 (2026-11-25): **Settings redesigned** by a Fable design agent (owner: "messy, no logic"); spec in
       docs/settings_redesign.md. First page = 5 groups with a summary each: What plays / How it looks / TV screen /
       Photos on the TV / YouTube corner; OK opens a group page (≤5 rows); Back goes up one level, then closes. Row

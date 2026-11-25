@@ -120,13 +120,14 @@ final class CornerServer {
         String path = target, query = "";
         int q = target.indexOf('?');
         if (q >= 0) { path = target.substring(0, q); query = target.substring(q + 1); }
-        String k = "", c = "", a = "", who = "", charging = "";
+        String k = "", c = "", a = "", who = "", charging = "", tok = "", pname = "";
         for (String kv : query.split("&")) {
             int eq = kv.indexOf('=');
             if (eq < 0) continue;
             String name = kv.substring(0, eq), value = URLDecoder.decode(kv.substring(eq + 1), "UTF-8");
             if (name.equals("k")) k = value; else if (name.equals("c")) c = value; else if (name.equals("a")) a = value;
             else if (name.equals("who")) who = value; else if (name.equals("charging")) charging = value;
+            else if (name.equals("s")) tok = value; else if (name.equals("name")) pname = value;
         }
         OutputStream out = s.getOutputStream();
         Log.i("CornerServer", "request " + path + (c.isEmpty() ? "" : " " + c) + (key.equals(k) ? "" : " (no or wrong key)"));
@@ -154,6 +155,19 @@ final class CornerServer {
             case "/phone":   // a phone automation: plugged in or unplugged (see Bedtime)
                 send(out, "200 OK", "text/plain; charset=utf-8", charging.equals("forget") ? Bedtime.forget(app, who)
                         : Bedtime.report(app, who, charging.equals("1") || charging.equalsIgnoreCase("true")));
+                break;
+            // Add photos from the phone (PhonePick): the page, the name typed before or after the pick, the state.
+            case "/pick":
+                send(out, "200 OK", "text/html; charset=utf-8", PhonePage.pick(app, key, tok));
+                break;
+            case "/pickname": {
+                String err = PhonePick.setName(tok, pname);
+                send(out, "200 OK", "application/json", err == null ? "{\"ok\":true}"
+                        : "{\"ok\":false,\"error\":" + org.json.JSONObject.quote(err) + "}");
+                break;
+            }
+            case "/pickstate":
+                send(out, "200 OK", "application/json", PhonePick.stateJson(tok));
                 break;
             case "/state":
                 Commands now = active;
@@ -189,6 +203,18 @@ final class CornerServer {
             }
             // JSON-quoted, so whatever the key holds it stays one JavaScript string.
             return t.replace("__KEY__", org.json.JSONObject.quote(key));
+        }
+
+        /** The Add photos page for one pick (token tok); an old token gets the page, which then says "used". */
+        static String pick(Context ctx, String key, String tok) {
+            String t = asset(ctx, "pick_phone.html");
+            if (t == null) return message("The Add photos page is missing from this build of Photos Frame.");
+            String albums;
+            try { albums = PhonePick.albumsJson(PhotoLibrary.get(ctx).albumChoices()); } catch (RuntimeException e) { albums = "[]"; }
+            return t.replace("__KEY__", org.json.JSONObject.quote(key))
+                    .replace("__TOKEN__", org.json.JSONObject.quote(tok))
+                    .replace("__PICKER__", org.json.JSONObject.quote(PhonePick.pickerUri(tok)))
+                    .replace("__ALBUMS__", albums);
         }
 
         /** No key or the wrong key: says how to get the code, and nothing else. */

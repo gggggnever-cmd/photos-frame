@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1d1a18">
+<title>Add photos</title>
+<style>
+/* Same palette as the TV (Ui.java) and the YouTube corner page. */
+body{font:17px/1.45 system-ui,sans-serif;background:#1d1a18;color:#f1ede4;margin:0 auto;max-width:460px;padding:22px 20px 40px}
+p.e{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a69d90}
+h1{font:400 27px/1.15 Georgia,serif;margin:3px 0 18px}
+.card{background:#292522;border:1px solid rgba(241,237,228,.09);border-radius:20px;padding:18px;margin-bottom:14px}
+label{display:block;font-size:14px;color:#cfc8bc;margin-bottom:8px}
+input{box-sizing:border-box;width:100%;font:18px system-ui,sans-serif;padding:13px 14px;border-radius:12px;border:0;background:#faf7f1;color:#1d1a18}
+.note{font-size:13px;color:#a69d90;margin-top:8px;min-height:18px}
+button,a.btn{display:block;box-sizing:border-box;width:100%;text-align:center;font:600 17px system-ui,sans-serif;padding:15px;border-radius:14px;border:0;background:#e6c08a;color:#1d1a18;text-decoration:none;margin-top:14px}
+button.quiet{background:rgba(241,237,228,.1);color:#f1ede4;font-weight:500}
+.big{font:400 22px/1.3 Georgia,serif;margin:0 0 6px}
+.soft{color:#cfc8bc;font-size:15px}
+.hide{display:none}
+</style></head><body>
+<p class="e">Photos Frame</p>
+<h1>Add photos</h1>
+
+<!-- Before the pick: an optional name, then off to Google Photos. -->
+<div id="before">
+  <div class="card">
+    <label for="name">Album name <span style="color:#a69d90">(optional)</span></label>
+    <input id="name" list="albums" autocomplete="off" maxlength="60" placeholder="e.g. Egypt 2025">
+    <datalist id="albums"></datalist>
+    <div class="note" id="saved">Leave it empty to choose on the TV afterwards. Same name as an album = add to it.</div>
+  </div>
+  <a class="btn" id="go" href="#">Choose photos in Google Photos</a>
+  <p class="soft" style="margin-top:14px">Pick your photos, tap <b>Done</b>, then come back to this page.
+    If you pick nothing, the name is forgotten and nothing changes.</p>
+</div>
+
+<!-- After the pick, no name yet: name it here or on the TV. -->
+<div id="name-after" class="hide">
+  <div class="card">
+    <p class="big" id="picked-n">✔ Photos picked</p>
+    <p class="soft">Name this album here, or choose on the TV.</p>
+    <input id="name2" list="albums" autocomplete="off" maxlength="60" placeholder="e.g. Egypt 2025">
+    <div class="note" id="saved2"></div>
+    <button id="save2">Save name</button>
+  </div>
+</div>
+
+<!-- Messages: picked with a name, done, nothing picked, code used up. -->
+<div id="msg" class="card hide"><p class="big" id="msg-big"></p><p class="soft" id="msg-soft"></p></div>
+
+<script>
+var K = __KEY__, T = __TOKEN__, PICKER = __PICKER__, ALBUMS = __ALBUMS__;
+var $ = function (id) { return document.getElementById(id); };
+ALBUMS.forEach(function (a) { var o = document.createElement('option'); o.value = a; $('albums').appendChild(o); });
+function q(path, extra) { return path + '?k=' + encodeURIComponent(K) + '&s=' + encodeURIComponent(T) + (extra || ''); }
+function send(name) {
+  return fetch(q('/pickname', '&name=' + encodeURIComponent(name)), {cache: 'no-store'}).then(function (r) { return r.json(); });
+}
+
+// Before the pick: the name is sent as it's typed (and again on the way out), so changing it is always safe.
+var timer = null;
+$('name').addEventListener('input', function () {
+  clearTimeout(timer);
+  $('saved').textContent = 'Saving…';
+  timer = setTimeout(function () {
+    var n = $('name').value.trim();
+    send(n).then(function (r) {
+      $('saved').textContent = r.ok ? (n ? 'Saved: these photos go into "' + n + '".' : 'No name: you choose on the TV afterwards.') : r.error;
+    }).catch(function () { $('saved').textContent = 'Can’t reach the TV. Check the phone is on the home Wi-Fi.'; });
+  }, 400);
+});
+$('go').addEventListener('click', function (e) {
+  e.preventDefault();
+  clearTimeout(timer);
+  var go = function () { location.href = PICKER; };
+  send($('name').value.trim()).then(go, go);
+});
+
+// After the pick, without a name.
+$('save2').addEventListener('click', function () {
+  var n = $('name2').value.trim();
+  if (!n) { $('saved2').textContent = 'Type a name first.'; return; }
+  $('saved2').textContent = 'Saving…';
+  send(n).then(function (r) { $('saved2').textContent = r.ok ? 'Sent to the TV.' : r.error; },
+               function () { $('saved2').textContent = 'Can’t reach the TV.'; });
+});
+
+function show(which) { ['before', 'name-after', 'msg'].forEach(function (id) { $(id).classList.toggle('hide', id !== which); }); }
+function msg(big, soft) { $('msg-big').textContent = big; $('msg-soft').textContent = soft; show('msg'); }
+function n(c) { return c.toLocaleString() + (c === 1 ? ' photo' : ' photos'); }
+
+function poll() {
+  fetch(q('/pickstate'), {cache: 'no-store'}).then(function (r) { return r.json(); }).then(function (s) {
+    if (s.state === 'waiting') { if (!PICKER) msg('This code has been used', 'Scan the new code on the TV.'); else show('before'); }
+    else if (s.state === 'picked' && s.name) msg('✔ ' + n(s.count) + ' picked', 'They go into “' + s.name + '”.');
+    else if (s.state === 'picked') { $('picked-n').textContent = '✔ ' + n(s.count) + ' picked'; if ($('name-after').classList.contains('hide')) show('name-after'); }
+    else if (s.state === 'done') msg('✔ ' + n(s.count) + ' added', 'Going into “' + s.result + '”. They download in the background. For more, scan the new code on the TV.');
+    else if (s.state === 'empty') msg('No photos were picked', 'Nothing was added and the name was forgotten. Scan the new code on the TV to try again.');
+    else if (s.state === 'closed') msg('Add photos was closed on the TV', 'Nothing more to do here. Hold ▼ on the remote to add photos again.');
+    else msg('This code has been used', 'Scan the new code on the TV.');
+  }).catch(function () { /* TV busy or phone off Wi-Fi: try again */ });
+}
+poll();
+setInterval(poll, 2000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });   // back from Google Photos
+</script>
+</body></html>
