@@ -210,7 +210,7 @@ public class AddPhotosActivity extends Activity {
 
                 // Named on the phone before picking: straight into that album (an existing one with the same name).
                 if (!phoneName.isEmpty()) {
-                    String where = apply(optionNamed(phoneName), phoneName, target, s.id, items, clusters);
+                    String where = apply(optionNamed(phoneName, target), phoneName, target, s.id, items, clusters);
                     PhonePick.done(where);
                     show(null, String.format("%,d", items.size()) + " photos go into " + where, null,
                             "Named on your phone. A new code is coming.", null);
@@ -235,7 +235,7 @@ public class AddPhotosActivity extends Activity {
                     // A name sent from the phone while this screen asks counts as the answer.
                     String late = PhonePick.takeLateName();
                     if (!late.isEmpty()) {
-                        chosenOption = optionNamed(late);
+                        chosenOption = optionNamed(late, target);
                         chosenName = late;
                         ui.post(() -> { choice.dismiss(); show(null, "Getting a new code…", null, "", null); });
                         choosing = false;
@@ -303,8 +303,14 @@ public class AddPhotosActivity extends Activity {
         return out;
     }
 
-    /** A name typed on the phone: the album already called that (ignoring case), else a new album. */
-    private BatchChoice.Option optionNamed(String name) {
+    /**
+     * A name typed on the phone: the album already called that (ignoring case), else a new album. A named trip by
+     * date (like "Osaka 2016", renamed from "Nov 2016 · 5 days") isn't a membership album: when the pick's dates
+     * fall in it, the default already adds to it, so the name means "the default" rather than a second album.
+     */
+    private BatchChoice.Option optionNamed(String name, Target t) {
+        if (t.albumId.isEmpty() && t.named && t.label.toLowerCase(java.util.Locale.ROOT).startsWith(name.toLowerCase(java.util.Locale.ROOT) + " · "))
+            return new BatchChoice.Option(BatchChoice.DEFAULT, "Add to " + t.label, "", "", t.label);
         for (String[] a : library.albumChoices())   // {id, name, count}
             if (a[1].equalsIgnoreCase(name)) return new BatchChoice.Option(BatchChoice.ALBUM, "Add to " + a[1], "", a[0], a[1]);
         return new BatchChoice.Option(BatchChoice.NEW, "New album", "", "", "");
