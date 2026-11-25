@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.44** (versionCode 44). Everything is on GitHub `main`.
+Current version: **v0.45** (versionCode 45). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,10 @@ Current version: **v0.44** (versionCode 44). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.45 (2026-11-24): TV picture split into three Settings rows: "TV picture for photos" (Leave as is / Photo
+      preset, pref tv_pic), "Brightness" (TV's own, 0, 5, 10 … 100; default 10, pref tv_brightness index) and "Colour"
+      (Warm / Neutral / Cool = colour temp 2/1/0, pref tv_colour). The owner's photo at the TV's own 85 showed the mat
+      glowing like a light box in a dim room. Row padding 6→4 dp so 17 rows fit (checked on the TV).
 - [x] v0.44 (2026-11-24): mats show **portraits 2-3 side by side**, each in its own opening (owner: a lone portrait
       in a wide mat "looks very weird"; landscapes in the mat look good). Grouping now for every look but Wood frame.
       Seen on the TV: a 3-portrait mat slide. A lone portrait (when no partners are queued) still shows alone.

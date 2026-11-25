@@ -108,19 +108,29 @@ final class Settings {
         return m == 60 ? "1 hour" : (m / 60) + " hours";
     }
 
-    // The TV's own picture while the photos show (asked 2026-11-24; see TvPicture). 0 = leave the TV alone,
-    // 1 = calm (Movie, warm, no sharpening or "AI" boosts) at the TV's own brightness, 2.. = calm at a backlight
-    // of 0, 10, ... 100.
-    static final int TV_PIC_OFF = 0, TV_PIC_CALM = 1, TV_PIC_COUNT = 13;
-    int tvPicture() { return clamp(prefs.getInt("tv_picture", TV_PIC_CALM), TV_PIC_COUNT, TV_PIC_CALM); }
-    void setTvPicture(int i) { prefs.edit().putInt("tv_picture", i).apply(); }
+    // The TV's own picture while the photos show (asked 2026-11-24; see TvPicture): a preset the app applies on
+    // arrival (never saved into the TV) and undoes on leaving. "tv_pic": 0 = leave the TV alone, 1 = photo preset
+    // (Movie, no sharpening or "AI" boosts) with the brightness and colour below.
+    static final int TV_PIC_OFF = 0, TV_PIC_ON = 1;
+    static final String[] TV_PIC_NAMES = {"Leave as is", "Photo preset"};
+    int tvPicture() { return clamp(prefs.getInt("tv_pic", TV_PIC_ON), TV_PIC_NAMES.length, TV_PIC_ON); }
+    void setTvPicture(int i) { prefs.edit().putInt("tv_pic", i).apply(); }
+
+    // Brightness (the TV's backlight, 0-100) while the photos show; -1 = the TV's own. Default 10: a bright mat
+    // glows like a light box in a dim room (seen 2026-11-24 at the TV's own 85).
+    static final int[] TV_BRIGHTNESS = {-1, 0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100};
+    static final int DEFAULT_TV_BRIGHTNESS = 3;   // 10
+    int tvBrightness() { return clamp(prefs.getInt("tv_brightness", DEFAULT_TV_BRIGHTNESS), TV_BRIGHTNESS.length, DEFAULT_TV_BRIGHTNESS); }
+    void setTvBrightness(int i) { prefs.edit().putInt("tv_brightness", i).apply(); }
     /** The backlight to use, or -1 to keep the TV's own. */
-    int tvBacklight() { int i = tvPicture(); return i >= 2 ? (i - 2) * 10 : -1; }
-    static String tvPictureName(int i) {
-        if (i == TV_PIC_OFF) return "Leave as is";
-        if (i == TV_PIC_CALM) return "Calm";
-        return "Calm · brightness " + (i - 2) * 10;
-    }
+    int tvBacklight() { return TV_BRIGHTNESS[tvBrightness()]; }
+    static String tvBrightnessName(int i) { return TV_BRIGHTNESS[i] < 0 ? "TV's own" : String.valueOf(TV_BRIGHTNESS[i]); }
+
+    // Colour tone while the photos show: the TV's colour temperatures (EnColorTmpType ordinals 2, 1, 0).
+    static final String[] TV_COLOUR_NAMES = {"Warm", "Neutral", "Cool"};
+    static final int[] TV_COLOUR_TEMP = {2, 1, 0};
+    int tvColour() { return clamp(prefs.getInt("tv_colour", 0), TV_COLOUR_NAMES.length, 0); }
+    void setTvColour(int i) { prefs.edit().putInt("tv_colour", i).apply(); }
 
     private static int clamp(int v, int n, int dflt) { return v >= 0 && v < n ? v : dflt; }
 }

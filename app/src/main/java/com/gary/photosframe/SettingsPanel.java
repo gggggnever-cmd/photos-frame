@@ -23,7 +23,7 @@ final class SettingsPanel extends LinearLayout {
 
     private static final int ROW_TRIP = 0, ROW_INTERVAL = 1, ROW_ART = 2, ROW_SURFACE = 3, ROW_LOOK = 4,
             ROW_ORDER = 5, ROW_DAY = 6, ROW_PLAY = 7, ROW_HIGHLIGHTS = 8, ROW_SPACE = 9, ROW_HIDDEN = 10,
-            ROW_ADD = 11, ROW_YOUTUBE = 12, ROW_AUTO_OFF = 13, ROW_TV_PIC = 14, ROWS = 15;
+            ROW_ADD = 11, ROW_YOUTUBE = 12, ROW_AUTO_OFF = 13, ROW_TV_PIC = 14, ROW_TV_BRIGHT = 15, ROW_TV_COLOUR = 16, ROWS = 17;
 
     private final Settings settings;
     private final Host host;
@@ -49,12 +49,12 @@ final class SettingsPanel extends LinearLayout {
         addView(head);
         addView(Ui.gap(ctx, 8));
         String[] names = {"Albums to play", "Change photo every", "Print look", "Style", "Picture size", "Photo order", "   Which day",
-                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner", "TV off if remote unused", "TV picture for photos"};
+                "Photos to show", "   Best photos per trip", "Space for photos", "Hidden photos", "Add more photos", "YouTube corner", "TV off if remote unused", "TV picture for photos", "   Brightness", "   Colour"};
         for (int i = 0; i < ROWS; i++) {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(14), dp(6), dp(14), dp(6));
+            row.setPadding(dp(14), dp(4), dp(14), dp(4));   // 17 rows must fit the 540 dp screen
             labels[i] = Ui.text(ctx, names[i], 17, Ui.INK);
             values[i] = Ui.text(ctx, "", 17, Ui.SOFT);
             values[i].setGravity(Gravity.END);
@@ -140,8 +140,10 @@ final class SettingsPanel extends LinearLayout {
             int n = Settings.AUTO_OFF_MINUTES.length;
             settings.setAutoOff(Math.max(0, Math.min(n - 1, settings.autoOff() + dir)));
             return;   // nothing on screen changes
-        } else if (focus == ROW_TV_PIC) {
-            settings.setTvPicture(Math.max(0, Math.min(Settings.TV_PIC_COUNT - 1, settings.tvPicture() + dir)));
+        } else if (focus == ROW_TV_PIC || focus == ROW_TV_BRIGHT || focus == ROW_TV_COLOUR) {
+            if (focus == ROW_TV_PIC) settings.setTvPicture(Math.max(0, Math.min(Settings.TV_PIC_NAMES.length - 1, settings.tvPicture() + dir)));
+            else if (focus == ROW_TV_BRIGHT) settings.setTvBrightness(Math.max(0, Math.min(Settings.TV_BRIGHTNESS.length - 1, settings.tvBrightness() + dir)));
+            else settings.setTvColour(Math.max(0, Math.min(Settings.TV_COLOUR_NAMES.length - 1, settings.tvColour() + dir)));
             TvPicture.frameOn(getContext());   // the TV's picture changes at once
             return;
         } else if (focus == ROW_LOOK) {
@@ -185,7 +187,10 @@ final class SettingsPanel extends LinearLayout {
         values[ROW_HIDDEN].setText(hidden == 0 ? "none" : hidden + (focus == ROW_HIDDEN ? "  ·  OK brings them back" : ""));
         values[ROW_ADD].setText(focus == ROW_ADD ? "press OK" : "");
         values[ROW_AUTO_OFF].setText(arrows(ROW_AUTO_OFF, Settings.autoOffName(settings.autoOff()), settings.autoOff(), Settings.AUTO_OFF_MINUTES.length));
-        values[ROW_TV_PIC].setText(arrows(ROW_TV_PIC, Settings.tvPictureName(settings.tvPicture()), settings.tvPicture(), Settings.TV_PIC_COUNT));
+        values[ROW_TV_PIC].setText(arrows(ROW_TV_PIC, Settings.TV_PIC_NAMES[settings.tvPicture()], settings.tvPicture(), Settings.TV_PIC_NAMES.length));
+        values[ROW_TV_BRIGHT].setText(arrows(ROW_TV_BRIGHT, Settings.tvBrightnessName(settings.tvBrightness()), settings.tvBrightness(), Settings.TV_BRIGHTNESS.length));
+        values[ROW_TV_COLOUR].setText(arrows(ROW_TV_COLOUR, Settings.TV_COLOUR_NAMES[settings.tvColour()], settings.tvColour(), Settings.TV_COLOUR_NAMES.length));
+        for (int r : new int[]{ROW_TV_BRIGHT, ROW_TV_COLOUR}) rows[r].setVisibility(shown(r) ? VISIBLE : GONE);
         values[ROW_YOUTUBE].setText(focus == ROW_YOUTUBE ? "OK for the phone code" : "");
         // The row the remote is on: a soft pill, a touch larger, and its value lit in the accent colour.
         for (int i = 0; i < ROWS; i++) {
@@ -210,6 +215,7 @@ final class SettingsPanel extends LinearLayout {
 
     /** Day shows only in One day at a time; Highlights play as a story, so Order and Day give way to the count. */
     private boolean shown(int row) {
+        if (row == ROW_TV_BRIGHT || row == ROW_TV_COLOUR) return settings.tvPicture() == Settings.TV_PIC_ON;
         boolean high = settings.play() == Settings.PLAY_HIGHLIGHTS;
         if (row == ROW_HIGHLIGHTS) return high;
         if (row == ROW_ORDER) return !high;
