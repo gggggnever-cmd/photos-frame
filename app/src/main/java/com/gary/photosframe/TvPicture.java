@@ -108,7 +108,10 @@ final class TvPicture {
      */
     static void frameOn(Context ctx) {
         app = ctx.getApplicationContext();
+        RoomLight.start(app);
         worker.removeCallbacks(restoreLater);
+        worker.removeCallbacks(autoTick);
+        worker.postDelayed(autoTick, 5_000);   // the room's first readings arrive within a few seconds
         worker.post(() -> {
             if (!load()) return;
             Settings s = new Settings(app);
@@ -118,7 +121,7 @@ final class TvPicture {
                 boolean fresh = !p.getBoolean("applied", false);   // the TV's own picture is showing now
                 if (fresh) {
                     p.edit().putBoolean("applied", true).putInt("tv_mode", get("PictureMode"))
-                            .putInt("tv_backlight", get("Backlight")).commit();
+                            .putInt("tv_backlight", get("Backlight")).putInt("tv_sensor", get("LightSensor")).commit();
                 }
                 StringBuilder b = new StringBuilder("photos on: mode " + MOVIE);
                 // Selecting Movie loads its saved values, so they can be read as the photos' starting point.
@@ -127,16 +130,44 @@ final class TvPicture {
                 for (int i = 0; i < INT_ITEMS.length; i += 2) exec(INT_ITEMS[i], Integer.parseInt(INT_ITEMS[i + 1]));
                 // Contrast: the Movie mode's own value (read once per visit), scaled down for the dimmest settings.
                 if (fresh || !p.contains("photo_contrast")) p.edit().putInt("photo_contrast", get("Contrast")).commit();
-                int contrast = p.getInt("photo_contrast", 100) * s.tvContrastPercent() / 100;
-                exec("Contrast", contrast);
-                b.append(", contrast ").append(contrast);
-                int backlight = s.tvBacklight();
-                exec("Backlight", backlight >= 0 ? backlight : p.getInt("tv_backlight", 0));
-                b.append(", ").append(Settings.TV_COLOUR_NAMES[s.tvColour()]).append(", no boosts, backlight ").append(backlight >= 0 ? backlight : "TV's own");
+                exec("LightSensor", 1);   // the TV's own light sensor on: it feeds RoomLight (Auto brightness)
+                lastBright = applyBrightness(s, p);
+                b.append(", ").append(Settings.TV_COLOUR_NAMES[s.tvColour()]).append(", no boosts, brightness ")
+                        .append(lastBright == Settings.TV_OWN ? "TV's own" : String.valueOf(lastBright))
+                        .append(s.tvAuto() ? " (auto, room " + RoomLight.lux() + " lux)" : "");
                 Log.i(TAG, b.toString());
             } catch (Throwable t) { Log.w(TAG, "couldn't set the photo picture: " + cause(t)); }
         });
     }
+
+    private static int lastBright = Integer.MIN_VALUE;
+
+    /** Worker thread: backlight and contrast for the brightness now. Returns that brightness. */
+    private static int applyBrightness(Settings s, SharedPreferences p) throws Exception {
+        int bright = s.tvBrightnessNow();
+        int contrast = p.getInt("photo_contrast", 100) * s.tvContrastPercent() / 100;
+        exec("Contrast", contrast);
+        int backlight = s.tvBacklight();
+        exec("Backlight", backlight >= 0 ? backlight : p.getInt("tv_backlight", 0));
+        return bright;
+    }
+
+    /** Auto brightness: every 30 s while the photos show, follow the room if its light moved to another step. */
+    private static final Runnable autoTick = new Runnable() {
+        @Override public void run() {
+            if (app == null || !load()) return;
+            SharedPreferences p = prefs(app);
+            Settings s = new Settings(app);
+            if (!p.getBoolean("applied", false) || s.tvPicture() == Settings.TV_PIC_OFF) return;
+            worker.postDelayed(this, 30_000);
+            if (!s.tvAuto() || s.tvBrightnessNow() == lastBright) return;
+            try {
+                int was = lastBright;
+                lastBright = applyBrightness(s, p);
+                Log.i(TAG, "auto brightness " + was + " -> " + lastBright + " (room " + RoomLight.lux() + " lux)");
+            } catch (Throwable t) { Log.w(TAG, "auto brightness failed: " + cause(t)); }
+        }
+    };
 
     /** The photos are gone: the TV's own picture again, shortly (frameOn in time cancels it). */
     static void frameOff(Context ctx) {
@@ -156,6 +187,8 @@ final class TvPicture {
             // from coming back after a restart or an input change.
             execMode(mode, true);
             exec("Backlight", backlight);
+            exec("LightSensor", p.getInt("tv_sensor", 1));
+            worker.removeCallbacks(autoTick);
             p.edit().putBoolean("applied", false).commit();
             Log.i(TAG, "photos off: TV picture back to mode " + mode + ", backlight " + backlight);
         } catch (Throwable t) { Log.w(TAG, "couldn't restore the TV picture: " + cause(t)); }

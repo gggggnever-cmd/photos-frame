@@ -121,26 +121,38 @@ final class Settings {
     // Below 0 (asked the same night: 0 was still bright in a dark room): TCL's backlight can't go lower than about
     // 28% of full power (PWM 72/255 at 0, light sensor on or off), so -10 … -70 keep the backlight at 0 and lower the
     // TV's Contrast to 90 … 30% of the mode's own, which dims the whites in the TV's processor.
-    static final int TV_OWN = -1000;
-    static final int[] TV_BRIGHTNESS = {TV_OWN, -70, -60, -50, -40, -30, -20, -10, 0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100};
-    static final int DEFAULT_TV_BRIGHTNESS = 10;   // 10
+    // Auto (asked the same night): follows the room's light, see RoomLight.
+    static final int TV_OWN = -1000, TV_AUTO = -2000;
+    static final int[] TV_BRIGHTNESS = {TV_OWN, TV_AUTO, -70, -60, -50, -40, -30, -20, -10, 0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100};
+    static final int DEFAULT_TV_BRIGHTNESS = 1;   // Auto
     // Saved as the value itself ("tv_bright"), so the list can grow; v0.45's index pref "tv_brightness" carries over.
     int tvBrightness() {
         int v = prefs.getInt("tv_bright", Integer.MIN_VALUE);
         if (v == Integer.MIN_VALUE) {
             int old = prefs.getInt("tv_brightness", -1);
             int[] oldList = {TV_OWN, 0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100};
-            v = old >= 0 && old < oldList.length ? oldList[old] : 10;
+            v = old >= 0 && old < oldList.length ? oldList[old] : TV_AUTO;
         }
         for (int i = 0; i < TV_BRIGHTNESS.length; i++) if (TV_BRIGHTNESS[i] == v) return i;
         return DEFAULT_TV_BRIGHTNESS;
     }
     void setTvBrightness(int i) { prefs.edit().putInt("tv_bright", TV_BRIGHTNESS[i]).apply(); }
+    boolean tvAuto() { return TV_BRIGHTNESS[tvBrightness()] == TV_AUTO; }
+    /** The brightness on the -70 … 100 scale now (Auto reads the room), or TV_OWN. */
+    int tvBrightnessNow() {
+        int v = TV_BRIGHTNESS[tvBrightness()];
+        return v == TV_AUTO ? RoomLight.autoBrightness(RoomLight.lux()) : v;
+    }
     /** The backlight to use, or -1 to keep the TV's own. */
-    int tvBacklight() { int v = TV_BRIGHTNESS[tvBrightness()]; return v == TV_OWN ? -1 : Math.max(0, v); }
+    int tvBacklight() { int v = tvBrightnessNow(); return v == TV_OWN ? -1 : Math.max(0, v); }
     /** The share of the mode's own contrast to use: 100 normally, less below 0. */
-    int tvContrastPercent() { int v = TV_BRIGHTNESS[tvBrightness()]; return v < 0 && v != TV_OWN ? 100 + v : 100; }
-    static String tvBrightnessName(int i) { return TV_BRIGHTNESS[i] == TV_OWN ? "TV's own" : String.valueOf(TV_BRIGHTNESS[i]); }
+    int tvContrastPercent() { int v = tvBrightnessNow(); return v < 0 && v != TV_OWN ? 100 + v : 100; }
+    static String tvBrightnessName(int i) {
+        int v = TV_BRIGHTNESS[i];
+        if (v == TV_OWN) return "TV's own";
+        if (v == TV_AUTO) { int lux = RoomLight.lux(); return lux < 0 ? "Auto" : "Auto (now " + RoomLight.autoBrightness(lux) + ")"; }
+        return String.valueOf(v);
+    }
 
     // Colour tone while the photos show: the TV's colour temperatures (EnColorTmpType ordinals 2, 1, 0).
     static final String[] TV_COLOUR_NAMES = {"Warm", "Neutral", "Cool"};

@@ -69,7 +69,7 @@ README.md and INSTALL.md, then carry on. Ask only about things that are genuinel
   phone lands on http://127.0.0.1:8765/?code=… (won't load) → user pastes that address back → TV signs in.
 - **Downloads:** `baseUrl=w3840-h2160` (≈3837×2160, ~5–15 MB each). Target ≥ 2,000 photos.
   Warn on screen below 5 GB free; stop adding below a 2 GB reserve; always keep rotating cached photos.
-- **No ambient-light-sensor dimming.** Considered and declined by the owner; brightness is set by the art
+- **Ambient-light dimming:** declined 2026-11-18, then ASKED FOR by the owner 2026-11-25 (v0.47 Auto brightness). Old note: brightness is set by the art
   filter level (▲ Settings) and the TV's own picture settings. Don't propose it again.
 - **Updates to the TV:** adb over Wi-Fi via tools/update_tv.sh / update_tv.bat (remembers TV IP in
   tools/tv_ip.txt). A session running on the owner's PC can run these directly.
@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.46** (versionCode 46). Everything is on GitHub `main`.
+Current version: **v0.47** (versionCode 47). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,12 @@ Current version: **v0.46** (versionCode 46). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.47 (2026-11-25): **Auto brightness** (owner asked, reversing the earlier "no light-sensor dimming" for the
+      photos). No app API for the TV's light sensor, but TCL's sensor service logs "TclSensor: … lux:N" every second;
+      RoomLight follows logcat (READ_LOGS, like GoogleOff), median of ~30 s. Brightness row gains "Auto" (default;
+      shows "Auto (now -40)"); TvPicture re-checks every 30 s and re-applies when the step changes. Curve (night-only
+      guess): ≤1 lux -40, ≤5 -20, ≤20 0, ≤60 15, ≤150 30, ≤400 50, else 70. TV light sensor turned on (exec, restored on
+      leave). Seen: kitchen at night read 0 lux → -40. NOT yet: daytime lux values — tune the curve from RoomLight logs.
 - [x] v0.46 (2026-11-24): Brightness goes below 0 (-10 … -70). Measured: TCL's backlight floor is PWM 72/255 (~28%)
       at backlight 0, light sensor on or off, so "0" is still bright in a dark room. Below 0 keeps backlight 0 and sets
       Contrast to 90 … 30% of Movie's own (read right after selecting Movie; pref photo_contrast). Pref is now the value
