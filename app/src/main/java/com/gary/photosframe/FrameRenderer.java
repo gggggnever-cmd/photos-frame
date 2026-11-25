@@ -118,12 +118,31 @@ final class FrameRenderer {
      * A photo near the opening's shape fills it (the mat covers its edges, like a real mat); a portrait or a
      * panorama is shown whole in a smaller opening, with more mat at its sides.
      */
-    void drawMat(Canvas c, Bitmap photo, int w, int h, float width, float jx, float jy, float jw, float js, List<RectF> rects) {
+    void drawMat(Canvas c, List<Bitmap> photos, int w, int h, float width, float jx, float jy, float jw, float js, List<RectF> rects) {
         int mat = shade(MAT, 1f + 0.02f * js);
         c.drawColor(mat);
-        if (photo == null) return;
+        if (photos.isEmpty()) return;
         float m = (width + 0.004f * jw) * h;
         float cx = w / 2f + jx * 0.008f * h, cy = h / 2f + jy * 0.008f * h;
+        if (photos.size() > 1) {
+            // Portraits side by side, each in its own opening (like Samsung's triptych mat; a lone tall photo in a
+            // wide mat looked odd on the TV, 2026-11-24). Full mat height; the mat between them is 0.6 of the edge.
+            float gap = 0.6f * m, oh = h - 2 * m, sum = 0;
+            for (Bitmap ph : photos) sum += oh * ph.getWidth() / ph.getHeight();
+            float total = sum + gap * (photos.size() - 1);
+            if (total > w - 2 * m) { float k = (w - 2 * m - gap * (photos.size() - 1)) / sum; oh *= k; sum *= k; total = sum + gap * (photos.size() - 1); }
+            float x = cx - total / 2;
+            for (Bitmap ph : photos) {
+                float pw = oh * ph.getWidth() / ph.getHeight();
+                RectF open = new RectF(x, cy - oh / 2, x + pw, cy + oh / 2);
+                c.drawBitmap(ph, null, open, p);
+                rects.add(open);
+                matEdges(c, open, mat, h);
+                x += pw + gap;
+            }
+            return;
+        }
+        Bitmap photo = photos.get(0);
         float ow = w - 2 * m, oh = h - 2 * m;
         float photoRatio = (float) photo.getWidth() / photo.getHeight(), openRatio = ow / oh;
         RectF open;
@@ -137,6 +156,11 @@ final class FrameRenderer {
             c.drawBitmap(photo, null, open, p);
             rects.add(open);
         }
+        matEdges(c, open, mat, h);
+    }
+
+    /** The opening's depth: shadow falling on the photo from the top and left, and the mat's cut edge. */
+    private void matEdges(Canvas c, RectF open, int mat, int h) {
         // The photo sits a little behind the mat: a soft shadow from the mat's top and left edges falls on it.
         float sh = 0.012f * h;
         p.setShader(new android.graphics.LinearGradient(0, open.top, 0, open.top + sh, 0x38000000, 0x00000000,

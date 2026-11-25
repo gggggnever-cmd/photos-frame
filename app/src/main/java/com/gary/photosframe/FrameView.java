@@ -255,7 +255,7 @@ public class FrameView extends View {
         if (w == 0 || h == 0) return;
         bg.post(() -> {
             ensureArt();
-            boolean group = settings.look() == Settings.LOOK_FULL;
+            boolean group = settings.look() != Settings.LOOK_FRAMED;   // full screen and mats put portraits side by side
             List<String> ids = source.nextSlide(group);
             Scene s = prepared != null && prepared.ids.equals(ids) ? prepared : compose(ids, w, h);
             prepared = null;
@@ -293,7 +293,7 @@ public class FrameView extends View {
             photos.add(toned);
             drawn.add(id);
         }
-        if (look != Settings.LOOK_FULL && drawn.size() > 1) drawn = drawn.subList(0, 1);
+        if (look == Settings.LOOK_FRAMED && drawn.size() > 1) drawn = drawn.subList(0, 1);
         long t1 = SystemClock.uptimeMillis();
         float drift = 0.004f * h;
         float dx = (random.nextFloat() * 2 - 1) * drift, dy = (random.nextFloat() * 2 - 1) * drift;
@@ -303,7 +303,7 @@ public class FrameView extends View {
         if (look == Settings.LOOK_FRAMED) {
             renderer.draw(c, photos.isEmpty() ? null : photos.get(0), w, h, dx, dy, rects);
         } else if (Settings.matWidth(look) > 0) {
-            renderer.drawMat(c, photos.isEmpty() ? null : photos.get(0), w, h, Settings.matWidth(look),
+            renderer.drawMat(c, photos, w, h, Settings.matWidth(look),
                     rnd(), rnd(), rnd(), rnd(), rects);
         } else {
             renderer.drawFull(c, photos, FrameRenderer.paperTone(photos), w, h, dx, dy, rects);

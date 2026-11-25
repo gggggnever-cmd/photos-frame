@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.43** (versionCode 43). Everything is on GitHub `main`.
+Current version: **v0.44** (versionCode 44). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,9 @@ Current version: **v0.43** (versionCode 43). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.44 (2026-11-24): mats show **portraits 2-3 side by side**, each in its own opening (owner: a lone portrait
+      in a wide mat "looks very weird"; landscapes in the mat look good). Grouping now for every look but Wood frame.
+      Seen on the TV: a 3-portrait mat slide. A lone portrait (when no partners are queued) still shows alone.
 - [x] v0.43 (2026-11-24): **Mat look** (FrameRenderer.drawMat). Picture size now: Full screen / Wood frame (was "With a
       border") / Mat · thin / medium / wide = 6 / 9 / 13% of screen height per side (Samsung publishes no mat widths;
       art guides say 8-10%; Samsung's API names thin/modern/wide). Warm white 0xEFE9DE (near Samsung "Warm"), one photo
