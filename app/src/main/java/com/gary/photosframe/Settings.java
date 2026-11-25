@@ -105,5 +105,19 @@ final class Settings {
         return m == 60 ? "1 hour" : (m / 60) + " hours";
     }
 
+    // The TV's own picture while the photos show (asked 2026-11-24; see TvPicture). 0 = leave the TV alone,
+    // 1 = calm (Movie, warm, no sharpening or "AI" boosts) at the TV's own brightness, 2.. = calm at a backlight
+    // of 0, 10, ... 100.
+    static final int TV_PIC_OFF = 0, TV_PIC_CALM = 1, TV_PIC_COUNT = 13;
+    int tvPicture() { return clamp(prefs.getInt("tv_picture", TV_PIC_CALM), TV_PIC_COUNT, TV_PIC_CALM); }
+    void setTvPicture(int i) { prefs.edit().putInt("tv_picture", i).apply(); }
+    /** The backlight to use, or -1 to keep the TV's own. */
+    int tvBacklight() { int i = tvPicture(); return i >= 2 ? (i - 2) * 10 : -1; }
+    static String tvPictureName(int i) {
+        if (i == TV_PIC_OFF) return "Leave as is";
+        if (i == TV_PIC_CALM) return "Calm";
+        return "Calm · brightness " + (i - 2) * 10;
+    }
+
     private static int clamp(int v, int n, int dflt) { return v >= 0 && v < n ? v : dflt; }
 }

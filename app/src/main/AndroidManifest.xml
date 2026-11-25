@@ -13,6 +13,8 @@
         android:icon="@drawable/banner"
         android:banner="@drawable/banner"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <!-- TCL's picture library (TvPicture); absent on other TVs, so not required. -->
+        <uses-library android:name="com.tcl.tv.display" android:required="false" />
         <activity android:name=".MainActivity" android:exported="true"
             android:screenOrientation="landscape">
             <intent-filter>

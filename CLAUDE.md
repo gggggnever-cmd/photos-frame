@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
+Current version: **v0.42** (versionCode 42). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,18 @@ Current version: **v0.15** (versionCode 15). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.42 (2026-11-24): **TV picture switches with the photos** (TvPicture). Owner asked: calm print-like picture while
+      the frame/screensaver shows, his normal Vivid when he leaves. Uses TCL's public shared library com.tcl.tv.display
+      (TvPqManager/TvBacklightManager via reflection, `uses-library required=false`); SELinux on this TV allows
+      untrusted_app → tcl_display_service (shell is denied, so test from the app with `--es test_tvpic dump` or
+      `Item=value`, `tvmode=N`). On arrival it remembers the TV's mode + backlight (prefs "tvpicture"), switches to
+      mode 3 Movie and EXECUTES (never saves) warm colour temp, sharpness/NR/dynamic contrast/AIPQ/AISR/LED motion
+      clarity/black stretch/dark+colour enhance/SDR→HDR off, and the chosen backlight. On leave (1.5 s delay so
+      frame→screensaver doesn't flicker) it re-selects the remembered mode with EXEC_SAVE (reloads that mode's own
+      values). Modes: 0 Standard, 1 Vivid, 2 Mild, 3 Movie. TV light sensor left as the TV has it (on). Settings row
+      "TV picture for photos": Leave as is / Calm / Calm · brightness 0-100 (default Calm = TV's own backlight).
+      Owner had left the TV on Movie while trying settings by hand; the restore mode was set to 1 (Vivid) by
+      `tvmode=1`. Tested on the TV: on/off/on logs, Settings card fits 15 rows. Not yet: owner's eyes, screensaver path.
 - [x] v0.27 (2026-11-22): the remote's Back closes the YouTube corner (when no card or menu is open). Tried with adb.
 - [~] v0.28 (2026-11-22): **Google Home "turn off" works via the helper** (GoogleOff). Cause: Google's command reaches
       cast_shell (com.google.android.apps.mediashell, which only has HDMI_CEC, no DEVICE_POWER), which logs

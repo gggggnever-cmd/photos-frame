@@ -125,6 +125,15 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         if (wakeIn > 0) PowerTest.wakeIn(this, wakeIn);
         if ("sleep".equals(power)) ui.postDelayed(PowerTest::sleep, 1500);
         importAlbumForTest();
+        // adb test: --es test_tvpic dump | <Item>=<value> (executed, not saved; see TvPicture)
+        String tvpic = getIntent().getStringExtra("test_tvpic");
+        getIntent().removeExtra("test_tvpic");
+        if ("dump".equals(tvpic)) TvPicture.dump(this);
+        else if (tvpic != null && tvpic.startsWith("tvmode=")) TvPicture.testTvMode(this, Integer.parseInt(tvpic.substring(7).trim()));
+        else if (tvpic != null && tvpic.contains("=")) {
+            String[] kv = tvpic.split("=");
+            TvPicture.testSet(kv[0], Integer.parseInt(kv[1].trim()));
+        }
         if (ArtKeyReminder.due(this, test)) {
             ArtKeyReminder.show(this, root);
             reminderUntil = android.os.SystemClock.uptimeMillis() + ArtKeyReminder.SHOW_MS;
@@ -132,6 +141,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         ui.removeCallbacks(queueTick);
         ui.post(queueTick);
         corner.onResume();
+        TvPicture.frameOn(this);
         Bedtime.showing(true, true);
         CornerServer.attach(this, cornerCommands);   // the screen in front takes the phone's commands
     }
@@ -145,6 +155,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
     @Override protected void onPause() {
         ui.removeCallbacks(queueTick);
         corner.onPause();
+        TvPicture.frameOff(this);
         Bedtime.showing(true, false);
         super.onPause();
     }
