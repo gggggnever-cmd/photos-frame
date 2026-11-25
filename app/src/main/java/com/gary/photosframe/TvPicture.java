@@ -115,14 +115,21 @@ final class TvPicture {
             if (s.tvPicture() == Settings.TV_PIC_OFF) { restoreNow(); return; }
             SharedPreferences p = prefs(app);
             try {
-                if (!p.getBoolean("applied", false)) {
+                boolean fresh = !p.getBoolean("applied", false);   // the TV's own picture is showing now
+                if (fresh) {
                     p.edit().putBoolean("applied", true).putInt("tv_mode", get("PictureMode"))
                             .putInt("tv_backlight", get("Backlight")).commit();
                 }
                 StringBuilder b = new StringBuilder("photos on: mode " + MOVIE);
-                if (get("PictureMode") != MOVIE) exec("PictureMode", MOVIE);
+                // Selecting Movie loads its saved values, so they can be read as the photos' starting point.
+                if (get("PictureMode") != MOVIE) { exec("PictureMode", MOVIE); fresh = true; }
                 exec("ColorTemperature", Settings.TV_COLOUR_TEMP[s.tvColour()]);
                 for (int i = 0; i < INT_ITEMS.length; i += 2) exec(INT_ITEMS[i], Integer.parseInt(INT_ITEMS[i + 1]));
+                // Contrast: the Movie mode's own value (read once per visit), scaled down for the dimmest settings.
+                if (fresh || !p.contains("photo_contrast")) p.edit().putInt("photo_contrast", get("Contrast")).commit();
+                int contrast = p.getInt("photo_contrast", 100) * s.tvContrastPercent() / 100;
+                exec("Contrast", contrast);
+                b.append(", contrast ").append(contrast);
                 int backlight = s.tvBacklight();
                 exec("Backlight", backlight >= 0 ? backlight : p.getInt("tv_backlight", 0));
                 b.append(", ").append(Settings.TV_COLOUR_NAMES[s.tvColour()]).append(", no boosts, backlight ").append(backlight >= 0 ? backlight : "TV's own");
