@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.47** (versionCode 47). Everything is on GitHub `main`.
+Current version: **v0.48** (versionCode 48). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,11 @@ Current version: **v0.47** (versionCode 47). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.48 (2026-11-25): **Settings redesigned** by a Fable design agent (owner: "messy, no logic"); spec in
+      docs/settings_redesign.md. First page = 5 groups with a summary each: What plays / How it looks / TV screen /
+      Photos on the TV / YouTube corner; OK opens a group page (≤5 rows); Back goes up one level, then closes. Row
+      names, prefs and live updates unchanged. All pages screenshotted on the TV: fit. Note: right after an install the
+      art-button reminder can show once although the helper is on (service not reconnected yet) — harmless.
 - [x] v0.47 (2026-11-25): **Auto brightness** (owner asked, reversing the earlier "no light-sensor dimming" for the
       photos). No app API for the TV's light sensor, but TCL's sensor service logs "TclSensor: … lux:N" every second;
       RoomLight follows logcat (READ_LOGS, like GoogleOff), median of ~30 s. Brightness row gains "Auto" (default;

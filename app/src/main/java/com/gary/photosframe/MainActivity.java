@@ -177,7 +177,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
             return tripPanel.onKey(code, false);
         }
         if (menu.isOpen()) return e.getRepeatCount() > 0 || menu.onKey(code);   // ignore the held OK's repeats
-        if (panel.isOpen()) return panel.onKey(code);
+        if (panel.isOpen()) return panel.onKey(code, e.getRepeatCount() > 0);
         if (ok) {
             // OK: a short press is "next photo" (on release); holding it opens the photo menu.
             if (e.getRepeatCount() == 0) { e.startTracking(); longPressed = false; }
@@ -263,7 +263,7 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
         if (cornerCard != null) { closeCornerCard(); return; }
         if (tripPanel.isOpen()) { tripPanel.onKey(KeyEvent.KEYCODE_BACK, false); return; }
         if (menu.isOpen()) closeMenu();
-        else if (panel.isOpen()) close();
+        else if (panel.isOpen()) panel.onKey(KeyEvent.KEYCODE_BACK, false);   // up one page, then closes
         else if (corner.showing()) { corner.close(); note("YouTube corner closed"); }   // the remote's Back (2026-11-22)
         else super.onBackPressed();
     }
