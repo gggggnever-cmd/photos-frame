@@ -122,7 +122,7 @@ tools/preview.py still mirrors the OLD filter (pre-v0.8); the new filter's refer
 - Measured per slide (release build): decode ~200 ms, tone bake ~340 ms (4 threads), layout ~70 ms.
 
 ## Status / next steps (update this list as things change)
-Current version: **v0.51** (versionCode 51). Everything is on GitHub `main`.
+Current version: **v0.52** (versionCode 52). Everything is on GitHub `main`.
 - [x] v0.4: frame look, art treatment, screensaver, phone sign-in, picker, 4K download + cache,
       storage warnings, INSTALL.md, update scripts.
 - [x] v0.5: art filter level on the remote (◀: Off/Light/Moderate/Strong, saved, used by screensaver too).
@@ -358,6 +358,13 @@ Current version: **v0.51** (versionCode 51). Everything is on GitHub `main`.
       code is v0.39's, versionCode 41 so it installs over 40. He felt it hurt YouTube. Note for later: right after
       resuming on the reverted build the player still buffered ~10 s once, so the buffering may not have been the
       MediaSession; don't re-add voice without asking.
+- [x] v0.52 (2026-11-26): YouTube corner **"At the end of a playlist": Stop / Repeat (default) / Shuffle** (phone page,
+      Display card; "corner" pref "repeat" 0-2; cmd repeat&a=N works with nothing playing). Uses the IFrame API's setLoop
+      and setShuffle once the playlist has loaded, plus a fallback on ENDED at the last song (playVideoAt 0 / random; a lone
+      video replays). setShuffle is only called when it changes: calling setShuffle(false) on every load sent a resumed
+      playlist back to song 1. Tested on the TV with the owner's 96-song list: resume at song 19 kept; song 96 ended →
+      song 1; Shuffle → skips went to index 35, 36… (reordered). Left on Repeat. NOT tested: resuming after a restart while
+      on Shuffle (the saved index is in shuffled order; the saved song id should still win).
 - [x] v0.51 (2026-11-25): phone page asks **"Where should they go?"**: Decide on TV / New album (name) / Add to album
       (tap from the list: membership albums AND named date trips, PhotoLibrary.namedChoices). /pickname takes &name= or
       &album=<key>. Adding to a named date trip with photos from OTHER dates turns that trip into a membership album of

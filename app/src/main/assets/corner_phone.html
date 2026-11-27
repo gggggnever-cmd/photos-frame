@@ -222,6 +222,12 @@ li{margin-bottom:9px;padding-left:2px} li::marker{color:var(--mute)} li b{color:
 <section class="card display">
   <p class="label">Display</p>
   <div class="row">
+    <h3>At the end <small>of a playlist</small></h3>
+    <div class="seg" data-c="repeat" style="--n:3;--i:1">
+      <button data-v="0">Stop</button><button data-v="1">Repeat</button><button data-v="2">Shuffle</button>
+    </div>
+  </div>
+  <div class="row">
     <h3>Size</h3>
     <div class="seg" data-c="size" style="--n:4;--i:0">
       <button data-v="0">Small</button><button data-v="1">Medium</button><button data-v="2">Large</button><button data-v="3">Full</button>
@@ -267,6 +273,7 @@ li{margin-bottom:9px;padding-left:2px} li::marker{color:var(--mute)} li b{color:
     <li>Come back here, tap the box, choose <b>Paste</b>, then <b>Play on TV</b>.</li>
     <li>Your own playlists play if they're <b>Public</b> or <b>Unlisted</b> (not Private).</li>
     <li>A single song keeps going: similar songs (YouTube's mix) play after it.</li>
+    <li><b>At the end</b>: Repeat starts the playlist again; Shuffle plays it in a random order, over and over.</li>
     <li>Keep this page handy: browser menu → <b>Add to Home screen</b>.</li>
     <li>If Chrome says the site can't be reached: phone Settings → Apps → Chrome → Permissions →
       <b>Nearby devices → Allow</b>.</li>
@@ -367,6 +374,7 @@ function render(s) {
     choose(box('size'), s.size || 0);
     choose(box('zoom'), s.zoom || 0);
     choose(box('blend'), s.blend || 0);
+    choose(box('repeat'), s.repeat == null ? 1 : s.repeat);
     choose(box('move'), s.corner || 0);
     full(s.size == 3);
   }

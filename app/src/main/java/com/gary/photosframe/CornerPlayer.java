@@ -199,6 +199,13 @@ final class CornerPlayer {
         run("corner.blend(" + BLEND[b] + ")");
     }
 
+    /** End of a playlist (asked 2026-11-26): 0 stop, 1 repeat from the start (default), 2 shuffle and repeat. */
+    void setRepeat(int r) {
+        if (r < 0 || r > 2) return;
+        prefs.edit().putInt("repeat", r).apply();
+        run("corner.repeat(" + r + ")");
+    }
+
     /** Next corner, clockwise from bottom-right. */
     void move() { setCorner((prefs.getInt("corner", 0) + 1) % GRAVITY.length); }
 
@@ -265,9 +272,10 @@ final class CornerPlayer {
             j.put("musicOnly", musicOnly);
             j.put("zoom", prefs.getInt("zoom", 0) % ZOOM.length);
             j.put("blend", prefs.getInt("blend", 0) % BLEND.length);
+            j.put("repeat", prefs.getInt("repeat", 1));
             return j.toString();
         } catch (Exception e) {
-            return "{\"showing\":" + showing + "}";
+            return "{\"showing\":" + showing + ",\"repeat\":" + prefs.getInt("repeat", 1) + "}";
         }
     }
 
@@ -289,6 +297,7 @@ final class CornerPlayer {
                 run("corner.volume(" + prefs.getInt("volume", 60) + ")");
                 run("corner.zoom(" + ZOOM[prefs.getInt("zoom", 0) % ZOOM.length] + ")");
                 run("corner.blend(" + BLEND[prefs.getInt("blend", 0) % BLEND.length] + ")");
+                run("corner.repeat(" + prefs.getInt("repeat", 1) + ")");
                 if (pendingJs != null) { String js = pendingJs; pendingJs = null; run(js); }
             }
         });

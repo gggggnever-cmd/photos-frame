@@ -17,6 +17,8 @@ font:16px sans-serif;text-align:center;padding:12px;box-sizing:border-box;z-inde
 // YouTube's official embedded player (IFrame API), shown in a corner of the frame. Driven from Java
 // through window.corner.*; reports back through the Android bridge "TV".
 var player = null, apiReady = false, pending = null, volume = 60, wanted = null, mix = false, curList = '', shapeOf = '', aspect = 16 / 9, zoom = 1;
+// Playlist end (asked 2026-11-26): 0 play once, 1 repeat from the start, 2 shuffle (and repeat).
+var repeat = 1, applied = false, shuffled = false;
 function onYouTubeIframeAPIReady() { apiReady = true; if (pending) { var p = pending; pending = null; load(p.v, p.l, p.noMix, p.index, p.start); } }
 function msg(t) { var m = document.getElementById('msg'); m.textContent = t || ''; m.style.display = t ? 'flex' : 'none'; }
 
@@ -53,11 +55,11 @@ function load(v, l, noMix, index, start) {
   if (list) { vars.list = list; vars.listType = 'playlist'; }
   if (list && index > 0) vars.index = index;
   if (start > 5) vars.start = Math.floor(start);
-  curList = list;
+  curList = list; applied = false; shuffled = false;
   var opts = {width: '100%', height: '100%', playerVars: vars,
     events: {
-      onReady: function (e) { e.target.setVolume(volume); e.target.playVideo(); msg(''); fit(); report(); },
-      onStateChange: function () { report(); },
+      onReady: function (e) { e.target.setVolume(volume); e.target.playVideo(); msg(''); fit(); order(); report(); },
+      onStateChange: function (e) { if (!applied) order(); if (e.data === 0) ended(); report(); },
       onError: function (e) {
         TV.error(e.data);
         var pl = player && player.getPlaylist && player.getPlaylist();
@@ -76,6 +78,24 @@ function load(v, l, noMix, index, start) {
     msg('YouTube couldn’t open that link.');
   }
 }
+// YouTube's own loop and shuffle, set once the playlist has loaded (getPlaylist answers).
+function order() {
+  if (!player || !player.setLoop) return;
+  var pl = player.getPlaylist && player.getPlaylist();
+  if (!pl || !pl.length) return;
+  applied = true;
+  player.setLoop(repeat > 0);
+  // setShuffle reorders the list and can jump back to song 1, so it is only called when it changes something.
+  if ((repeat == 2) != shuffled) { shuffled = repeat == 2; player.setShuffle(shuffled); }
+}
+// Belt and braces: if the last song ends and YouTube stops anyway, start again ourselves.
+function ended() {
+  if (repeat == 0 || !player) return;
+  var pl = player.getPlaylist && player.getPlaylist();
+  if (!pl || pl.length < 2) { player.seekTo(0, true); player.playVideo(); return; }   // a lone video: play it again
+  if (player.getPlaylistIndex() >= pl.length - 1)
+    player.playVideoAt(repeat == 2 ? Math.floor(Math.random() * pl.length) : 0);
+}
 function report() {
   if (!player || !player.getPlayerState) return;
   var d = player.getVideoData ? player.getVideoData() : {};
@@ -83,7 +103,7 @@ function report() {
   var list = player.getPlaylist ? player.getPlaylist() : null;
   // id: the phone page shows the video's thumbnail as artwork
   TV.state(JSON.stringify({id: (d && d.video_id) || '', title: (d && d.title) || '', author: (d && d.author) || '', state: player.getPlayerState(),
-    index: player.getPlaylistIndex ? player.getPlaylistIndex() : -1, count: list ? list.length : 0, volume: volume, mix: mix,
+    index: player.getPlaylistIndex ? player.getPlaylistIndex() : -1, count: list ? list.length : 0, volume: volume, mix: mix, repeat: repeat,
     list: curList, time: player.getCurrentTime ? Math.floor(player.getCurrentTime()) : 0}));
 }
 window.corner = {
@@ -98,6 +118,7 @@ window.corner = {
     if (player.getCurrentTime() > 5) player.seekTo(0, true); else player.previousVideo(); },
   volume: function (v) { volume = Math.max(0, Math.min(100, v)); if (player && player.setVolume) { player.setVolume(volume); player.unMute(); } report(); },
   blend: function (o) { document.getElementById('box').style.opacity = o > 0 && o <= 1 ? o : 1; },
+  repeat: function (r) { repeat = r >= 0 && r <= 2 ? r : 1; if (player) order(); report(); },
   zoom: function (z) { zoom = z > 0 ? z : 1; fit(); },
   aspect: function (id, a) { if (id == shapeOf && a > 0.3 && a < 4) { aspect = a; fit(); } },
   stop: function () { if (player) { try { player.destroy(); } catch (e) {} player = null; } wanted = null; msg(''); }

@@ -457,6 +457,11 @@ public class MainActivity extends Activity implements SettingsPanel.Host, PhotoM
             runOnUiThread(() -> { closeCornerCard(); corner.play(link); });
             return null;
         }
+        if (c.equals("repeat")) {   // a setting: works even with nothing playing
+            final int r = CornerPlayer.choice(arg);
+            runOnUiThread(() -> corner.setRepeat(r));
+            return null;
+        }
         if (!corner.showing() && !c.equals("close")) return "Nothing is playing. Paste a link and tap Play on TV.";
         // The phone's slider and segmented controls send the choice they want ("size" with 2); with no
         // number (n < 0) these commands step to the next choice, as they always did.
