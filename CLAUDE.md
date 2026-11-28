@@ -456,6 +456,17 @@ days = new trip), named "Nov 2025 · 12 days" with a cover; optional one spoken 
 (TV keyboard mic; Google RecognitionService present on the TV). The owner: no typing, no manual assigning;
 picker per-day select circles + search is how he picks; budget must be user-set (default 20 GB).
 
+## Idea from the owner (2026-11-28): talk to the TV — PARKED by the owner, nothing built
+An assistant on the TV he can talk to. Built into Photos Frame (it already controls photos, look, TV picture,
+YouTube corner, sleep). The owner wants **no API key and no phone**. Options discussed:
+1. Recommended start: fixed voice commands via the TV's free speech-to-text (Android SpeechRecognizer, the
+   same mic the TV keyboard uses) + phrase matching ("show Japan 2016", "dimmer", "pause the music", "when was
+   this taken?"). Not a chat.
+2. Small on-device AI on the TV: too weak (32-bit, ~2.4 GB RAM): slow and dumb. Not recommended.
+3. Free local AI on the owner's PC (e.g. Ollama) over Wi-Fi: real chat, private, needs the PC on.
+Open questions when resumed: start with 1?; which button listens (hold ▲, or take over the remote's mic
+button like the art button). Keep YouTube untouched (v0.40 voice/MediaSession was reverted): only duck it.
+
 ## Idea from the owner (2026-11-18): "Places only" — photos of where we went, without us in them
 BUILT in v0.14 (see status).  Original thinking: Thinking: a Play choice "Places only" that skips photos where a person is the subject.
 - On-device face detection once per photo, in the background, cached in files/library/meta.tsv
